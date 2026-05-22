@@ -1,13 +1,24 @@
-MIT License
+DUAL LICENSE NOTICE
+===================
+
+ElBâri is available under two licenses:
+
+1. MIT LICENSE (for open-source and personal use)
+2. COMMERCIAL LICENSE (for commercial/business use)
+
+---
+
+MIT LICENSE (Open Source)
+==========================
 
 Copyright (c) 2025 ElBâri Project
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+in the Software without restriction for NON-COMMERCIAL purposes, including 
+without limitation the rights to use, copy, modify, merge, publish, distribute, 
+sublicense, and/or sell copies of the Software, and to permit persons to whom 
+the Software is furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
@@ -19,3 +30,45 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+COMMERCIAL LICENSE
+==================
+
+For commercial use (revenue-generating applications, businesses with >10 employees,
+military/defense projects, or organizations with >$1M revenue), you must obtain
+a commercial license.
+
+See LICENSE-COMMERCIAL.txt for full terms.
+
+Contact: [YOUR_EMAIL]
+Pricing: Starting at $499/year (Startup), $2,999/year (Professional), 
+         $9,999/year (Enterprise)
+
+Benefits:
+- Priority support (24-48 hour response)
+- Custom feature development
+- Legal indemnification
+- Service Level Agreement (SLA)
+- Phone/video support
+
+---
+
+WHICH LICENSE DO I NEED?
+=========================
+
+✅ USE MIT LICENSE (FREE) IF:
+   - Personal/hobby projects
+   - Educational use
+   - Open-source projects
+   - Startups with <10 employees and <$1M revenue (first year grace period)
+
+⚠️ NEED COMMERCIAL LICENSE IF:
+   - Commercial products or services
+   - SaaS/cloud applications
+   - Organizations with >10 employees or >$1M revenue
+   - Military, defense, or governmental projects
+   - Embedded in hardware products sold for profit
+
+For licensing questions: [YOUR_EMAIL]

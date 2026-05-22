@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.Arm;  // ARM NEON desteği
-using System.Runtime.Intrinsics.X86;  // Intel AVX2 desteği
+using System.Runtime.Intrinsics.X86;  // Intel/AMD AVX2 desteği
 
 namespace ElBâri
 {
@@ -15,7 +15,12 @@ namespace ElBâri
     // =================================================================
     // 
     // Copyright (c) 2025 ElBâri Project
-    // License: MIT (Ticari kullanım için ücretsiz)
+    // 
+    // DUAL LICENSE:
+    // - MIT License: For open-source and personal use (FREE)
+    // - Commercial License: For commercial/business use (PAID)
+    // 
+    // Commercial use requires a paid license. See LICENSE-COMMERCIAL.txt
     // 
     // COMPILATION: Native AOT (PublishAot=true)
     // - No JIT warm-up required
