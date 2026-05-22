@@ -1,6 +1,7 @@
-﻿using System;
+﻿#nullable enable
+
+using System;
 using System.Diagnostics;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
@@ -48,10 +49,30 @@ namespace ElBâri
         // =================================================================
 
         /// <summary>
+        /// Delta değerlerini işleyerek outlier mask ve maxAbs hesaplar - Generic helper
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void ProcessDeltas(scoped ReadOnlySpan<int> deltas, ref int maxAbs, ref byte outlierMask, int offset = 0)
+        {
+            for (int j = 0; j < deltas.Length; j++)
+            {
+                int a = Math.Abs(deltas[j]);
+                if (a > OUTLIER_ESIK)
+                {
+                    outlierMask |= (byte)(1 << (j + offset));
+                }
+                else if (a > maxAbs)
+                {
+                    maxAbs = a;
+                }
+            }
+        }
+
+        /// <summary>
         /// Bit buffer'dan byte flush işlemi - Aggressive Inline
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void FlushBitBuffer(ref long bitBuffer, ref int bitCount, Span<byte> output, ref int byteIndex)
+        private static void FlushBitBuffer(ref long bitBuffer, ref int bitCount, scoped Span<byte> output, ref int byteIndex)
         {
             while (bitCount >= 8)
             {
@@ -76,7 +97,7 @@ namespace ElBâri
         /// Bit buffer'a veri yükleme - Aggressive Inline
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void LoadBitBuffer(ref long bitBuffer, ref int bitCount, ReadOnlySpan<byte> input, ref int byteIndex, int requiredBits)
+        private static void LoadBitBuffer(ref long bitBuffer, ref int bitCount, scoped ReadOnlySpan<byte> input, ref int byteIndex, int requiredBits)
         {
             while (bitCount < requiredBits)
             {
@@ -100,7 +121,7 @@ namespace ElBâri
         // PERFORMANS: Aggressive Inlining + Hot Path Optimizasyonu
         // =================================================================
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-        public static int ElKâbıd(ReadOnlySpan<int> rawData, Span<byte> output)
+        public static int ElKâbıd(scoped ReadOnlySpan<int> rawData, scoped Span<byte> output)
         {
             if (rawData.IsEmpty) return 0;
 
@@ -139,137 +160,63 @@ namespace ElBâri
                 if (Avx2.IsSupported && blokSize == BLOK_BOYUTU)
                 {
                     ref int baseRef = ref MemoryMarshal.GetReference(rawData);
-                    Vector256<int> current = Vector256.Create(
-                        Unsafe.Add(ref baseRef, dataIndex),
-                        Unsafe.Add(ref baseRef, dataIndex + 1),
-                        Unsafe.Add(ref baseRef, dataIndex + 2),
-                        Unsafe.Add(ref baseRef, dataIndex + 3),
-                        Unsafe.Add(ref baseRef, dataIndex + 4),
-                        Unsafe.Add(ref baseRef, dataIndex + 5),
-                        Unsafe.Add(ref baseRef, dataIndex + 6),
-                        Unsafe.Add(ref baseRef, dataIndex + 7)
-                    );
+                    ref int currentRef = ref Unsafe.Add(ref baseRef, dataIndex);
+                    ref int previousRef = ref Unsafe.Add(ref baseRef, dataIndex - 1);
 
-                    Vector256<int> previous = Vector256.Create(
-                        Unsafe.Add(ref baseRef, dataIndex - 1),
-                        Unsafe.Add(ref baseRef, dataIndex),
-                        Unsafe.Add(ref baseRef, dataIndex + 1),
-                        Unsafe.Add(ref baseRef, dataIndex + 2),
-                        Unsafe.Add(ref baseRef, dataIndex + 3),
-                        Unsafe.Add(ref baseRef, dataIndex + 4),
-                        Unsafe.Add(ref baseRef, dataIndex + 5),
-                        Unsafe.Add(ref baseRef, dataIndex + 6)
-                    );
+                    // Alignment check: Vector256 requires 32-byte alignment for optimal load
+                    // Using LoadUnsafe which handles unaligned access safely
+                    Vector256<int> current = Vector256.LoadUnsafe(ref currentRef);
+                    Vector256<int> previous = Vector256.LoadUnsafe(ref previousRef);
 
                     Vector256<int> deltas = Avx2.Subtract(current, previous);
                     Vector256<int> absDelta = Avx2.Abs(deltas).AsInt32();
 
                     absDelta.CopyTo(tempBuffer);
-
-                    for (int j = 0; j < BLOK_BOYUTU; j++)
-                    {
-                        int a = tempBuffer[j];
-                        if (a > OUTLIER_ESIK)
-                        {
-                            outlierMask |= (byte)(1 << j);
-                        }
-                        else
-                        {
-                            if (a > maxAbs) maxAbs = a;
-                        }
-                    }
+                    ProcessDeltas(tempBuffer.Slice(0, BLOK_BOYUTU), ref maxAbs, ref outlierMask);
                 }
                 // ARM: NEON ile 4x32-bit paralel işlem (İHA/Gömülü Sistemler)
                 else if (AdvSimd.IsSupported && blokSize >= 4)
                 {
                     ref int baseRef = ref MemoryMarshal.GetReference(rawData);
 
-                    // İlk 4 eleman için NEON
-                    Vector128<int> current1 = Vector128.Create(
-                        Unsafe.Add(ref baseRef, dataIndex),
-                        Unsafe.Add(ref baseRef, dataIndex + 1),
-                        Unsafe.Add(ref baseRef, dataIndex + 2),
-                        Unsafe.Add(ref baseRef, dataIndex + 3)
-                    );
+                    // İlk 4 eleman için NEON - LoadUnsafe handles unaligned access
+                    ref int currentRef1 = ref Unsafe.Add(ref baseRef, dataIndex);
+                    ref int previousRef1 = ref Unsafe.Add(ref baseRef, dataIndex - 1);
 
-                    Vector128<int> previous1 = Vector128.Create(
-                        Unsafe.Add(ref baseRef, dataIndex - 1),
-                        Unsafe.Add(ref baseRef, dataIndex),
-                        Unsafe.Add(ref baseRef, dataIndex + 1),
-                        Unsafe.Add(ref baseRef, dataIndex + 2)
-                    );
+                    Vector128<int> current1 = Vector128.LoadUnsafe(ref currentRef1);
+                    Vector128<int> previous1 = Vector128.LoadUnsafe(ref previousRef1);
 
                     Vector128<int> deltas1 = AdvSimd.Subtract(current1, previous1);
                     Vector128<int> absDelta1 = AdvSimd.Abs(deltas1).AsInt32();
 
                     absDelta1.CopyTo(tempBuffer.Slice(0, 4));
-
-                    for (int j = 0; j < 4; j++)
-                    {
-                        int a = tempBuffer[j];
-                        if (a > OUTLIER_ESIK)
-                        {
-                            outlierMask |= (byte)(1 << j);
-                        }
-                        else
-                        {
-                            if (a > maxAbs) maxAbs = a;
-                        }
-                    }
+                    ProcessDeltas(tempBuffer.Slice(0, 4), ref maxAbs, ref outlierMask);
 
                     // Son 4 eleman için (eğer blokSize == 8 ise)
                     if (blokSize == BLOK_BOYUTU)
                     {
-                        Vector128<int> current2 = Vector128.Create(
-                            Unsafe.Add(ref baseRef, dataIndex + 4),
-                            Unsafe.Add(ref baseRef, dataIndex + 5),
-                            Unsafe.Add(ref baseRef, dataIndex + 6),
-                            Unsafe.Add(ref baseRef, dataIndex + 7)
-                        );
+                        ref int currentRef2 = ref Unsafe.Add(ref baseRef, dataIndex + 4);
+                        ref int previousRef2 = ref Unsafe.Add(ref baseRef, dataIndex + 3);
 
-                        Vector128<int> previous2 = Vector128.Create(
-                            Unsafe.Add(ref baseRef, dataIndex + 3),
-                            Unsafe.Add(ref baseRef, dataIndex + 4),
-                            Unsafe.Add(ref baseRef, dataIndex + 5),
-                            Unsafe.Add(ref baseRef, dataIndex + 6)
-                        );
+                        Vector128<int> current2 = Vector128.LoadUnsafe(ref currentRef2);
+                        Vector128<int> previous2 = Vector128.LoadUnsafe(ref previousRef2);
 
                         Vector128<int> deltas2 = AdvSimd.Subtract(current2, previous2);
                         Vector128<int> absDelta2 = AdvSimd.Abs(deltas2).AsInt32();
 
                         absDelta2.CopyTo(tempBuffer.Slice(4, 4));
-
-                        for (int j = 0; j < 4; j++)
-                        {
-                            int a = tempBuffer[j + 4];
-                            if (a > OUTLIER_ESIK)
-                            {
-                                outlierMask |= (byte)(1 << (j + 4));
-                            }
-                            else
-                            {
-                                if (a > maxAbs) maxAbs = a;
-                            }
-                        }
+                        ProcessDeltas(tempBuffer.Slice(4, 4), ref maxAbs, ref outlierMask, offset: 4);
                     }
                 }
                 // FALLBACK: Scalar işlem (Eski işlemciler, SIMD desteği yok)
                 else
                 {
+                    Span<int> scalarDeltas = tempBuffer.Slice(0, blokSize);
                     for (int j = 0; j < blokSize; j++)
                     {
-                        int d = rawData[dataIndex + j] - rawData[dataIndex + j - 1];
-                        int a = Math.Abs(d);
-
-                        if (a > OUTLIER_ESIK)
-                        {
-                            outlierMask |= (byte)(1 << j);
-                        }
-                        else
-                        {
-                            if (a > maxAbs) maxAbs = a;
-                        }
+                        scalarDeltas[j] = rawData[dataIndex + j] - rawData[dataIndex + j - 1];
                     }
+                    ProcessDeltas(scalarDeltas, ref maxAbs, ref outlierMask);
                 }
 
                 bool outlierVar = outlierMask != 0;
@@ -357,7 +304,7 @@ namespace ElBâri
         // PERFORMANS: Aggressive Inlining + Hot Path Optimizasyonu
         // =================================================================
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-        public static void ElBâsıt(ReadOnlySpan<byte> input, Span<int> output)
+        public static void ElBâsıt(scoped ReadOnlySpan<byte> input, scoped Span<int> output)
         {
             // GÜVENLİK KONTROLÜ: Input en az reference size içermeli
             if (input.Length < REFERENCE_SIZE)
@@ -517,69 +464,35 @@ namespace ElBâri
                     simulationData[7] = 95002;
                     for (int i = 8; i < 16; i++) simulationData[i] = 95002 + (i % 2);
 
-                    const int DONGU_SAYISI = 1000000;
-                    long tekPaketHamByte = simulationData.Length * sizeof(int);
-                    long toplamIslenenHamByte = tekPaketHamByte * DONGU_SAYISI;
-
-                    Console.WriteLine("=================================================");
-                    Console.WriteLine("       MİMARİ DONANIM VE YAZILIM METRİKLERİ      ");
-                    Console.WriteLine("=================================================");
-
-                    string cpuIdentifier = Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER") ?? "Bilinmiyor (Gömülü OS)";
-                    Console.WriteLine($"İşlemci Mimarisi       : {RuntimeInformation.ProcessArchitecture}");
-                    Console.WriteLine($"İşlemci Tanımı         : {cpuIdentifier}");
-                    Console.WriteLine($"Mantıksal Çekirdek     : {Environment.ProcessorCount} Çekirdek");
-
-                    Process mevcutSurec = Process.GetCurrentProcess();
-                    double aktifRamMb = mevcutSurec.WorkingSet64 / 1024.0 / 1024.0;
-
-                    // DEĞİŞİKLİK: Yönetilen bellek hesabı MB yerine doğrudan KB cinsine çevrildi
-                    double gcBellekKb = GC.GetTotalMemory(false) / 1024.0;
-                    Console.WriteLine($"Aktif Süreç RAM Yükü   : {aktifRamMb:F2} MB (Working Set)");
-                    Console.WriteLine($"Yönetilen (GC) Bellek  : {gcBellekKb:F2} KB");
-
-                    Console.WriteLine($"İcra Edilen Test Döngüsü: {DONGU_SAYISI:N0} Döngü (İterasyon)");
-                    Console.WriteLine($"Toplam İşlenen Veri    : {toplamIslenenHamByte:N0} Byte ({toplamIslenenHamByte / 1024.0 / 1024.0:F2} MB)");
-
-                    Console.WriteLine($"Çalışma Zamanı (.NET)  : {RuntimeInformation.FrameworkDescription}");
-                    Console.WriteLine($"Ana İşletim Sistemi    : {RuntimeInformation.OSDescription}");
-
-                    string csharpVersion = Environment.Version.Major switch
-                    {
-                        10 => "C# 14 (.NET 10 Standart)",
-                        9 => "C# 13 (.NET 9 Standart)",
-                        8 => "C# 12 (.NET 8 Standart)",
-                        7 => "C# 11 (.NET 7 Standart)",
-                        _ => "C# 10 veya Altı"
-                    };
-                    Console.WriteLine($"Tahmini C# Versiyonu   : {csharpVersion}");
-
-                    Console.WriteLine("\n--- AKTİF YÜKLÜ KRİTİK KÜTÜPHANELER (GEREKLİ ASSEMBLIES) ---");
-                    Assembly[] yukluKutuphaneler = AppDomain.CurrentDomain.GetAssemblies();
-                    foreach (Assembly asm in yukluKutuphaneler)
-                    {
-                        string? asmName = asm.GetName().Name;
-
-                        if (asmName == "System.Private.CoreLib" ||
-                            asmName == "System.Runtime" ||
-                            asmName == "System.Runtime.InteropServices" ||
-                            asmName == "System.Diagnostics.Process")
-                        {
-                            Console.WriteLine($"- {asmName,-25} | Sürüm: {asm.GetName().Version}");
-                        }
-                    }
-                    Console.WriteLine("=================================================\n");
+                    const int WARMUP_ITERATIONS = 100000;
+                    const int DONGU_SAYISI = 5000000;
 
                     // ---------------------------------------------------------
-                    // PERFORMANS VE HIZ TESTİ BAŞLANGICI
+                    // PERFORMANS VE HIZ TESTİ
                     // ---------------------------------------------------------
                     byte[] outputBuffer = new byte[simulationData.Length * 4 + 4];
                     int[] restoredData = new int[simulationData.Length];
 
                     Console.WriteLine("=================================================");
-                    Console.WriteLine("     NANOSANİYE PERFORMANS ANALİZ LABORATUVARI   ");
+                    Console.WriteLine("  ElBâri - Performance Benchmark");
                     Console.WriteLine("=================================================");
-                    Console.WriteLine("Lütfen bekleyiniz, 1.000.000 döngülük test icra ediliyor...\n");
+
+                    // WARM-UP: Cache ve JIT'i ısıtma
+                    Console.Write("Warming up...");
+                    for (int i = 0; i < WARMUP_ITERATIONS; i++)
+                    {
+                        ElBâri.ElKâbıd(simulationData, outputBuffer);
+                        ElBâri.ElBâsıt(outputBuffer.AsSpan(0, 16), restoredData);
+                    }
+                    Console.WriteLine(" Done!");
+
+                    // Başlangıç bellek ölçümü
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+                    long startMemory = GC.GetTotalMemory(true);
+
+                    Console.WriteLine($"\nRunning {DONGU_SAYISI:N0} iterations...\n");
 
                     Stopwatch swKabid = Stopwatch.StartNew();
                     for (int i = 0; i < DONGU_SAYISI; i++)
@@ -603,22 +516,21 @@ namespace ElBâri
                     double toplamAcmaNano = ((double)swBasit.ElapsedTicks / Stopwatch.Frequency) * 1000000000.0;
                     double ortalamaAcmaNano = toplamAcmaNano / DONGU_SAYISI;
 
-                    Console.WriteLine($"Sınıf Adı              : ElBâri");
-                    Console.WriteLine($"Blok Boyutu            : {ElBâri.BLOK_BOYUTU} Eleman");
-                    Console.WriteLine($"Ham Paket Boyutu       : {tekPaketHamByte} byte");
-                    Console.WriteLine($"Sıkıştırılmış Boyut    : {compressedSize} byte");
-                    Console.WriteLine($"Elde Edilen Tasarruf   : %{((1.0 - ((double)compressedSize / (simulationData.Length * 4))) * 100):F2}");
+                    // Bitiş bellek ölçümü
+                    long endMemory = GC.GetTotalMemory(false);
+                    double memoryUsedKb = (endMemory - startMemory) / 1024.0;
 
-                    Console.WriteLine("\n--- ZAMANLAMA METRİKLERİ (YÜKSEK ÇÖZÜNÜRLÜK) ---");
-                    Console.WriteLine($"Ortalama ElKâbıd (Sıkıştırma) Süresi : {ortalamaSikistirmaNano:F2} ns");
-                    Console.WriteLine($"Ortalama ElBâsıt (Geri Açma) Süresi  : {ortalamaAcmaNano:F2} ns");
+                    Console.WriteLine($"Compression Ratio      : {((1.0 - ((double)compressedSize / (simulationData.Length * 4))) * 100):F2}%");
+                    Console.WriteLine($"Encode (avg)           : {ortalamaSikistirmaNano:F2} ns");
+                    Console.WriteLine($"Decode (avg)           : {ortalamaAcmaNano:F2} ns");
+                    Console.WriteLine($"Memory Used (GC)       : {memoryUsedKb:F2} KB");
 
                     bool basarili = true;
                     for (int i = 0; i < simulationData.Length; i++)
                     {
                         if (simulationData[i] != restoredData[i]) { basarili = false; break; }
                     }
-                    Console.WriteLine($"\nVeri Güvenlik Doğrulaması  : {(basarili ? "MÜKEMMEL (%100 KAYIPSIZ)" : "BAŞARISIZ")}");
+                    Console.WriteLine($"Validation             : {(basarili ? "✓ Lossless" : "✗ Failed")}");
                     Console.WriteLine("=================================================");
                 }
                 catch (ArgumentException ex)
@@ -626,14 +538,14 @@ namespace ElBâri
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine($"\n❌ ARGÜMAN HATASI: {ex.Message}");
                     Console.ResetColor();
-                    Environment.Exit(1);
+                    throw;
                 }
                 catch (InvalidOperationException ex)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine($"\n❌ OPERASYON HATASI: {ex.Message}");
                     Console.ResetColor();
-                    Environment.Exit(2);
+                    throw;
                 }
                 catch (Exception ex)
                 {
@@ -642,7 +554,7 @@ namespace ElBâri
                     Console.WriteLine($"Mesaj: {ex.Message}");
                     Console.WriteLine($"Stack Trace:\n{ex.StackTrace}");
                     Console.ResetColor();
-                    Environment.Exit(99);
+                    throw;
                 }
             }
         }
