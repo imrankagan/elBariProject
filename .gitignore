@@ -1,0 +1,86 @@
+## .NET Core / .NET 10
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.swp
+.vs/
+
+## Visual Studio
+.vscode/
+*.rsuser
+*.userosscache
+*.sln.docstates
+
+## Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## Visual Studio cache/options
+.vs/
+.vscode/
+
+## ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+## JetBrains Rider
+.idea/
+*.sln.iml
+
+## User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## Mono Auto Generated Files
+mono_crash.*
+
+## Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+## Folder config file
+Desktop.ini
+
+## Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+## VS Code directories
+.vscode/
+
+## Mac files
+.DS_Store
+
+## NuGet Packages
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+
+## Test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+## Coverage
+*.coverage
+*.coveragexml
+
+## Benchmark Results
+BenchmarkDotNet.Artifacts/
