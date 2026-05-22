@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ElBâri Compression Engine - Build Protection Pipeline
+  Copyright (c) 2025. All rights reserved.
+  Proprietary and Confidential - Unauthorized access prohibited.
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!-- Koruma adımları sadece Release build'de çalışır -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+	<EnableProtection>true</EnableProtection>
+	<ObfuscarToolPath Condition="'$(ObfuscarToolPath)' == ''">$(MSBuildThisFileDirectory)tools\Obfuscar.Console.exe</ObfuscarToolPath>
+	<ProtectedOutputPath>$(OutputPath)protected\</ProtectedOutputPath>
+  </PropertyGroup>
+
+  <!-- Koruma bilgilendirmesi -->
+  <Target Name="ShowProtectionWarning" BeforeTargets="CoreCompile" Condition="'$(EnableProtection)' == 'true'">
+	<Message Text="===========================================" Importance="high" />
+	<Message Text="ElBâri Code Protection Pipeline Enabled" Importance="high" />
+	<Message Text="- Native AOT: ✓ Active" Importance="high" />
+	<Message Text="- Anti-Tamper: ✓ Active" Importance="high" />
+	<Message Text="- Obfuscation: Ready (requires Obfuscar tool)" Importance="high" />
+	<Message Text="===========================================" Importance="high" />
+  </Target>
+
+  <!-- Assembly metadata koruma özellikleri -->
+  <ItemGroup Condition="'$(EnableProtection)' == 'true'">
+	<!-- ILDASM ile disassemble'ı engelle -->
+	<AssemblyAttribute Include="System.Runtime.CompilerServices.DisablePrivateReflection" />
+	<AssemblyAttribute Include="System.Runtime.CompilerServices.SuppressIldasmAttribute" />
+  </ItemGroup>
+
+  <!-- Post-build obfuscation adımı (opsiyonel - araç yüklüyse) -->
+  <Target Name="RunObfuscation" AfterTargets="Build" Condition="'$(EnableProtection)' == 'true' AND Exists('$(ObfuscarToolPath)')">
+	<Message Text="Running Obfuscar code protection..." Importance="high" />
+
+	<!-- Korumalı çıktı dizinini oluştur -->
+	<MakeDir Directories="$(ProtectedOutputPath)" />
+
+	<!-- Obfuscar çalıştır -->
+	<Exec Command="&quot;$(ObfuscarToolPath)&quot; obfuscar.xml" 
+		  WorkingDirectory="$(ProjectDir)"
+		  IgnoreExitCode="false" />
+
+	<Message Text="Code protection completed: $(ProtectedOutputPath)" Importance="high" />
+  </Target>
+
+  <!-- Obfuscar yüklü değilse bilgilendirme -->
+  <Target Name="WarnMissingObfuscator" AfterTargets="Build" Condition="'$(EnableProtection)' == 'true' AND !Exists('$(ObfuscarToolPath)')">
+	<Warning Text="Obfuscar tool not found at: $(ObfuscarToolPath)" />
+	<Message Text="To enable full code protection:" Importance="high" />
+	<Message Text="  1. Install Obfuscar: dotnet tool install --global Obfuscar.GlobalTool" Importance="high" />
+	<Message Text="  2. Or download from: https://github.com/obfuscar/obfuscar" Importance="high" />
+	<Message Text="Native AOT and Anti-Tamper protections are still active." Importance="high" />
+  </Target>
+
+  <!-- Strong name signing (opsiyonel - key dosyası varsa) -->
+  <PropertyGroup Condition="'$(EnableProtection)' == 'true' AND Exists('$(ProjectDir)ElBâri.snk')">
+	<SignAssembly>true</SignAssembly>
+	<AssemblyOriginatorKeyFile>ElBâri.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+  <!-- IL strip (AOT için) - IL code'u tamamen kaldır -->
+  <PropertyGroup Condition="'$(EnableProtection)' == 'true' AND '$(PublishAot)' == 'true'">
+	<IlcGenerateMstatFile>false</IlcGenerateMstatFile>
+	<IlcGenerateDgmlFile>false</IlcGenerateDgmlFile>
+	<IlcGenerateMapFile>false</IlcGenerateMapFile>
+	<DebugType>none</DebugType>
+	<DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+</Project>

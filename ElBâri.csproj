@@ -7,6 +7,25 @@
     <Nullable>enable</Nullable>
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!-- Kod Koruma Özellikleri -->
+    <EnableCodeProtection>true</EnableCodeProtection>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <Deterministic>true</Deterministic>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
   </PropertyGroup>
+
+  <!-- Release Build Optimizasyonları ve Koruma -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <Optimize>true</Optimize>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+    <IlcDisableReflection>true</IlcDisableReflection>
+    <TrimMode>full</TrimMode>
+  </PropertyGroup>
+
+  <!-- Koruma Pipeline'ını Import Et -->
+  <Import Project="ElBâri.Protection.targets" />
 
 </Project>

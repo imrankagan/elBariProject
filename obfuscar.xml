@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ElBâri Compression Engine - Code Protection Configuration
+  Copyright (c) 2025. All rights reserved.
+  Proprietary and Confidential - Unauthorized access prohibited.
+-->
+<Obfuscator>
+  <Var name="InPath" value="bin\Release\net10.0" />
+  <Var name="OutPath" value="bin\Release\net10.0\protected" />
+  <Var name="KeyFile" value="" />
+  <Var name="HidePrivateApi" value="true" />
+  <Var name="RenameProperties" value="true" />
+  <Var name="RenameEvents" value="true" />
+  <Var name="RenameFields" value="true" />
+  <Var name="UseUnicodeNames" value="true" />
+  <Var name="HideStrings" value="true" />
+  <Var name="OptimizeMethods" value="true" />
+  <Var name="SuppressIldasm" value="true" />
+
+  <Module file="$(InPath)\ElBâri.dll">
+	<!-- Public API'yi korumak için - kullanıcılar bu metodları görmeli -->
+	<SkipType name="ElBâri" skipMethods="false" skipFields="true">
+	  <!-- Public metodlar görünür kalır ama içerikleri korunur -->
+	  <SkipMethod name="ElKâbıd" />
+	  <SkipMethod name="ElBâsıt" />
+	</SkipType>
+
+	<!-- Tüm private/internal helper metodlar ağır obfuscation -->
+	<!-- ProcessDeltas, FlushBitBuffer, LoadBitBuffer vb. -->
+  </Module>
+</Obfuscator>

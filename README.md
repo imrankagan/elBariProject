@@ -56,6 +56,81 @@ GitHub'daki görünürlük **sadece tanıtım amaçlıdır**. Kaynak koda erişi
 - **Outlier Handling**: Büyük sapmaları akıllıca yönetir
 - **Embedded-Friendly**: Gömülü sistem modu (exception-free)
 
+## 🔐 Kod Koruma ve Güvenlik
+
+ElBâri, **çok katmanlı tersine mühendislik koruması** ile gelir:
+
+### Koruma Katmanları
+| Katman | Teknoloji | Etki |
+|--------|-----------|------|
+| **Native AOT** | Microsoft .NET AOT | IL yerine doğrudan makine kodu - decompiler'lar çalışmaz |
+| **Anti-Tamper** | Runtime integrity check | Assembly değişikliği algılanırsa program durur |
+| **Anti-Debug** | Debugger detection | Attach edilmeye çalışılırsa `Environment.FailFast()` |
+| **No Debug Symbols** | Release build config | PDB dosyası yok, sembol bilgisi yok |
+| **Reflection Disabled** | `IlcDisableReflection=true` | Runtime type inspection engellendi |
+| **Full Trimming** | IL trimmer | Kullanılmayan tüm metadata çıkarıldı |
+| **String Encryption** | Obfuscation (opsiyonel) | Sabit string'ler şifrelenmiş |
+| **Control Flow Obfuscation** | Obfuscation (opsiyonel) | Kod akışı karıştırılmış |
+
+### Koruma Özellikleri
+
+#### ✅ Native AOT (Aktif)
+- IL bytecode yok, sadece native x86-64/ARM64 assembly
+- ILSpy, dnSpy, dotPeek gibi .NET decompiler'lar **tamamen işe yaramaz**
+- C++ assembly'ye benzer zorluk seviyesi
+
+#### ✅ Anti-Tamper Runtime (Aktif)
+```csharp
+// Her public API çağrısında otomatik çalışır:
+AntiTamper.Initialize();  // Integrity + debugger check
+```
+- Assembly SHA-256 hash kontrolü
+- Debugger attachment algılama
+- VM/Sandbox/Reverse engineering tool tespiti
+- Timing attack koruması
+
+#### ✅ Minimal Metadata (Aktif)
+- Debug sembolleri yok (`DebugType=none`)
+- XML dokümantasyon yok
+- Reflection metadata minimum seviyede
+- Kullanılmayan kod tamamen çıkarıldı
+
+#### 🔧 Obfuscation (Opsiyonel)
+DLL'i daha da güçlendirmek için **Obfuscar** aracı kullanılabilir:
+
+```bash
+# Obfuscar kurulumu
+dotnet tool install --global Obfuscar.GlobalTool
+
+# Build otomatik obfuscation yapar
+dotnet build -c Release
+```
+
+**Obfuscation etkileri:**
+- Tüm private/internal metodlar rastgele isimlerle değiştirilir
+- String sabitleri şifrelenir
+- Kontrol akışı karmaşıklaştırılır
+- Public API (ElKâbıd/ElBâsıt) isimleri korunur (kullanılabilir kalır)
+
+### 🛡️ Koruma Validasyonu
+
+Kod korumanızı test etmek için:
+
+```bash
+# 1. ILSpy ile açmayı deneyin - başarısız olmalı
+# 2. dnSpy ile debug etmeyi deneyin - process crash etmeli
+# 3. Assembly dosyasını edit edin - integrity check fail etmeli
+```
+
+**Beklenen Sonuç:** Tüm tersine mühendislik araçları başarısız olur veya process `Environment.FailFast()` ile anında sonlanır.
+
+### ⚠️ Koruma Uyarıları
+
+- **Debug Build:** Koruma katmanları sadece **Release build**'de aktif
+- **Development:** Geliştirme sırasında `EMBEDDED_MODE = false` ve Debug config kullanın
+- **Deployment:** Production'da mutlaka Release build kullanın
+- **Legal:** Kod koruma, lisans ihlallerini önler ancak yasal takip yerine geçmez
+
 ## 🚁 İHA ve Gömülü Sistem Uyumluluğu
 
 ### Desteklenen İşlemciler
