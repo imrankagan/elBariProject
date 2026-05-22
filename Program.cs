@@ -1,7 +1,6 @@
 ﻿#nullable enable
 
 using System;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
@@ -457,317 +456,40 @@ namespace ElBâri
                 }
             }
         }
+    }
 
-        // =================================================================
-        // DATA GENERATOR METODLARI - GERÇEK HAYAT SİMÜLASYONU
-        // =================================================================
-
-        /// <summary>
-        /// Sensor data simülasyonu (drone telemetri, smooth transitions)
-        /// Örnek: Altitude, GPS coordinates, temperature readings
-        /// </summary>
-        private static int[] GenerateSensorData(int size)
+    // =================================================================
+    // ENTRY POINT - ÖRN EK KULLANIM
+    // =================================================================
+    internal class Program
+    {
+        static void Main(string[] args)
         {
-            int[] data = new int[size];
-            int baseValue = 10000;
-            Random rng = new Random(42); // Deterministic seed
+            // Örnek kullanım
+            Console.WriteLine("ElBâri Compression Engine - Ready");
+            Console.WriteLine("Use ElBâri.ElKâbıd() and ElBâri.ElBâsıt() methods");
 
-            for (int i = 0; i < size; i++)
+            // Basit test
+            int[] testData = { 100, 102, 103, 105, 200, 201, 203, 204 };
+            byte[] compressed = new byte[testData.Length * 4 + 32];
+
+            int compressedSize = ElBâri.ElKâbıd(testData, compressed);
+            Console.WriteLine($"Test: {testData.Length * 4} bytes → {compressedSize} bytes");
+
+            int[] restored = new int[testData.Length];
+            ElBâri.ElBâsıt(compressed.AsSpan(0, compressedSize), restored);
+
+            bool valid = true;
+            for (int i = 0; i < testData.Length; i++)
             {
-                // Smooth transitions with occasional noise
-                int drift = (int)(Math.Sin(i * 0.1) * 50);
-                int noise = rng.Next(-5, 6);
-                data[i] = baseValue + drift + noise;
-            }
-
-            return data;
-        }
-
-        /// <summary>
-        /// Financial tick data simülasyonu (high-frequency trading)
-        /// Küçük değişiklikler, nadiren büyük sıçramalar
-        /// </summary>
-        private static int[] GenerateFinancialData(int size)
-        {
-            int[] data = new int[size];
-            int price = 100000; // 1000.00 (2 decimal precision)
-            Random rng = new Random(123);
-
-            for (int i = 0; i < size; i++)
-            {
-                // %99 small changes, %1 large jumps
-                if (rng.NextDouble() < 0.01)
+                if (testData[i] != restored[i])
                 {
-                    price += rng.Next(-500, 501); // Large jump
-                }
-                else
-                {
-                    price += rng.Next(-5, 6); // Small tick
-                }
-                data[i] = price;
-            }
-
-            return data;
-        }
-
-        /// <summary>
-        /// Time-series data (monotonic increasing with small variations)
-        /// Örnek: Log timestamps, counters, sequential IDs
-        /// </summary>
-        private static int[] GenerateTimeSeriesData(int size)
-        {
-            int[] data = new int[size];
-            int value = 1000000;
-            Random rng = new Random(456);
-
-            for (int i = 0; i < size; i++)
-            {
-                value += rng.Next(1, 10); // Always increasing
-                data[i] = value;
-            }
-
-            return data;
-        }
-
-        /// <summary>
-        /// Random data (worst-case scenario for compression)
-        /// Fully random values, no patterns
-        /// </summary>
-        private static int[] GenerateRandomData(int size)
-        {
-            int[] data = new int[size];
-            Random rng = new Random(789);
-
-            for (int i = 0; i < size; i++)
-            {
-                data[i] = rng.Next(0, 1000000);
-            }
-
-            return data;
-        }
-
-        // =================================================================
-        // BELLEK ÖLÇÜM METODLARI - GERÇEK BELLEK TÜKETİMİ
-        // =================================================================
-
-        /// <summary>
-        /// Process bellek snapshot'ı alır
-        /// WorkingSet: Gerçek RAM kullanımı (OS perspektifi)
-        /// PrivateMemory: Process'e özel heap/stack
-        /// </summary>
-        private static (long workingSetKB, long privateMemoryKB) GetMemorySnapshot()
-        {
-            using Process proc = Process.GetCurrentProcess();
-            proc.Refresh();
-
-            long workingSet = proc.WorkingSet64 / 1024;
-            long privateMemory = proc.PrivateMemorySize64 / 1024;
-
-            return (workingSet, privateMemory);
-        }
-
-        /// <summary>
-        /// Peak memory ölçümü - program lifetime boyunca max bellek
-        /// </summary>
-        private static long GetPeakWorkingSetKB()
-        {
-            using Process proc = Process.GetCurrentProcess();
-            proc.Refresh();
-            return proc.PeakWorkingSet64 / 1024;
-        }
-
-        // =================================================================
-        // ULTRA ÇÖZÜNÜRLÜ NANOSANİYE BENCHMARK VE TELEMETRİ SAHASI
-        // =================================================================
-        internal class Program
-        {
-            private record BenchmarkResult(
-                string Scenario,
-                int Size,
-                double CompressionRatio,
-                double EncodeNs,
-                double DecodeNs,
-                long WorkingSetKB,
-                long PeakMemoryKB,
-                bool Validated
-            );
-
-            static void Main(string[] args)
-            {
-                try
-                {
-                    Console.WriteLine("╔═════════════════════════════════════════════════════════════════╗");
-                    Console.WriteLine("║        ElBâri - PROFESSIONAL COMPRESSION BENCHMARK              ║");
-                    Console.WriteLine("║        Real-World Scenarios & True Memory Measurement           ║");
-                    Console.WriteLine("╚═════════════════════════════════════════════════════════════════╝");
-                    Console.WriteLine();
-
-                    // Başlangıç bellek snapshot
-                    var (startWS, startPM) = GetMemorySnapshot();
-                    Console.WriteLine($"📊 Initial Memory: WorkingSet={startWS:N0} KB, Private={startPM:N0} KB");
-                    Console.WriteLine();
-
-                    List<BenchmarkResult> results = new List<BenchmarkResult>();
-
-                    // Test senaryoları: [name, size, dataGenerator]
-                    var scenarios = new[]
-                    {
-                        ("Sensor (Drone)", 16, (Func<int, int[]>)GenerateSensorData),
-                        ("Sensor (Drone)", 64, (Func<int, int[]>)GenerateSensorData),
-                        ("Sensor (Drone)", 256, (Func<int, int[]>)GenerateSensorData),
-                        ("Sensor (Drone)", 1024, (Func<int, int[]>)GenerateSensorData),
-
-                        ("Financial (HFT)", 16, (Func<int, int[]>)GenerateFinancialData),
-                        ("Financial (HFT)", 64, (Func<int, int[]>)GenerateFinancialData),
-                        ("Financial (HFT)", 256, (Func<int, int[]>)GenerateFinancialData),
-
-                        ("Time-Series", 64, (Func<int, int[]>)GenerateTimeSeriesData),
-                        ("Time-Series", 256, (Func<int, int[]>)GenerateTimeSeriesData),
-                        ("Time-Series", 1024, (Func<int, int[]>)GenerateTimeSeriesData),
-
-                        ("Random (Worst)", 16, (Func<int, int[]>)GenerateRandomData),
-                        ("Random (Worst)", 64, (Func<int, int[]>)GenerateRandomData),
-                        ("Random (Worst)", 256, (Func<int, int[]>)GenerateRandomData),
-                    };
-
-                    int scenarioNum = 1;
-                    foreach (var (name, size, generator) in scenarios)
-                    {
-                        Console.Write($"[{scenarioNum}/{scenarios.Length}] Testing {name} ({size} elements)... ");
-
-                        var result = RunSingleBenchmark(name, size, generator);
-                        results.Add(result);
-
-                        Console.WriteLine($"✓ {result.CompressionRatio:F1}% | {result.EncodeNs:F1}ns");
-                        scenarioNum++;
-                    }
-
-                    Console.WriteLine();
-                    Console.WriteLine("═════════════════════════════════════════════════════════════════");
-                    Console.WriteLine("                    BENCHMARK RESULTS TABLE                       ");
-                    Console.WriteLine("═════════════════════════════════════════════════════════════════");
-                    Console.WriteLine();
-                    Console.WriteLine("┌──────────────────┬──────┬────────┬──────────┬──────────┬─────────┬───────────┬────────┐");
-                    Console.WriteLine("│ Scenario         │ Size │ Ratio  │ Encode   │ Decode   │ Working │ Peak      │ Valid  │");
-                    Console.WriteLine("│                  │      │   %    │   ns     │   ns     │ Set KB  │ Memory KB │        │");
-                    Console.WriteLine("├──────────────────┼──────┼────────┼──────────┼──────────┼─────────┼───────────┼────────┤");
-
-                    foreach (var r in results)
-                    {
-                        string scenario = r.Scenario.Length > 16 ? r.Scenario.Substring(0, 16) : r.Scenario.PadRight(16);
-                        string size = r.Size.ToString().PadLeft(4);
-                        string ratio = r.CompressionRatio.ToString("F1").PadLeft(6);
-                        string encode = r.EncodeNs.ToString("F2").PadLeft(8);
-                        string decode = r.DecodeNs.ToString("F2").PadLeft(8);
-                        string ws = r.WorkingSetKB.ToString("N0").PadLeft(7);
-                        string peak = r.PeakMemoryKB.ToString("N0").PadLeft(9);
-                        string valid = (r.Validated ? "✓" : "✗").PadLeft(6);
-
-                        Console.WriteLine($"│ {scenario} │ {size} │ {ratio} │ {encode} │ {decode} │ {ws} │ {peak} │ {valid} │");
-                    }
-
-                    Console.WriteLine("└──────────────────┴──────┴────────┴──────────┴──────────┴─────────┴───────────┴────────┘");
-                    Console.WriteLine();
-
-                    // Peak memory raporu
-                    long finalPeakKB = GetPeakWorkingSetKB();
-                    var (finalWS, finalPM) = GetMemorySnapshot();
-
-                    Console.WriteLine("═════════════════════════════════════════════════════════════════");
-                    Console.WriteLine("                     MEMORY SUMMARY                               ");
-                    Console.WriteLine("═════════════════════════════════════════════════════════════════");
-                    Console.WriteLine($"  Initial WorkingSet     : {startWS:N0} KB");
-                    Console.WriteLine($"  Final WorkingSet       : {finalWS:N0} KB");
-                    Console.WriteLine($"  Delta WorkingSet       : {(finalWS - startWS):N0} KB");
-                    Console.WriteLine($"  Peak WorkingSet        : {finalPeakKB:N0} KB");
-                    Console.WriteLine($"  Private Memory         : {finalPM:N0} KB");
-                    Console.WriteLine("═════════════════════════════════════════════════════════════════");
-                    Console.WriteLine();
-                    Console.WriteLine("✅ ALL SCENARIOS VALIDATED - LOSSLESS COMPRESSION");
-                    Console.WriteLine();
-                }
-                catch (Exception ex)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"\n❌ ERROR: {ex.GetType().Name}");
-                    Console.WriteLine($"Message: {ex.Message}");
-                    Console.WriteLine($"Stack Trace:\n{ex.StackTrace}");
-                    Console.ResetColor();
-                    throw;
+                    valid = false;
+                    break;
                 }
             }
 
-            private static BenchmarkResult RunSingleBenchmark(string scenario, int size, Func<int, int[]> dataGenerator)
-            {
-                // Generate data
-                int[] data = dataGenerator(size);
-                byte[] outputBuffer = new byte[size * 4 + 32]; // Extra space for safety
-                int[] restoredData = new int[size];
-
-                // Warm-up (1000 iterations to heat cache)
-                const int WARMUP = 1000;
-                for (int i = 0; i < WARMUP; i++)
-                {
-                    int tempSize = ElBâri.ElKâbıd(data, outputBuffer);
-                    ElBâri.ElBâsıt(outputBuffer.AsSpan(0, tempSize), restoredData);
-                }
-
-                // Memory snapshot before
-                var (wsBefore, _) = GetMemorySnapshot();
-
-                // Benchmark iterations (adaptive based on size)
-                int iterations = size <= 64 ? 1000000 : size <= 256 ? 500000 : 100000;
-
-                // Encode benchmark
-                Stopwatch swEncode = Stopwatch.StartNew();
-                int compressedSize = 0;
-                for (int i = 0; i < iterations; i++)
-                {
-                    compressedSize = ElBâri.ElKâbıd(data, outputBuffer);
-                }
-                swEncode.Stop();
-
-                double encodeNs = ((double)swEncode.ElapsedTicks / Stopwatch.Frequency) * 1_000_000_000.0 / iterations;
-
-                // Decode benchmark
-                Stopwatch swDecode = Stopwatch.StartNew();
-                for (int i = 0; i < iterations; i++)
-                {
-                    ElBâri.ElBâsıt(outputBuffer.AsSpan(0, compressedSize), restoredData);
-                }
-                swDecode.Stop();
-
-                double decodeNs = ((double)swDecode.ElapsedTicks / Stopwatch.Frequency) * 1_000_000_000.0 / iterations;
-
-                // Memory snapshot after
-                var (wsAfter, _) = GetMemorySnapshot();
-                long peakKB = GetPeakWorkingSetKB();
-
-                // Validation
-                bool validated = true;
-                for (int i = 0; i < size; i++)
-                {
-                    if (data[i] != restoredData[i])
-                    {
-                        validated = false;
-                        break;
-                    }
-                }
-
-                // Compression ratio
-                double compressionRatio = (1.0 - ((double)compressedSize / (size * 4))) * 100.0;
-
-                return new BenchmarkResult(
-                    scenario,
-                    size,
-                    compressionRatio,
-                    encodeNs,
-                    decodeNs,
-                    wsAfter,
-                    peakKB,
-                    validated
-                );
-            }
+            Console.WriteLine($"Validation: {(valid ? "✓ Success" : "✗ Failed")}");
         }
     }
 }
