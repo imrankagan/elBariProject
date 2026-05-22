@@ -1,74 +1,111 @@
-DUAL LICENSE NOTICE
-===================
+PROPRIETARY LICENSE AGREEMENT
+==============================
 
-ElBâri is available under two licenses:
+ElBâri - High-Performance Compression Software
+Copyright (c) 2025 İmran Kağan. All Rights Reserved.
 
-1. MIT LICENSE (for open-source and personal use)
-2. COMMERCIAL LICENSE (for commercial/business use)
+THIS IS A PROPRIETARY SOFTWARE. ALL RIGHTS RESERVED.
+
+NO OPEN SOURCE LICENSE IS GRANTED. This software and its source code are 
+confidential and proprietary to İmran Kağan. Unauthorized copying, 
+distribution, modification, or use is strictly prohibited.
+
+TERMS OF USE:
+-------------
+
+1. LICENSE REQUIRED
+   You MUST obtain a valid commercial license to use this software.
+   No free or trial use is permitted without explicit written permission.
+
+2. RESTRICTIONS
+   You may NOT:
+   - Copy, modify, or distribute the software
+   - Reverse engineer or decompile the software
+   - Use the software without a valid license
+   - Share your license with third parties
+   - Access or view the source code without authorization
+
+3. LICENSE TYPES & PRICING
+
+   BASIC LICENSE: $2,000/year
+   - Single project use
+   - Up to 5 deployments
+   - Email support (72-hour response)
+   - Binary-only distribution
+
+   PROFESSIONAL LICENSE: $10,000/year
+   - Multiple projects
+   - Unlimited deployments
+   - Priority support (24-hour response)
+   - Source code access (read-only)
+
+   ENTERPRISE LICENSE: $50,000/year
+   - Company-wide unlimited use
+   - Source code modification rights
+   - 24/7 premium support
+   - Custom feature development
+   - Service Level Agreement (SLA)
+
+   OEM/EMBEDDED LICENSE: Contact for pricing
+   - Hardware integration rights
+   - Royalty-based or one-time payment
+   - White-label options available
+
+4. PAYMENT TERMS
+   - Annual licenses: Payment in advance, non-refundable
+   - Automatic renewal unless cancelled 30 days before expiration
+   - Price increases may apply upon renewal
+   - Late payment: 10% penalty per month
+
+5. MILITARY/DEFENSE/GOVERNMENT USE
+   Special licensing required. Contact for custom terms.
+   Minimum: Enterprise License + Additional fees
+
+6. SUPPORT & UPDATES
+   - Included only with active paid license
+   - Updates and bug fixes at licensor's discretion
+   - Support via email/phone based on license tier
+
+7. WARRANTY DISCLAIMER
+   THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND.
+   LICENSOR IS NOT LIABLE FOR ANY DAMAGES ARISING FROM USE.
+
+8. TERMINATION
+   License terminates immediately upon:
+   - Non-payment
+   - Breach of terms
+   - Unauthorized distribution
+
+   Upon termination, licensee must destroy all copies.
+
+9. INTELLECTUAL PROPERTY
+   All code, algorithms, and documentation remain the exclusive 
+   property of İmran Kağan. No IP rights are transferred.
+
+10. CONFIDENTIALITY
+    Licensees with source code access must sign a separate NDA.
+    Disclosure of source code or algorithms is prohibited.
+
+11. LEGAL ACTION
+    Unauthorized use will result in:
+    - Immediate legal action
+    - Injunction to cease use
+    - Damages claim (minimum $100,000)
+    - Criminal prosecution where applicable
+
+12. GOVERNING LAW
+    This agreement is governed by the laws of Turkey.
+    Disputes shall be resolved in Turkish courts.
+
+CONTACT FOR LICENSING:
+----------------------
+Email: [EPOSTA_ADRESINIZ]
+Phone: [TELEFON_NUMARANIZ]
+Website: [WEB_SITENIZ]
+
+Response time: 1-2 business days
 
 ---
 
-MIT LICENSE (Open Source)
-==========================
-
-Copyright (c) 2025 ElBâri Project
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction for NON-COMMERCIAL purposes, including 
-without limitation the rights to use, copy, modify, merge, publish, distribute, 
-sublicense, and/or sell copies of the Software, and to permit persons to whom 
-the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
----
-
-COMMERCIAL LICENSE
-==================
-
-For commercial use (revenue-generating applications, businesses with >10 employees,
-military/defense projects, or organizations with >$1M revenue), you must obtain
-a commercial license.
-
-See LICENSE-COMMERCIAL.txt for full terms.
-
-Contact: [YOUR_EMAIL]
-Pricing: Starting at $499/year (Startup), $2,999/year (Professional), 
-         $9,999/year (Enterprise)
-
-Benefits:
-- Priority support (24-48 hour response)
-- Custom feature development
-- Legal indemnification
-- Service Level Agreement (SLA)
-- Phone/video support
-
----
-
-WHICH LICENSE DO I NEED?
-=========================
-
-✅ USE MIT LICENSE (FREE) IF:
-   - Personal/hobby projects
-   - Educational use
-   - Open-source projects
-   - Startups with <10 employees and <$1M revenue (first year grace period)
-
-⚠️ NEED COMMERCIAL LICENSE IF:
-   - Commercial products or services
-   - SaaS/cloud applications
-   - Organizations with >10 employees or >$1M revenue
-   - Military, defense, or governmental projects
-   - Embedded in hardware products sold for profit
-
-For licensing questions: [YOUR_EMAIL]
+© 2025 İmran Kağan. All Rights Reserved.
+Unauthorized use is theft and will be prosecuted.

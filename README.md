@@ -1,40 +1,49 @@
-# ElBâri - Evrensel Adaptif Sıkıştırma Protokolü
+# ElBâri - Professional Compression Engine
 
-[![License: Dual (MIT/Commercial)](https://img.shields.io/badge/license-Dual%20MIT%2FCommercial-blue.svg)](LICENSE.txt)
+[![License: Proprietary](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE.txt)
 [![.NET 10](https://img.shields.io/badge/.NET-10-purple.svg)](https://dotnet.microsoft.com/)
 [![AOT Ready](https://img.shields.io/badge/AOT-Native-green.svg)](https://learn.microsoft.com/dotnet/core/deploying/native-aot)
 
 ## 🎯 Genel Bakış
-ElBâri, tamsayı dizileri için yüksek performanslı, kayıpsız bir sıkıştırma kütüphanesidir.
-**İHA, gömülü sistemler ve sunucu ortamları için optimize edilmiştir.**
+ElBâri, tamsayı dizileri için yüksek performanslı, kayıpsız bir sıkıştırma motoru.
+**İHA, gömülü sistemler, finans ve sunucu ortamları için optimize edilmiştir.**
 
-## 📜 Lisans
+## 🔒 **PROPRIETARY SOFTWARE - LİSANS GEREKLİDİR**
 
-**ElBâri dual-license modeliyle sunulmaktadır:**
+⚠️ **BU BİR TİCARİ YAZILIMDIR. KULLANIM İÇİN LİSANS ZORUNLUDUR.**
 
-### 🆓 MIT License (Ücretsiz)
-**Şunlar için kullanabilirsiniz:**
-- ✅ Kişisel/hobi projeleri
-- ✅ Eğitim amaçlı kullanım
-- ✅ Açık kaynak projeler
-- ✅ Startups (<10 çalışan, <$1M gelir, ilk yıl)
+Kodun görüntülenmesi, değiştirilmesi veya kullanılması için geçerli bir lisans gereklidir.
+GitHub'daki görünürlük **sadece tanıtım amaçlıdır**. Kaynak koda erişim lisans gerektirir.
 
-### 💼 Commercial License (Ticari)
-**Şunlar için gereklidir:**
-- ⚠️ Ticari ürün/servisler
-- ⚠️ SaaS/bulut uygulamaları
-- ⚠️ >10 çalışanlı veya >$1M gelirli organizasyonlar
-- ⚠️ Askeri/savunma/kamu projeleri
-- ⚠️ Kar amaçlı satılan donanımlara gömülü kullanım
+### 💰 Lisans Fiyatlandırması
 
-**Fiyatlandırma:**
-- **Startup**: $499/yıl (<50 çalışan)
-- **Professional**: $2,999/yıl (<500 çalışan)
-- **Enterprise**: $9,999/yıl (sınırsız)
-- **Perpetual**: İletişime geçin (tek seferlik ödeme)
+| Lisans Tipi | Fiyat | Özellikler |
+|-------------|-------|------------|
+| **Basic** | **$2,000/yıl** | 1 proje, 5 deployment, email destek |
+| **Professional** | **$10,000/yıl** | Çok proje, sınırsız deployment, kaynak kod erişimi |
+| **Enterprise** | **$50,000/yıl** | Şirket-çapında, kaynak düzenleme hakkı, 24/7 destek |
+| **OEM/Embedded** | **İletişime geçin** | Donanıma gömme, royalty modeli |
 
-📧 **Lisans Sorular**: [E-posta adresinizi buraya ekleyin]  
-📄 **Detaylar**: [LICENSE-COMMERCIAL.txt](LICENSE-COMMERCIAL.txt)
+### 📞 Lisans Satın Alma
+📧 **Email**: [EPOSTA_ADRESINIZ]  
+📱 **Tel**: [TELEFON_NUMARANIZ]  
+🌐 **Web**: [WEB_SITENIZ]  
+
+⏱️ **Yanıt Süresi**: 1-2 iş günü
+
+---
+
+## ⚠️ UYARI
+
+- ❌ **Ücretsiz kullanım yoktur**
+- ❌ **Açık kaynak değildir**
+- ❌ **Kodu kopyalama/değiştirme yasaktır**
+- ❌ **Lisanssız kullanım yasal takip gerektirir**
+
+**Yetkisiz kullanım:**
+- Minimum $100,000 tazminat davası
+- Cezai kovuşturma
+- Kullanım durdurma emri
 
 ## ✨ Özellikler
 - **Zero-Allocation**: Heap bellek kullanmaz (Span<T> tabanlı)
@@ -234,52 +243,48 @@ BU YAZILIM "OLDUĞU GİBİ" SAĞLANMAKTADIR. HİÇBİR GARANTİ VERİLMEZ.
 
 ## 🎖️ Askeri/İhale Kullanımı
 - ⚠️ **Ticari Lisans Gereklidir**: Askeri/savunma projeleri için commercial license zorunludur
-- ✅ **ITAR-Free**: Açık kaynak, ihracat kısıtlaması yok (MIT lisans kapsamında)
+- ⚠️ **Kapalı Kaynak**: Tüm kullanımlar için lisans gerekir
 - ✅ **Bağımlılık**: Sadece .NET BCL (Microsoft MIT)
-- ✅ **Audit**: Tam kaynak kodu mevcut
+- ✅ **Audit**: Kaynak kodu Enterprise lisansla erişilebilir
 - ✅ **Destek**: Enterprise lisansla 24/7 öncelikli destek
 - ✅ **SLA**: Servis seviye anlaşması (Enterprise lisans)
 
 ## 💰 Ticari Lisans Avantajları
 
 **Commercial License satın aldığınızda:**
-- ✅ **Öncelikli Destek**: 24-48 saat yanıt süresi (Enterprise'da 24/7)
-- ✅ **Özel Özellik Geliştirme**: İhtiyacınıza özel optimizasyon
-- ✅ **Yasal Koruma**: İndemnifikasyon ve garanti
-- ✅ **Kaynak Kod Erişimi**: Değişiklik yapma hakkı
-- ✅ **Eğitim**: On-site eğitim (Enterprise)
+- ✅ **Öncelikli Destek**: Email support (Basic), Priority support (Professional), 24/7 (Enterprise)
+- ✅ **Özel Özellik Geliştirme**: Enterprise lisansla custom development
+- ✅ **Yasal Koruma**: Profesyonel destek ve SLA
+- ✅ **Kaynak Kod Erişimi**: Professional/Enterprise lisanslarla
+- ✅ **Eğitim**: Enterprise lisansla on-site eğitim
 - ✅ **Fatura/Muhasebe**: Kurumsal faturalama
 - ✅ **Compliance**: Lisans uyumluluk sertifikası
 
 **Lisans Sorgulamaları:**  
-📧 Email: [E-posta adresinizi buraya]  
-📄 Fiyatlandırma: [LICENSE-COMMERCIAL.txt](LICENSE-COMMERCIAL.txt)  
-🌐 Website: [Web siteniz]
+📧 Email: [EPOSTA_ADRESINIZ]  
+📱 Tel: [TELEFON_NUMARANIZ]  
+📄 Detaylar: [LICENSE.txt](LICENSE.txt)  
+🌐 Website: [WEB_SITENIZ]
 
 ## 📜 Lisans Özeti
 
 | Kullanım Türü | Lisans | Fiyat |
 |---------------|--------|-------|
-| Kişisel/Hobi | MIT | Ücretsiz |
-| Açık Kaynak | MIT | Ücretsiz |
-| Startup (<10 kişi) | MIT* | Ücretsiz (ilk yıl) |
-| Ticari (<50 kişi) | Startup | $499/yıl |
-| Ticari (<500 kişi) | Professional | $2,999/yıl |
-| Enterprise | Enterprise | $9,999/yıl |
+| Herhangi Bir Kullanım | Basic | $2,000/yıl |
+| Çok Proje | Professional | $10,000/yıl |
+| Enterprise | Enterprise | $50,000/yıl |
+| OEM/Embedded | Custom | İletişime geçin |
 | Askeri/Savunma | Enterprise+ | İletişime geçin |
 
-*İlk yıl sonrası commercial license gereklidir.
-
-## 🤝 Katkıda Bulunma
-Pull request'ler memnuniyetle karşılanır. MIT lisansı altında katkılar kabul edilir.
+⚠️ **Tüm kullanımlar için ticari lisans gereklidir.**
 
 ## 📧 İletişim
-- **Genel Sorular**: GitHub Issues
-- **Ticari Lisans**: [E-posta adresinizi buraya]
-- **Destek**: [Destek e-postanız]
+- **Lisans Satış**: [EPOSTA_ADRESINIZ]
+- **Teknik Destek**: Aktif lisans sahiplerine sağlanır
+- **Telefon**: [TELEFON_NUMARANIZ]
 
 ---
 
-**© 2025 ElBâri Project. Tüm hakları saklıdır.**  
-Dual-licensed under MIT (open-source) and Commercial License.
+**© 2025 İmran Kağan. Tüm hakları saklıdır.**  
+Proprietary and Confidential. Commercial License Required.
 

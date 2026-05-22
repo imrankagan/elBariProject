@@ -11,16 +11,19 @@ using System.Runtime.Intrinsics.X86;  // Intel/AMD AVX2 desteği
 namespace ElBâri
 {
     // =================================================================
-    // ELBÂRİ: EVRENSEL ADAPTİF SIKIŞTIRMA PROTOKOLÜ
+    // ELBÂRİ: PROFESSIONAL COMPRESSION ENGINE
     // =================================================================
     // 
-    // Copyright (c) 2025 ElBâri Project
+    // Copyright (c) 2025 İmran Kağan. All Rights Reserved.
     // 
-    // DUAL LICENSE:
-    // - MIT License: For open-source and personal use (FREE)
-    // - Commercial License: For commercial/business use (PAID)
+    // ⚠️ PROPRIETARY SOFTWARE - LICENSE REQUIRED
     // 
-    // Commercial use requires a paid license. See LICENSE-COMMERCIAL.txt
+    // This is closed-source commercial software.
+    // Unauthorized use, copying, or modification is prohibited.
+    // 
+    // Contact for licensing:
+    // Email: [EPOSTA_ADRESINIZ]
+    // Pricing: Starting at $2,000/year
     // 
     // COMPILATION: Native AOT (PublishAot=true)
     // - No JIT warm-up required
