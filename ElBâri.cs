@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Runtime.CompilerServices;
@@ -455,41 +455,6 @@ namespace ElBâri
                     }
                 }
             }
-        }
-    }
-
-    // =================================================================
-    // ENTRY POINT - ÖRN EK KULLANIM
-    // =================================================================
-    internal class Program
-    {
-        static void Main(string[] args)
-        {
-            // Örnek kullanım
-            Console.WriteLine("ElBâri Compression Engine - Ready");
-            Console.WriteLine("Use ElBâri.ElKâbıd() and ElBâri.ElBâsıt() methods");
-
-            // Basit test
-            int[] testData = { 100, 102, 103, 105, 200, 201, 203, 204 };
-            byte[] compressed = new byte[testData.Length * 4 + 32];
-
-            int compressedSize = ElBâri.ElKâbıd(testData, compressed);
-            Console.WriteLine($"Test: {testData.Length * 4} bytes → {compressedSize} bytes");
-
-            int[] restored = new int[testData.Length];
-            ElBâri.ElBâsıt(compressed.AsSpan(0, compressedSize), restored);
-
-            bool valid = true;
-            for (int i = 0; i < testData.Length; i++)
-            {
-                if (testData[i] != restored[i])
-                {
-                    valid = false;
-                    break;
-                }
-            }
-
-            Console.WriteLine($"Validation: {(valid ? "✓ Success" : "✗ Failed")}");
         }
     }
 }
