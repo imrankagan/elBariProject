@@ -17,6 +17,12 @@ namespace ElBâri
     // Copyright (c) 2025 ElBâri Project
     // License: MIT (Ticari kullanım için ücretsiz)
     // 
+    // COMPILATION: Native AOT (PublishAot=true)
+    // - No JIT warm-up required
+    // - Native machine code performance
+    // - Deterministic execution time
+    // - ARM/x64 cross-compilation supported
+    // 
     // PATENT VE FİKRİ MÜLKİYET NOTU:
     // Bu implementasyon, halka açık ve patentsiz algoritmik tekniklerin
     // (delta encoding, bit packing, variable bit-width) özgün bir
