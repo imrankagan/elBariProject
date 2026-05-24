@@ -101,7 +101,9 @@ internal static class AntiTamper
         try
         {
             Assembly asm = typeof(AntiTamper).Assembly;
+#pragma warning disable IL3000 // Assembly.Location single-file app'de boş string döndürür, kod bunu zaten hallediyor
             string? location = asm.Location;
+#pragma warning restore IL3000
 
             if (string.IsNullOrEmpty(location))
             {

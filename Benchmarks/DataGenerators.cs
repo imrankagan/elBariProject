@@ -222,7 +222,6 @@ public static class DataGenerators
     {
         int[] data = new int[count];
         int altitude = 10000; // 100m başlangıç
-        int heading = 0;
 
         for (int i = 0; i < count; i += 3)
         {

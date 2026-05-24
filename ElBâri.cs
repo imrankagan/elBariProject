@@ -10,7 +10,7 @@ using System.Runtime.Intrinsics.X86;  // Intel/AMD AVX2 desteği
 namespace ElBâri
 {
     // =================================================================
-    // ELBÂRİ: PROFESYONEL SIKIŞTRIMA MOTORU
+    // ELBÂRİ: PROFESYONEL SIKIŞTIRMA MOTORU
     // =================================================================
     // 
     // Telif Hakkı (c) 2025 İmran Kağan. Tüm Hakları Saklıdır.
@@ -52,15 +52,31 @@ namespace ElBâri
         private const long BAYT_MASKESI = 0xFF;
         private const int ETIKET_MASKESI = 0x0F;
         private const int REFERANS_BOYUTU = 4;
+        private const long UINT32_MASKESI = 0xFFFFFFFF; // 32-bit unsigned int maskesi
 
         // Erken-İptal ve HızlıTarama Eşikleri
+        // ERKEN_IPTAL_ESIGI: Sıkıştırma oranı bu değerin altındaysa işlem iptal edilir
+        // Örnek: 1.5x = Ham veri 1.5 kat veya daha az küçülüyorsa, sıkıştırma değmez
         private const float ERKEN_IPTAL_ESIGI = 1.5f;
+
+        // MAKS_AYKIRI_ORANI: Veri içindeki aykırı değer oranı bu eşiği aşarsa
+        // veri "sıkıştırılamaz" olarak işaretlenir (gerçek dünya verisi değil, rastgele veri)
+        // Örnek: %30 = Her 10 elemandan 3'ü aykırı ise, veri uygun değil
         private const float MAKS_AYKIRI_ORANI = 0.30f;
+
         private const int HIZLI_TARAMA_ORNEKLEM_BOYUTU = 1000;
 
         // NOT: EMBEDDED_MODE için compile-time switch kullanılıyor
-        // #define EMBEDDED_MODE → Gömülü sistem modu (exception-free)
-        // Varsayılan: Normal mod (exception'lar aktif)
+        // Aktivasyon: Project dosyasında <DefineConstants>EMBEDDED_MODE</DefineConstants>
+        // veya build komutunda: dotnet build -p:DefineConstants=EMBEDDED_MODE
+        // 
+        // EMBEDDED_MODE Özellikleri:
+        // - Exception'lar devre dışı (sessiz hata)
+        // - Buffer overflow durumunda erken çıkış (crash yerine)
+        // - Real-time constraint'lere uyumlu
+        // - İHA, askeri sistem, kritik embedded uygulamalar için
+        // 
+        // Varsayılan: Normal mod (exception'lar aktif, debug kolay)
 
         // =================================================================
         // YARDIMCI METOTLAR - HOT PATH OPTİMİZASYONU
@@ -224,6 +240,41 @@ namespace ElBâri
                 bitTamponu |= ((long)girdi[baytIndeksi++] << bitSayisi);
                 bitSayisi += 8;
             }
+        }
+
+        /// <summary>
+        /// Önek toplam (prefix sum) ile delta'ları geri ekleyerek orijinal veriyi yeniden inşa eder.
+        /// Manuel açılmış döngü ile SIMD performansını korur.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void OnEkToplamYenidenInsaEt(ref int ciktiRef, int ciktiIndeksi, scoped Span<int> gecici)
+        {
+            int onceki = Unsafe.Add(ref ciktiRef, ciktiIndeksi - 1);
+
+            // Manuel açılmış döngü - 8 elemanlı blok için optimize
+            int deger0 = onceki + gecici[0];
+            Unsafe.Add(ref ciktiRef, ciktiIndeksi) = deger0;
+
+            int deger1 = deger0 + gecici[1];
+            Unsafe.Add(ref ciktiRef, ciktiIndeksi + 1) = deger1;
+
+            int deger2 = deger1 + gecici[2];
+            Unsafe.Add(ref ciktiRef, ciktiIndeksi + 2) = deger2;
+
+            int deger3 = deger2 + gecici[3];
+            Unsafe.Add(ref ciktiRef, ciktiIndeksi + 3) = deger3;
+
+            int deger4 = deger3 + gecici[4];
+            Unsafe.Add(ref ciktiRef, ciktiIndeksi + 4) = deger4;
+
+            int deger5 = deger4 + gecici[5];
+            Unsafe.Add(ref ciktiRef, ciktiIndeksi + 5) = deger5;
+
+            int deger6 = deger5 + gecici[6];
+            Unsafe.Add(ref ciktiRef, ciktiIndeksi + 6) = deger6;
+
+            int deger7 = deger6 + gecici[7];
+            Unsafe.Add(ref ciktiRef, ciktiIndeksi + 7) = deger7;
         }
 
         // =================================================================
@@ -546,7 +597,7 @@ namespace ElBâri
                         {
                             BitTamponuYukle(ref bitTamponu, ref bitSayisi, girdi, ref baytIndeksi, AYKIRI_BIT_GENISLIGI);
 
-                            gecici[j] = (int)(bitTamponu & 0xFFFFFFFF);
+                            gecici[j] = (int)(bitTamponu & UINT32_MASKESI);
                             bitTamponu >>= AYKIRI_BIT_GENISLIGI;
                             bitSayisi -= AYKIRI_BIT_GENISLIGI;
                         }
@@ -557,69 +608,16 @@ namespace ElBâri
                 // AVX2 (Intel/AMD) ve NEON (ARM) desteği
                 if (Avx2.IsSupported && blokBoyu == BLOK_BOYUTU)
                 {
-                    // Önek toplam (birikimli toplam) ile AVX2 yeniden inşa
+                    // AVX2: Önek toplam (birikimli toplam) ile yeniden inşa
                     ref int ciktiRef = ref MemoryMarshal.GetReference(cikti);
-                    int onceki = Unsafe.Add(ref ciktiRef, ciktiIndeksi - 1);
-
-                    // İlk eleman
-                    int deger0 = onceki + gecici[0];
-                    Unsafe.Add(ref ciktiRef, ciktiIndeksi) = deger0;
-
-                    // Kalan elemanlar - manuel açılma
-                    int deger1 = deger0 + gecici[1];
-                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 1) = deger1;
-
-                    int deger2 = deger1 + gecici[2];
-                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 2) = deger2;
-
-                    int deger3 = deger2 + gecici[3];
-                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 3) = deger3;
-
-                    int deger4 = deger3 + gecici[4];
-                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 4) = deger4;
-
-                    int deger5 = deger4 + gecici[5];
-                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 5) = deger5;
-
-                    int deger6 = deger5 + gecici[6];
-                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 6) = deger6;
-
-                    int deger7 = deger6 + gecici[7];
-                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 7) = deger7;
-
+                    OnEkToplamYenidenInsaEt(ref ciktiRef, ciktiIndeksi, gecici);
                     ciktiIndeksi += BLOK_BOYUTU;
                 }
                 else if (AdvSimd.IsSupported && blokBoyu == BLOK_BOYUTU)
                 {
-                    // ARM NEON: Önek toplam yeniden inşa - manuel açılma
+                    // ARM NEON: Önek toplam yeniden inşa
                     ref int ciktiRef = ref MemoryMarshal.GetReference(cikti);
-                    int onceki = Unsafe.Add(ref ciktiRef, ciktiIndeksi - 1);
-
-                    // 8 elemanlı manuel açılma (NEON için optimize)
-                    int deger0 = onceki + gecici[0];
-                    Unsafe.Add(ref ciktiRef, ciktiIndeksi) = deger0;
-
-                    int deger1 = deger0 + gecici[1];
-                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 1) = deger1;
-
-                    int deger2 = deger1 + gecici[2];
-                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 2) = deger2;
-
-                    int deger3 = deger2 + gecici[3];
-                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 3) = deger3;
-
-                    int deger4 = deger3 + gecici[4];
-                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 4) = deger4;
-
-                    int deger5 = deger4 + gecici[5];
-                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 5) = deger5;
-
-                    int deger6 = deger5 + gecici[6];
-                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 6) = deger6;
-
-                    int deger7 = deger6 + gecici[7];
-                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 7) = deger7;
-
+                    OnEkToplamYenidenInsaEt(ref ciktiRef, ciktiIndeksi, gecici);
                     ciktiIndeksi += BLOK_BOYUTU;
                 }
                 else
