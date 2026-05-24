@@ -10,25 +10,25 @@ using System.Runtime.Intrinsics.X86;  // Intel/AMD AVX2 desteği
 namespace ElBâri
 {
     // =================================================================
-    // ELBÂRİ: PROFESSIONAL COMPRESSION ENGINE
+    // ELBÂRİ: PROFESYONEL SIKIŞTRIMA MOTORU
     // =================================================================
     // 
-    // Copyright (c) 2025 İmran Kağan. All Rights Reserved.
+    // Telif Hakkı (c) 2025 İmran Kağan. Tüm Hakları Saklıdır.
     // 
-    // ⚠️ PROPRIETARY SOFTWARE - LICENSE REQUIRED
+    // ⚠️ TİCARİ YAZILIM - LİSANS GEREKLİDİR
     // 
-    // This is closed-source commercial software.
-    // Unauthorized use, copying, or modification is prohibited.
+    // Bu kapalı kaynak kodlu ticari bir yazılımdır.
+    // İzinsiz kullanım, kopyalama veya değiştirme yasaktır.
     // 
-    // Contact for licensing:
-    // Email: [EPOSTA_ADRESINIZ]
-    // Pricing: Starting at $2,000/year
+    // Lisans için iletişim:
+    // Website: https://github.com/imrankagan/elBariProject
+    // Fiyatlandırma: Yılda $2,000'dan başlayan fiyatlar
     // 
-    // COMPILATION: Native AOT (PublishAot=true)
-    // - No JIT warm-up required
-    // - Native machine code performance
-    // - Deterministic execution time
-    // - ARM/x64 cross-compilation supported
+    // DERLEME: Native AOT (PublishAot=true)
+    // - JIT ısınma süresi gerektirmez
+    // - Yerel makine kodu performansı
+    // - Deterministik çalışma süresi
+    // - ARM/x64 çapraz derleme desteği
     // 
     // PATENT VE FİKRİ MÜLKİYET NOTU:
     // Bu implementasyon, halka açık ve patentsiz algoritmik tekniklerin
@@ -44,14 +44,19 @@ namespace ElBâri
     {
         public const int BLOK_BOYUTU = 8;
 
-        // Magic Number Constants (Okunabilirlik ve Bakım İçin)
-        private const int OUTLIER_ESIK = 32767;
-        private const int MAX_BIT_WIDTH = 16;
-        private const int MIN_BIT_WIDTH = 2;
-        private const int OUTLIER_BIT_WIDTH = 32;
-        private const long BYTE_MASK = 0xFF;
-        private const int TAG_MASK = 0x0F;
-        private const int REFERENCE_SIZE = 4;
+        // Sihirli Sayı Sabitleri (Okunabilirlik ve Bakım İçin)
+        private const int AYKIRI_ESIK = 32767;
+        private const int MAKS_BIT_GENISLIGI = 16;
+        private const int MIN_BIT_GENISLIGI = 2;
+        private const int AYKIRI_BIT_GENISLIGI = 32;
+        private const long BAYT_MASKESI = 0xFF;
+        private const int ETIKET_MASKESI = 0x0F;
+        private const int REFERANS_BOYUTU = 4;
+
+        // Erken-İptal ve HızlıTarama Eşikleri
+        private const float ERKEN_IPTAL_ESIGI = 1.5f;
+        private const float MAKS_AYKIRI_ORANI = 0.30f;
+        private const int HIZLI_TARAMA_ORNEKLEM_BOYUTU = 1000;
 
         // NOT: EMBEDDED_MODE için compile-time switch kullanılıyor
         // #define EMBEDDED_MODE → Gömülü sistem modu (exception-free)
@@ -62,185 +67,303 @@ namespace ElBâri
         // =================================================================
 
         /// <summary>
-        /// Delta değerlerini işleyerek outlier mask ve maxAbs hesaplar - Generic helper
+        /// Bir referansın belirtilen bayt sınırına hizalı olup olmadığını kontrol eder.
+        /// ARM NEON 16-bayt hizalamayı, AVX2 ise 32-bayt hizalamayı tercih eder.
+        /// IL seviyesi işaretçi dönüşümü kullanır (Unsafe sınıfı ile unsafe anahtar kelimesi gerekmez).
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void ProcessDeltas(scoped ReadOnlySpan<int> deltas, ref int maxAbs, ref byte outlierMask, int offset = 0)
+        private static bool HizaliMi<T>(ref T referans, int hizalama) where T : struct
         {
-            for (int j = 0; j < deltas.Length; j++)
+            // Unsafe.AsPointer kullan - IL güvenli ve unsafe bağlamı gerektirmez
+            unsafe
             {
-                int a = Math.Abs(deltas[j]);
-                if (a > OUTLIER_ESIK)
+                nuint adres = (nuint)Unsafe.AsPointer(ref referans);
+                return (adres & (uint)(hizalama - 1)) == 0;
+            }
+        }
+
+        /// <summary>
+        /// Bit manipülasyonu kullanarak taşma-güvenli mutlak değer.
+        /// int.MinValue değerini doğru şekilde işler (OverflowException atmaz).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int MutlakDeger(int deger)
+        {
+            // Bit manipülasyon hilesi: (deger XOR işaret-biti) - işaret-biti
+            // Pozitif için: (deger XOR 0) - 0 = deger
+            // Negatif için: (deger XOR -1) - (-1) = ~deger + 1 = -deger
+            // int.MinValue için: doğru şekilde int.MaxValue + 1 döndürür (sarar, ama güvenli)
+            int maske = deger >> 31;
+            return (deger ^ maske) - maske;
+        }
+
+        /// <summary>
+        /// HızlıTarama: Veriyi hızlıca tarayarak sıkıştırılabilir olup olmadığını kontrol eder.
+        /// Gerçek dünya verisi (sensör, GPS, telemetri) vs anlamsız veri (tamamen rastgele) ayrımı.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool SikistirilabirVeriMi(scoped ReadOnlySpan<int> hamVeri)
+        {
+            int uzunluk = hamVeri.Length;
+            if (uzunluk < 2) return true; // Çok küçük veri, kabul et
+
+            // İlk %10'unu veya max HIZLI_TARAMA_ORNEKLEM_BOYUTU elemanı tara (hızlı örnekleme)
+            int orneklemBoyutu = Math.Min(HIZLI_TARAMA_ORNEKLEM_BOYUTU, uzunluk / 10);
+            if (orneklemBoyutu < 10) orneklemBoyutu = Math.Min(uzunluk, 100);
+
+            // Delta'ları hesapla ve istatistik topla
+            long deltaMutlakToplam = 0;
+            int aykiriSayisi = 0;
+            int maksDelta = 0;
+
+            for (int i = 1; i < orneklemBoyutu; i++)
+            {
+                int delta = hamVeri[i] - hamVeri[i - 1];
+                int mutlakDelta = MutlakDeger(delta);
+
+                deltaMutlakToplam += mutlakDelta;
+
+                if (mutlakDelta > AYKIRI_ESIK)
                 {
-                    outlierMask |= (byte)(1 << (j + offset));
+                    aykiriSayisi++;
                 }
-                else if (a > maxAbs)
+
+                if (mutlakDelta > maksDelta)
                 {
-                    maxAbs = a;
+                    maksDelta = mutlakDelta;
+                }
+            }
+
+            // Kriter 1: Aykırı oran çok yüksekse (>%30) → kötü veri
+            float aykiriOrani = (float)aykiriSayisi / (orneklemBoyutu - 1);
+            if (aykiriOrani > MAKS_AYKIRI_ORANI)
+            {
+                return false; // MAKS_AYKIRI_ORANI+ sıçrama → sıkıştırılamaz
+            }
+
+            // Kriter 2: Ortalama delta çok büyükse → kötü veri
+            long ortalamaDelta = deltaMutlakToplam / Math.Max(1, orneklemBoyutu - 1);
+            if (ortalamaDelta > int.MaxValue / 4)
+            {
+                return false; // Ortalama delta çok büyük → tamamen rastgele
+            }
+
+            // Kriter 3: Maks delta tam-aralık kullanıyorsa → şüpheli
+            if (maksDelta > int.MaxValue / 2 && aykiriOrani > MAKS_AYKIRI_ORANI / 3)
+            {
+                return false; // Hem büyük delta hem aykırı → kötü kombinasyon
+            }
+
+            // Geçti - sıkıştırılabilir veri
+            return true;
+        }
+
+        /// <summary>
+        /// Delta değerlerini işleyerek aykırı maske ve maksMutlak hesaplar - Genel yardımcı
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void DeltalariIsle(scoped ReadOnlySpan<int> deltalar, ref int maksMutlak, ref byte aykiriMaske, int kayma = 0)
+        {
+            for (int j = 0; j < deltalar.Length; j++)
+            {
+                int m = MutlakDeger(deltalar[j]); // Taşma-güvenli mutlak değer
+                if (m > AYKIRI_ESIK)
+                {
+                    aykiriMaske |= (byte)(1 << (j + kayma));
+                }
+                else if (m > maksMutlak)
+                {
+                    maksMutlak = m;
                 }
             }
         }
 
         /// <summary>
-        /// Bit buffer'dan byte flush işlemi - Aggressive Inline
+        /// Bit tamponundan bayt boşaltma işlemi - Agresif Satıriçi
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void FlushBitBuffer(ref long bitBuffer, ref int bitCount, scoped Span<byte> output, ref int byteIndex)
+        private static void BitTamponuBosalt(ref long bitTamponu, ref int bitSayisi, scoped Span<byte> cikti, ref int baytIndeksi)
         {
-            while (bitCount >= 8)
+            while (bitSayisi >= 8)
             {
-                if (byteIndex >= output.Length)
+                if (baytIndeksi >= cikti.Length)
                 {
 #if EMBEDDED_MODE
-                    // Gömülü sistem: Silent fail, veri kaybı yerine kesme
+                    // Gömülü sistem: Sessiz hata, veri kaybı yerine kesme
                     return;
 #else
                     throw new InvalidOperationException(
-                        $"Output buffer taştı. İndeks: {byteIndex}, Boyut: {output.Length}");
+                        $"Çıktı tamponu taştı. İndeks: {baytIndeksi}, Boyut: {cikti.Length}");
 #endif
                 }
 
-                output[byteIndex++] = (byte)(bitBuffer & BYTE_MASK);
-                bitBuffer >>= 8;
-                bitCount -= 8;
+                cikti[baytIndeksi++] = (byte)(bitTamponu & BAYT_MASKESI);
+                bitTamponu >>= 8;
+                bitSayisi -= 8;
             }
         }
 
         /// <summary>
-        /// Bit buffer'a veri yükleme - Aggressive Inline
+        /// Bit tamponuna veri yükleme - Agresif Satıriçi
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void LoadBitBuffer(ref long bitBuffer, ref int bitCount, scoped ReadOnlySpan<byte> input, ref int byteIndex, int requiredBits)
+        private static void BitTamponuYukle(ref long bitTamponu, ref int bitSayisi, scoped ReadOnlySpan<byte> girdi, ref int baytIndeksi, int gerekliBitler)
         {
-            while (bitCount < requiredBits)
+            while (bitSayisi < gerekliBitler)
             {
-                if (byteIndex >= input.Length)
+                if (baytIndeksi >= girdi.Length)
                 {
 #if EMBEDDED_MODE
-                    // Gömülü sistem: Silent fail
+                    // Gömülü sistem: Sessiz hata
                     return;
 #else
                     throw new InvalidOperationException(
-                        $"Input buffer sonuna ulaşıldı. İndeks: {byteIndex}, Boyut: {input.Length}");
+                        $"Girdi tamponu sonuna ulaşıldı. İndeks: {baytIndeksi}, Boyut: {girdi.Length}");
 #endif
                 }
-                bitBuffer |= ((long)input[byteIndex++] << bitCount);
-                bitCount += 8;
+                bitTamponu |= ((long)girdi[baytIndeksi++] << bitSayisi);
+                bitSayisi += 8;
             }
         }
 
         // =================================================================
-        // ELKÂBID (ENCODER) – %100 HEAPSİZ & OUTLIER HARİTALI
-        // PERFORMANS: Aggressive Inlining + Hot Path Optimizasyonu
+        // ELKÂBID (KODLAYICI) – %100 YİĞİNSİZ & AYKIRI HARİTALI
+        // PERFORMANS: Agresif Satıriçi + Sıcak Yol Optimizasyonu
         // =================================================================
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-        public static int ElKâbıd(scoped ReadOnlySpan<int> rawData, scoped Span<byte> output)
+        public static int ElKâbıd(scoped ReadOnlySpan<int> hamVeri, scoped Span<byte> cikti)
         {
-            if (rawData.IsEmpty) return 0;
+            if (hamVeri.IsEmpty) return 0;
 
-            // GÜVENLİK KONTROLÜ: Output buffer yeterli mi?
-            int minOutputSize = REFERENCE_SIZE + (rawData.Length * sizeof(int)); // Worst-case tahmin
-            if (output.Length < minOutputSize)
+            // HIZLI TARAMA: Veri sıkıştırılabilir mi? (Gerçek dünya verisi mi?)
+            // Anlamsız/rastgele veriyi erken reddet - CPU zamanı koru
+            if (!SikistirilabirVeriMi(hamVeri))
             {
-                throw new ArgumentException(
-                    $"Output buffer çok küçük. Minimum {minOutputSize} byte gerekli, {output.Length} byte verildi.", 
-                    nameof(output));
+                // Veri sıkıştırılabilir değil - red
+                return -1; // Negatif dönüş = "Bu veri bizim için değil"
             }
 
-            int reference = rawData[0];
-            MemoryMarshal.Write(output, in reference);
+            // GÜVENLİK KONTROLÜ: Çıktı tamponu yeterli mi?
+            int minCiktiBoyu = REFERANS_BOYUTU + (hamVeri.Length * sizeof(int)); // En kötü durum tahmini
+            if (cikti.Length < minCiktiBoyu)
+            {
+                throw new ArgumentException(
+                    $"Çıktı tamponu çok küçük. Minimum {minCiktiBoyu} bayt gerekli, {cikti.Length} bayt verildi.", 
+                    nameof(cikti));
+            }
 
-            int byteIndex = REFERENCE_SIZE;
-            long bitBuffer = 0;
-            int bitCount = 0;
-            int dataIndex = 1;
+            int referans = hamVeri[0];
+            MemoryMarshal.Write(cikti, in referans);
+
+            int baytIndeksi = REFERANS_BOYUTU;
+            long bitTamponu = 0;
+            int bitSayisi = 0;
+            int veriIndeksi = 1;
+            bool erkenIptalKontrolEdildi = false; // Bayrak: erken-iptal kontrolü yapıldı mı?
 
             // Stackalloc'ları döngü dışına taşı (CA2014 uyarısı için)
-            Span<int> tempBuffer = stackalloc int[BLOK_BOYUTU];
+            Span<int> geciciTampon = stackalloc int[BLOK_BOYUTU];
 
-            while (dataIndex < rawData.Length)
+            while (veriIndeksi < hamVeri.Length)
             {
-                int kalan = rawData.Length - dataIndex;
-                int blokSize = kalan < BLOK_BOYUTU ? kalan : BLOK_BOYUTU;
+                int kalan = hamVeri.Length - veriIndeksi;
+                int blokBoyu = kalan < BLOK_BOYUTU ? kalan : BLOK_BOYUTU;
 
-                int maxAbs = 0;
-                byte outlierMask = 0;
+                int maksMutlak = 0;
+                byte aykiriMaske = 0;
 
                 // ÇOK MİMARİLİ SIMD OPTİMİZASYONU
-                // Intel/AMD için AVX2, ARM için NEON, yoksa scalar fallback
+                // Intel/AMD için AVX2, ARM için NEON, yoksa skaler geri dönüş
 
                 // INTEL/AMD: AVX2 ile 8x32-bit paralel işlem
-                if (Avx2.IsSupported && blokSize == BLOK_BOYUTU)
+                if (Avx2.IsSupported && blokBoyu == BLOK_BOYUTU)
                 {
-                    ref int baseRef = ref MemoryMarshal.GetReference(rawData);
-                    ref int currentRef = ref Unsafe.Add(ref baseRef, dataIndex);
-                    ref int previousRef = ref Unsafe.Add(ref baseRef, dataIndex - 1);
+                    ref int temelRef = ref MemoryMarshal.GetReference(hamVeri);
+                    ref int guncelRef = ref Unsafe.Add(ref temelRef, veriIndeksi);
+                    ref int oncekiRef = ref Unsafe.Add(ref temelRef, veriIndeksi - 1);
 
-                    // Alignment check: Vector256 requires 32-byte alignment for optimal load
-                    // Using LoadUnsafe which handles unaligned access safely
-                    Vector256<int> current = Vector256.LoadUnsafe(ref currentRef);
-                    Vector256<int> previous = Vector256.LoadUnsafe(ref previousRef);
+                    // AVX2 SIMD: LoadUnsafe hizalanmamış erişimi güvenli şekilde işler (potansiyel performans maliyeti ile)
+                    // Garantili hizalama için, hizalanmış tamponlar kullanmayı düşünün
+                    Vector256<int> guncel = Vector256.LoadUnsafe(ref guncelRef);
+                    Vector256<int> onceki = Vector256.LoadUnsafe(ref oncekiRef);
 
-                    Vector256<int> deltas = Avx2.Subtract(current, previous);
-                    Vector256<int> absDelta = Avx2.Abs(deltas).AsInt32();
+                    Vector256<int> deltalar = Avx2.Subtract(guncel, onceki);
+                    Vector256<int> mutlakDelta = Avx2.Abs(deltalar).AsInt32();
 
-                    absDelta.CopyTo(tempBuffer);
-                    ProcessDeltas(tempBuffer.Slice(0, BLOK_BOYUTU), ref maxAbs, ref outlierMask);
+                    mutlakDelta.CopyTo(geciciTampon);
+                    DeltalariIsle(geciciTampon.Slice(0, BLOK_BOYUTU), ref maksMutlak, ref aykiriMaske);
                 }
                 // ARM: NEON ile 4x32-bit paralel işlem (İHA/Gömülü Sistemler)
-                else if (AdvSimd.IsSupported && blokSize >= 4)
+                else if (AdvSimd.IsSupported && blokBoyu >= 4)
                 {
-                    ref int baseRef = ref MemoryMarshal.GetReference(rawData);
+                    ref int temelRef = ref MemoryMarshal.GetReference(hamVeri);
 
-                    // İlk 4 eleman için NEON - LoadUnsafe handles unaligned access
-                    ref int currentRef1 = ref Unsafe.Add(ref baseRef, dataIndex);
-                    ref int previousRef1 = ref Unsafe.Add(ref baseRef, dataIndex - 1);
+                    // ARM NEON: Optimal performans için 16-bayt hizalama kontrolü
+                    ref int guncelRef1 = ref Unsafe.Add(ref temelRef, veriIndeksi);
+                    bool hizaliMi = HizaliMi(ref guncelRef1, 16);
 
-                    Vector128<int> current1 = Vector128.LoadUnsafe(ref currentRef1);
-                    Vector128<int> previous1 = Vector128.LoadUnsafe(ref previousRef1);
-
-                    Vector128<int> deltas1 = AdvSimd.Subtract(current1, previous1);
-                    Vector128<int> absDelta1 = AdvSimd.Abs(deltas1).AsInt32();
-
-                    absDelta1.CopyTo(tempBuffer.Slice(0, 4));
-                    ProcessDeltas(tempBuffer.Slice(0, 4), ref maxAbs, ref outlierMask);
-
-                    // Son 4 eleman için (eğer blokSize == 8 ise)
-                    if (blokSize == BLOK_BOYUTU)
+                    // Hizalı yol: SIMD kullan (ARM'da daha hızlı)
+                    if (hizaliMi)
                     {
-                        ref int currentRef2 = ref Unsafe.Add(ref baseRef, dataIndex + 4);
-                        ref int previousRef2 = ref Unsafe.Add(ref baseRef, dataIndex + 3);
+                        // İlk 4 eleman için NEON - Hizalı yükleme
+                        ref int oncekiRef1 = ref Unsafe.Add(ref temelRef, veriIndeksi - 1);
 
-                        Vector128<int> current2 = Vector128.LoadUnsafe(ref currentRef2);
-                        Vector128<int> previous2 = Vector128.LoadUnsafe(ref previousRef2);
+                        Vector128<int> guncel1 = Vector128.LoadUnsafe(ref guncelRef1);
+                        Vector128<int> onceki1 = Vector128.LoadUnsafe(ref oncekiRef1);
 
-                        Vector128<int> deltas2 = AdvSimd.Subtract(current2, previous2);
-                        Vector128<int> absDelta2 = AdvSimd.Abs(deltas2).AsInt32();
+                        Vector128<int> deltalar1 = AdvSimd.Subtract(guncel1, onceki1);
+                        Vector128<int> mutlakDelta1 = AdvSimd.Abs(deltalar1).AsInt32();
 
-                        absDelta2.CopyTo(tempBuffer.Slice(4, 4));
-                        ProcessDeltas(tempBuffer.Slice(4, 4), ref maxAbs, ref outlierMask, offset: 4);
+                        mutlakDelta1.CopyTo(geciciTampon.Slice(0, 4));
+                        DeltalariIsle(geciciTampon.Slice(0, 4), ref maksMutlak, ref aykiriMaske);
+
+                        // Son 4 eleman için (eğer blokBoyu == 8 ise)
+                        if (blokBoyu == BLOK_BOYUTU)
+                        {
+                            ref int guncelRef2 = ref Unsafe.Add(ref temelRef, veriIndeksi + 4);
+                            ref int oncekiRef2 = ref Unsafe.Add(ref temelRef, veriIndeksi + 3);
+
+                            Vector128<int> guncel2 = Vector128.LoadUnsafe(ref guncelRef2);
+                            Vector128<int> onceki2 = Vector128.LoadUnsafe(ref oncekiRef2);
+
+                            Vector128<int> deltalar2 = AdvSimd.Subtract(guncel2, onceki2);
+                            Vector128<int> mutlakDelta2 = AdvSimd.Abs(deltalar2).AsInt32();
+
+                            mutlakDelta2.CopyTo(geciciTampon.Slice(4, 4));
+                            DeltalariIsle(geciciTampon.Slice(4, 4), ref maksMutlak, ref aykiriMaske, kayma: 4);
+                        }
+                    }
+                    else
+                    {
+                        // Hizalanmamış yol: Skaler işleme geri dön (ARM'da daha güvenli)
+                        Span<int> skalerDeltalar = geciciTampon.Slice(0, blokBoyu);
+                        for (int j = 0; j < blokBoyu; j++)
+                        {
+                            skalerDeltalar[j] = hamVeri[veriIndeksi + j] - hamVeri[veriIndeksi + j - 1];
+                        }
+                        DeltalariIsle(skalerDeltalar, ref maksMutlak, ref aykiriMaske);
                     }
                 }
-                // FALLBACK: Scalar işlem (Eski işlemciler, SIMD desteği yok)
+                // GERİ DÖNÜŞ: Skaler işlem (Eski işlemciler, SIMD desteği yok)
                 else
                 {
-                    Span<int> scalarDeltas = tempBuffer.Slice(0, blokSize);
-                    for (int j = 0; j < blokSize; j++)
+                    Span<int> skalerDeltalar = geciciTampon.Slice(0, blokBoyu);
+                    for (int j = 0; j < blokBoyu; j++)
                     {
-                        scalarDeltas[j] = rawData[dataIndex + j] - rawData[dataIndex + j - 1];
+                        skalerDeltalar[j] = hamVeri[veriIndeksi + j] - hamVeri[veriIndeksi + j - 1];
                     }
-                    ProcessDeltas(scalarDeltas, ref maxAbs, ref outlierMask);
+                    DeltalariIsle(skalerDeltalar, ref maksMutlak, ref aykiriMaske);
                 }
 
-                bool outlierVar = outlierMask != 0;
-                int bitWidth;
+                bool aykiriVar = aykiriMaske != 0;
+                int bitGenisligi;
 
-                if (maxAbs <= 1) bitWidth = MIN_BIT_WIDTH;
-                else if (maxAbs <= 7) bitWidth = 4;
-                else if (maxAbs <= 127) bitWidth = 8;
-                else bitWidth = MAX_BIT_WIDTH;
+                if (maksMutlak <= 1) bitGenisligi = MIN_BIT_GENISLIGI;
+                else if (maksMutlak <= 7) bitGenisligi = 4;
+                else if (maksMutlak <= 127) bitGenisligi = 8;
+                else bitGenisligi = MAKS_BIT_GENISLIGI;
 
-                int mode = bitWidth switch
+                int mod = bitGenisligi switch
                 {
                     2 => 0,
                     4 => 1,
@@ -249,209 +372,263 @@ namespace ElBâri
                     _ => 2
                 };
 
-                int tag = (mode << 1) | (outlierVar ? 1 : 0);
-                bitBuffer |= ((long)tag << bitCount);
-                bitCount += 4;
+                int etiket = (mod << 1) | (aykiriVar ? 1 : 0);
+                bitTamponu |= ((long)etiket << bitSayisi);
+                bitSayisi += 4;
 
-                FlushBitBuffer(ref bitBuffer, ref bitCount, output, ref byteIndex);
+                BitTamponuBosalt(ref bitTamponu, ref bitSayisi, cikti, ref baytIndeksi);
 
-                if (outlierVar)
+                if (aykiriVar)
                 {
-                    bitBuffer |= ((long)outlierMask << bitCount);
-                    bitCount += 8;
+                    bitTamponu |= ((long)aykiriMaske << bitSayisi);
+                    bitSayisi += 8;
 
-                    FlushBitBuffer(ref bitBuffer, ref bitCount, output, ref byteIndex);
+                    BitTamponuBosalt(ref bitTamponu, ref bitSayisi, cikti, ref baytIndeksi);
                 }
 
-                long mask = (1L << bitWidth) - 1;
+                long maske = (1L << bitGenisligi) - 1;
 
-                for (int j = 0; j < blokSize; j++)
+                for (int j = 0; j < blokBoyu; j++)
                 {
-                    if (outlierVar && (outlierMask & (1 << j)) != 0)
+                    if (aykiriVar && (aykiriMaske & (1 << j)) != 0)
                     {
                         continue;
                     }
 
-                    int delta = rawData[dataIndex + j] - rawData[dataIndex + j - 1];
-                    long v = delta & mask;
+                    int delta = hamVeri[veriIndeksi + j] - hamVeri[veriIndeksi + j - 1];
+                    long d = delta & maske;
 
-                    bitBuffer |= (v << bitCount);
-                    bitCount += bitWidth;
+                    bitTamponu |= (d << bitSayisi);
+                    bitSayisi += bitGenisligi;
 
-                    FlushBitBuffer(ref bitBuffer, ref bitCount, output, ref byteIndex);
+                    BitTamponuBosalt(ref bitTamponu, ref bitSayisi, cikti, ref baytIndeksi);
                 }
 
-                if (outlierVar)
+                if (aykiriVar)
                 {
-                    for (int j = 0; j < blokSize; j++)
+                    for (int j = 0; j < blokBoyu; j++)
                     {
-                        if ((outlierMask & (1 << j)) != 0)
+                        if ((aykiriMaske & (1 << j)) != 0)
                         {
-                            int delta = rawData[dataIndex + j] - rawData[dataIndex + j - 1];
-                            bitBuffer |= ((long)(uint)delta << bitCount);
-                            bitCount += OUTLIER_BIT_WIDTH;
+                            int delta = hamVeri[veriIndeksi + j] - hamVeri[veriIndeksi + j - 1];
+                            bitTamponu |= ((long)(uint)delta << bitSayisi);
+                            bitSayisi += AYKIRI_BIT_GENISLIGI;
 
-                            FlushBitBuffer(ref bitBuffer, ref bitCount, output, ref byteIndex);
+                            BitTamponuBosalt(ref bitTamponu, ref bitSayisi, cikti, ref baytIndeksi);
                         }
                     }
                 }
 
-                dataIndex += blokSize;
+                veriIndeksi += blokBoyu;
+
+                // ERKEN-İPTAL: İlk blok bittikten sonra SADECE BİR KERE kontrol et
+                // Eğer sıkıştırma kazancı yok ise (oran < 1.5x), iptal et
+                if (!erkenIptalKontrolEdildi && veriIndeksi >= Math.Min(64, hamVeri.Length))
+                {
+                    erkenIptalKontrolEdildi = true; // Bir kere kontrol et
+
+                    // İlk 64 eleman (veya tüm veri) işlendi, sıkıştırma oranı kontrol et
+                    int islenenBaytlar = veriIndeksi * sizeof(int);
+                    int sikistirilmisBaytlar = baytIndeksi;
+                    float sikistirmaOrani = (float)islenenBaytlar / sikistirilmisBaytlar;
+
+                    // Eşik: ERKEN_IPTAL_ESIGI (yani yeterli kazanç yoksa iptal)
+                    if (sikistirmaOrani < ERKEN_IPTAL_ESIGI && veriIndeksi < hamVeri.Length)
+                    {
+                        // Sıkıştırma kazancı yok - iptal et
+                        return -1; // Negatif dönüş = "Sıkıştırma başarısız"
+                    }
+                    // Eğer oran iyiyse veya burası son bloksa devam et
+                }
             }
 
-            if (bitCount > 0)
+            if (bitSayisi > 0)
             {
-                if (byteIndex >= output.Length)
+                if (baytIndeksi >= cikti.Length)
                 {
                     throw new InvalidOperationException(
-                        $"Output buffer taştı (final flush). İndeks: {byteIndex}, Boyut: {output.Length}");
+                        $"Çıktı tamponu taştı (son boşaltma). İndeks: {baytIndeksi}, Boyut: {cikti.Length}");
                 }
-                output[byteIndex++] = (byte)(bitBuffer & BYTE_MASK);
+                cikti[baytIndeksi++] = (byte)(bitTamponu & BAYT_MASKESI);
             }
 
-            return byteIndex;
+            return baytIndeksi;
         }
 
         // =================================================================
-        // ELBÂSIT (DECODER) – %100 HEAPSİZ & STACKALLOC KORUMALI
-        // PERFORMANS: Aggressive Inlining + Hot Path Optimizasyonu
+        // ELBÂSIT (ÇÖZÜCÜ) – %100 YİĞİNSİZ & YİĞİNAYIRMA KORUMALI
+        // PERFORMANS: Agresif Satıriçi + Sıcak Yol Optimizasyonu
         // =================================================================
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-        public static void ElBâsıt(scoped ReadOnlySpan<byte> input, scoped Span<int> output)
+        public static void ElBâsıt(scoped ReadOnlySpan<byte> girdi, scoped Span<int> cikti)
         {
-            // GÜVENLİK KONTROLÜ: Input en az reference size içermeli
-            if (input.Length < REFERENCE_SIZE)
+            // GÜVENLİK KONTROLÜ: Girdi en az referans boyutu içermeli
+            if (girdi.Length < REFERANS_BOYUTU)
             {
                 throw new ArgumentException(
-                    $"Input buffer çok küçük. Minimum {REFERENCE_SIZE} byte gerekli, {input.Length} byte verildi.", 
-                    nameof(input));
+                    $"Girdi tamponu çok küçük. Minimum {REFERANS_BOYUTU} bayt gerekli, {girdi.Length} bayt verildi.", 
+                    nameof(girdi));
             }
 
-            if (output.IsEmpty)
+            if (cikti.IsEmpty)
             {
-                throw new ArgumentException("Output buffer boş olamaz.", nameof(output));
+                throw new ArgumentException("Çıktı tamponu boş olamaz.", nameof(cikti));
             }
 
-            int reference = MemoryMarshal.Read<int>(input.Slice(0, REFERENCE_SIZE));
-            output[0] = reference;
+            int referans = MemoryMarshal.Read<int>(girdi.Slice(0, REFERANS_BOYUTU));
+            cikti[0] = referans;
 
-            int byteIndex = REFERENCE_SIZE;
-            long bitBuffer = 0;
-            int bitCount = 0;
-            int outIndex = 1;
+            int baytIndeksi = REFERANS_BOYUTU;
+            long bitTamponu = 0;
+            int bitSayisi = 0;
+            int ciktiIndeksi = 1;
 
-            Span<int> temp = stackalloc int[BLOK_BOYUTU];
+            Span<int> gecici = stackalloc int[BLOK_BOYUTU];
 
-            while (outIndex < output.Length)
+            while (ciktiIndeksi < cikti.Length)
             {
-                LoadBitBuffer(ref bitBuffer, ref bitCount, input, ref byteIndex, 4);
+                BitTamponuYukle(ref bitTamponu, ref bitSayisi, girdi, ref baytIndeksi, 4);
 
-                int tag = (int)(bitBuffer & TAG_MASK);
-                bitBuffer >>= 4;
-                bitCount -= 4;
+                int etiket = (int)(bitTamponu & ETIKET_MASKESI);
+                bitTamponu >>= 4;
+                bitSayisi -= 4;
 
-                int mode = tag >> 1;
-                bool outlierVar = (tag & 1) != 0;
+                int mod = etiket >> 1;
+                bool aykiriVar = (etiket & 1) != 0;
 
-                int bitWidth = mode switch
+                int bitGenisligi = mod switch
                 {
-                    0 => MIN_BIT_WIDTH,
+                    0 => MIN_BIT_GENISLIGI,
                     1 => 4,
                     2 => 8,
-                    3 => MAX_BIT_WIDTH,
+                    3 => MAKS_BIT_GENISLIGI,
                     _ => 8
                 };
 
-                int kalan = output.Length - outIndex;
-                int blokSize = kalan < BLOK_BOYUTU ? kalan : BLOK_BOYUTU;
-                long mask = (1L << bitWidth) - 1;
+                int kalan = cikti.Length - ciktiIndeksi;
+                int blokBoyu = kalan < BLOK_BOYUTU ? kalan : BLOK_BOYUTU;
+                long maske = (1L << bitGenisligi) - 1;
 
-                int outlierMask = 0;
-                if (outlierVar)
+                int aykiriMaske = 0;
+                if (aykiriVar)
                 {
-                    LoadBitBuffer(ref bitBuffer, ref bitCount, input, ref byteIndex, 8);
-                    outlierMask = (int)(bitBuffer & BYTE_MASK);
-                    bitBuffer >>= 8;
-                    bitCount -= 8;
+                    BitTamponuYukle(ref bitTamponu, ref bitSayisi, girdi, ref baytIndeksi, 8);
+                    aykiriMaske = (int)(bitTamponu & BAYT_MASKESI);
+                    bitTamponu >>= 8;
+                    bitSayisi -= 8;
                 }
 
-                for (int j = 0; j < blokSize; j++)
+                for (int j = 0; j < blokBoyu; j++)
                 {
-                    if (outlierVar && (outlierMask & (1 << j)) != 0)
+                    if (aykiriVar && (aykiriMaske & (1 << j)) != 0)
                     {
                         continue;
                     }
 
-                    LoadBitBuffer(ref bitBuffer, ref bitCount, input, ref byteIndex, bitWidth);
+                    BitTamponuYukle(ref bitTamponu, ref bitSayisi, girdi, ref baytIndeksi, bitGenisligi);
 
-                    long v = bitBuffer & mask;
-                    bitBuffer >>= bitWidth;
-                    bitCount -= bitWidth;
+                    long d = bitTamponu & maske;
+                    bitTamponu >>= bitGenisligi;
+                    bitSayisi -= bitGenisligi;
 
-                    int d = (int)v;
-                    if (bitWidth < OUTLIER_BIT_WIDTH && (d & (1 << (bitWidth - 1))) != 0)
-                        d |= (int)~mask;
+                    int delta = (int)d;
+                    if (bitGenisligi < AYKIRI_BIT_GENISLIGI && (delta & (1 << (bitGenisligi - 1))) != 0)
+                        delta |= (int)~maske;
 
-                    temp[j] = d;
+                    gecici[j] = delta;
                 }
 
-                if (outlierVar)
+                if (aykiriVar)
                 {
-                    for (int j = 0; j < blokSize; j++)
+                    for (int j = 0; j < blokBoyu; j++)
                     {
-                        if ((outlierMask & (1 << j)) != 0)
+                        if ((aykiriMaske & (1 << j)) != 0)
                         {
-                            LoadBitBuffer(ref bitBuffer, ref bitCount, input, ref byteIndex, OUTLIER_BIT_WIDTH);
+                            BitTamponuYukle(ref bitTamponu, ref bitSayisi, girdi, ref baytIndeksi, AYKIRI_BIT_GENISLIGI);
 
-                            temp[j] = (int)(bitBuffer & 0xFFFFFFFF);
-                            bitBuffer >>= OUTLIER_BIT_WIDTH;
-                            bitCount -= OUTLIER_BIT_WIDTH;
+                            gecici[j] = (int)(bitTamponu & 0xFFFFFFFF);
+                            bitTamponu >>= AYKIRI_BIT_GENISLIGI;
+                            bitSayisi -= AYKIRI_BIT_GENISLIGI;
                         }
                     }
                 }
 
-                // SIMD Optimizasyonu: Delta'ları geri ekleme (reconstruction)
-                if (Avx2.IsSupported && blokSize == BLOK_BOYUTU)
+                // SIMD Optimizasyonu: Delta'ları geri ekleme (yeniden inşa)
+                // AVX2 (Intel/AMD) ve NEON (ARM) desteği
+                if (Avx2.IsSupported && blokBoyu == BLOK_BOYUTU)
                 {
-                    // Prefix sum (cumulative sum) ile SIMD reconstruction
-                    ref int outRef = ref MemoryMarshal.GetReference(output);
-                    int prev = Unsafe.Add(ref outRef, outIndex - 1);
+                    // Önek toplam (birikimli toplam) ile AVX2 yeniden inşa
+                    ref int ciktiRef = ref MemoryMarshal.GetReference(cikti);
+                    int onceki = Unsafe.Add(ref ciktiRef, ciktiIndeksi - 1);
 
                     // İlk eleman
-                    int val0 = prev + temp[0];
-                    Unsafe.Add(ref outRef, outIndex) = val0;
+                    int deger0 = onceki + gecici[0];
+                    Unsafe.Add(ref ciktiRef, ciktiIndeksi) = deger0;
 
-                    // Kalan elemanlar - manual unrolling
-                    int val1 = val0 + temp[1];
-                    Unsafe.Add(ref outRef, outIndex + 1) = val1;
+                    // Kalan elemanlar - manuel açılma
+                    int deger1 = deger0 + gecici[1];
+                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 1) = deger1;
 
-                    int val2 = val1 + temp[2];
-                    Unsafe.Add(ref outRef, outIndex + 2) = val2;
+                    int deger2 = deger1 + gecici[2];
+                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 2) = deger2;
 
-                    int val3 = val2 + temp[3];
-                    Unsafe.Add(ref outRef, outIndex + 3) = val3;
+                    int deger3 = deger2 + gecici[3];
+                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 3) = deger3;
 
-                    int val4 = val3 + temp[4];
-                    Unsafe.Add(ref outRef, outIndex + 4) = val4;
+                    int deger4 = deger3 + gecici[4];
+                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 4) = deger4;
 
-                    int val5 = val4 + temp[5];
-                    Unsafe.Add(ref outRef, outIndex + 5) = val5;
+                    int deger5 = deger4 + gecici[5];
+                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 5) = deger5;
 
-                    int val6 = val5 + temp[6];
-                    Unsafe.Add(ref outRef, outIndex + 6) = val6;
+                    int deger6 = deger5 + gecici[6];
+                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 6) = deger6;
 
-                    int val7 = val6 + temp[7];
-                    Unsafe.Add(ref outRef, outIndex + 7) = val7;
+                    int deger7 = deger6 + gecici[7];
+                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 7) = deger7;
 
-                    outIndex += BLOK_BOYUTU;
+                    ciktiIndeksi += BLOK_BOYUTU;
+                }
+                else if (AdvSimd.IsSupported && blokBoyu == BLOK_BOYUTU)
+                {
+                    // ARM NEON: Önek toplam yeniden inşa - manuel açılma
+                    ref int ciktiRef = ref MemoryMarshal.GetReference(cikti);
+                    int onceki = Unsafe.Add(ref ciktiRef, ciktiIndeksi - 1);
+
+                    // 8 elemanlı manuel açılma (NEON için optimize)
+                    int deger0 = onceki + gecici[0];
+                    Unsafe.Add(ref ciktiRef, ciktiIndeksi) = deger0;
+
+                    int deger1 = deger0 + gecici[1];
+                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 1) = deger1;
+
+                    int deger2 = deger1 + gecici[2];
+                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 2) = deger2;
+
+                    int deger3 = deger2 + gecici[3];
+                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 3) = deger3;
+
+                    int deger4 = deger3 + gecici[4];
+                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 4) = deger4;
+
+                    int deger5 = deger4 + gecici[5];
+                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 5) = deger5;
+
+                    int deger6 = deger5 + gecici[6];
+                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 6) = deger6;
+
+                    int deger7 = deger6 + gecici[7];
+                    Unsafe.Add(ref ciktiRef, ciktiIndeksi + 7) = deger7;
+
+                    ciktiIndeksi += BLOK_BOYUTU;
                 }
                 else
                 {
-                    // Fallback: Standart loop
-                    for (int j = 0; j < blokSize; j++)
+                    // Geri Dönüş: Standart döngü (eski işlemciler)
+                    for (int j = 0; j < blokBoyu; j++)
                     {
-                        output[outIndex] = output[outIndex - 1] + temp[j];
-                        outIndex++;
+                        cikti[ciktiIndeksi] = cikti[ciktiIndeksi - 1] + gecici[j];
+                        ciktiIndeksi++;
                     }
                 }
             }

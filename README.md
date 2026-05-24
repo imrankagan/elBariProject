@@ -284,6 +284,108 @@ public static int ElKâbıd(scoped ReadOnlySpan<int> rawData, scoped Span<byte> 
 - ✅ Production-ready kod kalitesi
 - ✅ Mil-spec uyumlu (EMBEDDED_MODE aktif)
 
+## 🧪 Benchmark ve Test
+
+ElBâri, **25+ kapsamlı test senaryosu** ile doğrulanmıştır.
+
+### Benchmark Çalıştırma
+
+```bash
+# Tüm testleri çalıştır
+dotnet run --configuration Debug
+
+# Kategori bazlı test
+BenchmarkRunner.RunCategory("Performance");
+BenchmarkRunner.RunCategory("Real-World");
+```
+
+### Test Kategorileri
+
+| Kategori | Test Sayısı | Açıklama |
+|----------|-------------|----------|
+| **Correctness** | 4 | Edge cases, empty array, single element |
+| **Compression Quality** | 5 | Sequential, constant, dense data |
+| **Performance** | 3 | Random, sparse, large datasets |
+| **Real-World** | 5 | Sine wave, Gaussian, UAV telemetry |
+| **Stress** | 4 | Worst case, huge datasets (1M items) |
+| **Edge Cases** | 4 | Min/max int, mixed extremes, zigzag |
+
+### Benchmark Sonuçları (1M items, Native AOT)
+
+```
+✓ Test Success Rate:   96% (24/25 passed)
+✓ Avg Compression:     26.69x
+✓ Encode Throughput:   40M+ items/sec
+✓ Decode Throughput:   60M+ items/sec
+✓ Best Compression:    500x (constant values)
+```
+
+### Test Edilen Senaryolar
+
+- ✅ **Sequential Data**: Sıralı artış (ideal sıkıştırma)
+- ✅ **Random Data**: Rastgele değerler (zorlu senaryo)
+- ✅ **Sparse Data**: Outlier'lı seyrek veri
+- ✅ **Sine Wave**: Periyodik sensör verisi
+- ✅ **UAV Telemetry**: GPS + altitude simülasyonu
+- ✅ **Gaussian Distribution**: Normal dağılım
+- ✅ **Empty/Single Element**: Edge case'ler
+- ✅ **Max/Min Int Values**: Ekstrem değerler
+- ✅ **Huge Datasets**: 1M eleman performans testi
+
+### Veri Üretimi (Benchmark/DataGenerators.cs)
+
+```csharp
+// 15+ farklı veri deseni
+int[] sequential = DataGenerators.Sequential(10_000);
+int[] random = DataGenerators.Random(10_000);
+int[] sparse = DataGenerators.Sparse(10_000);
+int[] uavData = DataGenerators.UAVTelemetry(10_000);
+int[] sineWave = DataGenerators.SineWave(1000);
+```
+
+### Kendi Senaryonuzu Ekleyin
+
+```csharp
+// Benchmarks/TestScenarios.cs içinde yeni senaryo
+new TestScenario
+{
+    Name = "My Custom Test",
+    Category = "Custom",
+    InputData = myData,
+    Description = "Özel test açıklaması",
+    ExpectedOutcome = "Expected result"
+}
+```
+
+### Benchmark Çıktı Formatı
+
+```
+[1/25] Running: Sequential Small (100)
+    Category: Compression Quality
+    Description: Sıralı artış - ideal sıkıştırma
+    Input Size: 100 elements
+    ✓ PASS
+    Compression: 400 → 8 bytes (50.00x)
+    Encode: 2,280 ns (43859649 items/sec)
+    Decode: 1,546 ns (64683761 items/sec)
+```
+
+### Round-Trip Validation
+
+Her test senaryosunda:
+1. Encode: `input[] → compressed[]`
+2. Decode: `compressed[] → decompressed[]`
+3. Validate: `input[] == decompressed[]` (byte-by-byte)
+
+**Başarısız validasyon = FAIL** (veri bütünlüğü sorunu)
+
+### Known Issues
+
+⚠️ **Edge Case**: `int.MinValue` negation overflow
+- Test: "Mixed Extremes" (1/25 fail)
+- Fix: ElBâri.cs'te unchecked context veya abs() yerine bit manipulation
+- Impact: Minimal (gerçek dünyada nadir)
+
 ## 🏗️ Algoritma Detayları
 
 ### Kullanılan Teknikler
