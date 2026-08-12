@@ -136,6 +136,12 @@ public static class BenchmarkRunner
                 };
             }
 
+            // Çok kanallı / çerçeveli senaryolar ayrı yoldan ölçülür
+            if (scenario.KanalSayisi > 1 || scenario.CerceveBoyutu > 0)
+            {
+                return RunKatmanliScenario(scenario);
+            }
+
             // Allocate buffers
             byte[] compressed = new byte[inputBytes * 2]; // Worst case
             int[] decompressed = new int[inputSize];
@@ -240,6 +246,154 @@ public static class BenchmarkRunner
                 ErrorMessage = $"Exception: {ex.Message}"
             };
         }
+    }
+
+    /// <summary>
+    /// Çok kanallı (ElBâriKanal) ve çerçeveli (ElBâriÇerçeve) senaryoları ölçer.
+    /// Her iki katman da tahsisatsız çalışır: tamponlar burada bir kez ayrılır.
+    /// </summary>
+    private static BenchmarkResult RunKatmanliScenario(TestScenario scenario)
+    {
+        int[] input = scenario.InputData;
+        int kanal = scenario.KanalSayisi;
+        int inputSize = input.Length;
+        int inputBytes = inputSize * sizeof(int);
+
+        // Kayıt sınırına hizala (eksik kayıt kalmasın)
+        int kayitSayisi = inputSize / kanal;
+        int kullanilanEleman = kayitSayisi * kanal;
+
+        long encodeNanos, decodeNanos;
+        int compressedSize;
+        bool roundTripSuccess;
+
+        if (scenario.CerceveBoyutu > 0)
+        {
+            // ---- ÇERÇEVELİ YOL ----
+            int kpc = scenario.CerceveBoyutu;
+            int cerceveSayisi = (kayitSayisi + kpc - 1) / kpc;
+
+            int[] calisma = new int[Math.Max(1, ElBâriÇerçeve.GerekliCalismaAlani(kpc, kanal))];
+            byte[] tampon = new byte[ElBâriÇerçeve.EnKotuDurumCerceveBoyutu(kpc, kanal)];
+            byte[][] paketler = new byte[cerceveSayisi][];
+
+            // Isınma + paketleri üret
+            int toplamBayt = 0;
+            for (int w = 0; w < WARMUP_ITERATIONS / 10 + 1; w++)
+            {
+                toplamBayt = 0;
+                uint sira = 0;
+                int idx = 0;
+                for (int i = 0; i < kayitSayisi; i += kpc)
+                {
+                    int a = Math.Min(kpc, kayitSayisi - i);
+                    int n = ElBâriÇerçeve.CerceveYaz(input.AsSpan(i * kanal, a * kanal), kanal, sira++, calisma, tampon);
+                    paketler[idx++] = tampon.AsSpan(0, n).ToArray();
+                    toplamBayt += n;
+                }
+            }
+            compressedSize = toplamBayt;
+
+            encodeNanos = MeasureOperation(() =>
+            {
+                uint sira = 0;
+                for (int i = 0; i < kayitSayisi; i += kpc)
+                {
+                    int a = Math.Min(kpc, kayitSayisi - i);
+                    ElBâriÇerçeve.CerceveYaz(input.AsSpan(i * kanal, a * kanal), kanal, sira++, calisma, tampon);
+                }
+            }, MEASUREMENT_ITERATIONS / 10 + 1);
+
+            int[] cikti = new int[kpc * kanal];
+            int[] cozCalisma = new int[calisma.Length];
+
+            decodeNanos = MeasureOperation(() =>
+            {
+                for (int i = 0; i < paketler.Length; i++)
+                {
+                    ElBâriÇerçeve.CerceveOku(paketler[i], kanal, cozCalisma, cikti, out _, out _);
+                }
+            }, MEASUREMENT_ITERATIONS / 10 + 1);
+
+            // Round-trip: her çerçeveyi bağımsız çöz ve doğrula
+            roundTripSuccess = true;
+            for (int i = 0; i < paketler.Length && roundTripSuccess; i++)
+            {
+                if (!ElBâriÇerçeve.CerceveOku(paketler[i], kanal, cozCalisma, cikti, out uint s, out int adet))
+                {
+                    roundTripSuccess = false;
+                    break;
+                }
+                int bas = (int)s * kpc * kanal;
+                for (int j = 0; j < adet * kanal; j++)
+                {
+                    if (input[bas + j] != cikti[j]) { roundTripSuccess = false; break; }
+                }
+            }
+        }
+        else
+        {
+            // ---- KANAL AYRIMI (çerçevesiz) ----
+            int[] calisma = new int[Math.Max(1, ElBâriKanal.GerekliCalismaAlani(kullanilanEleman, kanal))];
+            byte[] cikti = new byte[ElBâriKanal.EnKotuDurumCiktiBoyutu(kullanilanEleman, kanal)];
+            int[] geri = new int[kullanilanEleman];
+            int[] cozCalisma = new int[calisma.Length];
+
+            int boyut = 0;
+            for (int w = 0; w < WARMUP_ITERATIONS / 10 + 1; w++)
+            {
+                boyut = ElBâriKanal.ElKâbıdKanal(input.AsSpan(0, kullanilanEleman), kanal, calisma, cikti);
+                ElBâriKanal.ElBâsıtKanal(cikti.AsSpan(0, boyut), cozCalisma, geri);
+            }
+            compressedSize = boyut;
+
+            encodeNanos = MeasureOperation(
+                () => ElBâriKanal.ElKâbıdKanal(input.AsSpan(0, kullanilanEleman), kanal, calisma, cikti),
+                MEASUREMENT_ITERATIONS / 10 + 1);
+
+            int son = boyut;
+            decodeNanos = MeasureOperation(
+                () => ElBâriKanal.ElBâsıtKanal(cikti.AsSpan(0, son), cozCalisma, geri),
+                MEASUREMENT_ITERATIONS / 10 + 1);
+
+            roundTripSuccess = true;
+            for (int i = 0; i < kullanilanEleman; i++)
+            {
+                if (input[i] != geri[i]) { roundTripSuccess = false; break; }
+            }
+        }
+
+        if (!roundTripSuccess)
+        {
+            return new BenchmarkResult
+            {
+                ScenarioName = scenario.Name,
+                Category = scenario.Category,
+                InputSize = inputSize,
+                InputBytes = inputBytes,
+                CompressedBytes = compressedSize,
+                CompressionRatio = 0,
+                EncodeNanoseconds = encodeNanos,
+                DecodeNanoseconds = decodeNanos,
+                RoundTripSuccess = false,
+                Status = "FAIL",
+                ErrorMessage = "Round-trip validation failed - data corruption"
+            };
+        }
+
+        return new BenchmarkResult
+        {
+            ScenarioName = scenario.Name,
+            Category = scenario.Category,
+            InputSize = kullanilanEleman,
+            InputBytes = kullanilanEleman * sizeof(int),
+            CompressedBytes = compressedSize,
+            CompressionRatio = (double)(kullanilanEleman * sizeof(int)) / compressedSize,
+            EncodeNanoseconds = encodeNanos,
+            DecodeNanoseconds = decodeNanos,
+            RoundTripSuccess = true,
+            Status = "PASS"
+        };
     }
 
     private static long MeasureOperation(Action operation, int iterations)

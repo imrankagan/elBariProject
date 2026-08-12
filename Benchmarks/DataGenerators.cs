@@ -215,6 +215,106 @@ public static class DataGenerators
         return Sequential(8);
     }
 
+    // =================================================================
+    // GERÇEK VERİ
+    // =================================================================
+
+    /// <summary>
+    /// Gerçek GPS telemetrisi (TestData/gercek_gps.bin).
+    /// 3 kanal: enlem, boylam, unix zaman damgası — iç içe.
+    /// Dosya bulunamazsa GercekciUAVTelemetry ile sentetik yedek döner.
+    /// Kaynak ve lisans bilgisi için TestData/KAYNAK.md dosyasına bakın.
+    /// </summary>
+    public static int[] GercekGpsVerisi(int enFazlaKayit = int.MaxValue)
+    {
+        string? yol = TestVeriDosyasiBul("gercek_gps.bin");
+        if (yol == null)
+        {
+            // Yedek: dosya yoksa gerçekçi sentetik üret (3 kanal)
+            return GercekciUAVTelemetry(Math.Min(enFazlaKayit, 8000) * 3, 3);
+        }
+
+        byte[] bayt = System.IO.File.ReadAllBytes(yol);
+        int kanal = BitConverter.ToInt32(bayt, 0);
+        int adet = BitConverter.ToInt32(bayt, 4);
+
+        int kayitSayisi = adet / kanal;
+        if (enFazlaKayit < kayitSayisi) kayitSayisi = enFazlaKayit;
+        int alinacak = kayitSayisi * kanal;
+
+        int[] veri = new int[alinacak];
+        Buffer.BlockCopy(bayt, 8, veri, 0, alinacak * sizeof(int));
+        return veri;
+    }
+
+    /// <summary>Gerçek GPS veri dosyasının kanal sayısı (dosya yoksa 3).</summary>
+    public static int GercekGpsKanalSayisi()
+    {
+        string? yol = TestVeriDosyasiBul("gercek_gps.bin");
+        if (yol == null) return 3;
+        byte[] bas = new byte[4];
+        using var akis = System.IO.File.OpenRead(yol);
+        return akis.Read(bas, 0, 4) == 4 ? BitConverter.ToInt32(bas, 0) : 3;
+    }
+
+    /// <summary>Gerçek veri dosyası mevcut mu?</summary>
+    public static bool GercekVeriMevcutMu() => TestVeriDosyasiBul("gercek_gps.bin") != null;
+
+    /// <summary>
+    /// Çalıştırma dizininden yukarı doğru arayarak TestData klasörünü bulur.
+    /// (bin/Debug/net10.0 gibi derin çıktı dizinlerinden çalışmayı destekler.)
+    /// </summary>
+    private static string? TestVeriDosyasiBul(string dosyaAdi)
+    {
+        string dizin = AppContext.BaseDirectory;
+        for (int i = 0; i < 8 && !string.IsNullOrEmpty(dizin); i++)
+        {
+            string aday = System.IO.Path.Combine(dizin, "TestData", dosyaAdi);
+            if (System.IO.File.Exists(aday)) return aday;
+
+            System.IO.DirectoryInfo? ust = System.IO.Directory.GetParent(dizin);
+            if (ust == null) break;
+            dizin = ust.FullName;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// GERÇEKÇİ İHA telemetrisi: sabit hızla ilerleyen bir hava aracı.
+    /// Kanallar (6): lat, lon, alt(cm), roll, pitch, yaw (milirad).
+    ///
+    /// NOT: Eski UAVTelemetry üreteci enlem/boylamı rastgele gürültü olarak
+    /// üretiyordu; gerçek bir uçuşta pozisyon DÜZGÜN ilerler ve bu, ikinci
+    /// derece fark kodlamasının çok daha iyi çalışmasını sağlar. Bu üreteç
+    /// gerçek uçuş dinamiğini taklit eder.
+    /// </summary>
+    public static int[] GercekciUAVTelemetry(int count, int kanal = 6)
+    {
+        Random r = new Random(7);
+        int[] data = new int[count];
+        long lat = 400000000;   // 1e-7 derece
+        long lon = 290000000;
+        int alt = 12000;        // cm
+        int adet = count / kanal;
+
+        for (int i = 0; i < adet; i++)
+        {
+            // ~15 m/s sabit hız + küçük GPS gürültüsü
+            lat += 135 + r.Next(-3, 4);
+            lon += 98 + r.Next(-3, 4);
+            alt += r.Next(-8, 9);
+
+            int b = i * kanal;
+            data[b] = (int)lat;
+            if (kanal > 1) data[b + 1] = (int)lon;
+            if (kanal > 2) data[b + 2] = alt;
+            if (kanal > 3) data[b + 3] = (int)(200 * Math.Sin(i * 0.02)) + r.Next(-2, 3);
+            if (kanal > 4) data[b + 4] = (int)(150 * Math.Sin(i * 0.013)) + r.Next(-2, 3);
+            if (kanal > 5) data[b + 5] = (int)(1500 + 300 * Math.Sin(i * 0.005)) + r.Next(-2, 3);
+        }
+        return data;
+    }
+
     /// <summary>
     /// İHA telemetri simülasyonu: GPS koordinatları + altitude.
     /// </summary>

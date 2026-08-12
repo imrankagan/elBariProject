@@ -16,6 +16,18 @@ public record TestScenario
     public required int[] InputData { get; init; }
     public required string Description { get; init; }
     public string? ExpectedOutcome { get; init; }
+
+    /// <summary>
+    /// Kayıt başına alan sayısı. 1 = tek akış (klasik ElKâbıd/ElBâsıt yolu).
+    /// &gt;1 ise ElBâriKanal katmanı kullanılır.
+    /// </summary>
+    public int KanalSayisi { get; init; } = 1;
+
+    /// <summary>
+    /// Çerçeve başına kayıt sayısı. 0 = çerçeveleme yok (tek blok).
+    /// &gt;0 ise ElBâriÇerçeve katmanı kullanılır (paket kaybına dayanıklı).
+    /// </summary>
+    public int CerceveBoyutu { get; init; } = 0;
 }
 
 /// <summary>
@@ -240,6 +252,75 @@ public static class TestScenarios
                 InputData = GenerateZigzag(1000),
                 Description = "Sürekli yön değiştiren delta'lar",
                 ExpectedOutcome = "Correct delta sign handling"
+            },
+
+            // ===== GERÇEK VERİ (OpenStreetMap GPS izleri) =====
+            // Kaynak/lisans: TestData/KAYNAK.md
+            new TestScenario
+            {
+                Name = "GERÇEK GPS - tek akış (kanal ayrımsız)",
+                Category = "Real Data",
+                InputData = DataGenerators.GercekGpsVerisi(),
+                Description = "Gerçek GPS telemetrisi, kanal ayrımı YAPILMADAN (mevcut davranış)",
+                ExpectedOutcome = "REJECTED bekleniyor - kanallar iç içe olduğu için sıkıştırılamaz"
+            },
+            new TestScenario
+            {
+                Name = "GERÇEK GPS - kanal ayrımı",
+                Category = "Real Data",
+                InputData = DataGenerators.GercekGpsVerisi(),
+                KanalSayisi = 3,
+                Description = "Aynı gerçek veri, ElBâriKanal ile kanal kanal sıkıştırılmış",
+                ExpectedOutcome = "Kanal ayrımı sayesinde sıkışır"
+            },
+            new TestScenario
+            {
+                Name = "GERÇEK GPS - çerçeveli (100 kayıt)",
+                Category = "Real Data",
+                InputData = DataGenerators.GercekGpsVerisi(),
+                KanalSayisi = 3,
+                CerceveBoyutu = 100,
+                Description = "Paket kaybına dayanıklı çerçeveleme + CRC32 doğrulama",
+                ExpectedOutcome = "Dayanıklılık karşılığında bir miktar oran kaybı"
+            },
+            new TestScenario
+            {
+                Name = "GERÇEK GPS - çerçeveli (500 kayıt)",
+                Category = "Real Data",
+                InputData = DataGenerators.GercekGpsVerisi(),
+                KanalSayisi = 3,
+                CerceveBoyutu = 500,
+                Description = "Daha büyük çerçeve: daha iyi oran, daha kaba kayıp granülaritesi",
+                ExpectedOutcome = "100 kayıtlık çerçeveden daha iyi oran"
+            },
+
+            // ===== ÇOK KANALLI İHA TELEMETRİSİ =====
+            new TestScenario
+            {
+                Name = "İHA telemetri 6 kanal - kanal ayrımsız",
+                Category = "Multi-Channel",
+                InputData = DataGenerators.GercekciUAVTelemetry(9996),
+                Description = "Gerçekçi uçuş verisi, kanal ayrımı yapılmadan",
+                ExpectedOutcome = "REJECTED bekleniyor"
+            },
+            new TestScenario
+            {
+                Name = "İHA telemetri 6 kanal - kanal ayrımı",
+                Category = "Multi-Channel",
+                InputData = DataGenerators.GercekciUAVTelemetry(9996),
+                KanalSayisi = 6,
+                Description = "Aynı veri, ElBâriKanal ile (lat/lon 2. derece farkı seçer)",
+                ExpectedOutcome = "Yüksek sıkıştırma oranı"
+            },
+            new TestScenario
+            {
+                Name = "İHA telemetri 6 kanal - çerçeveli",
+                Category = "Multi-Channel",
+                InputData = DataGenerators.GercekciUAVTelemetry(9996),
+                KanalSayisi = 6,
+                CerceveBoyutu = 250,
+                Description = "Telsiz linki senaryosu: bağımsız çözülebilir çerçeveler",
+                ExpectedOutcome = "Paket kaybına dayanıklı"
             },
         };
     }
