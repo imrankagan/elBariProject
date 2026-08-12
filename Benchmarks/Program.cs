@@ -103,8 +103,13 @@ internal class Program
         Console.WriteLine();
         BenchmarkRunner.RunAll(verbose: true);
 
-        Console.WriteLine();
-        Console.WriteLine("Press any key to exit...");
-        Console.ReadKey();
+        // Sadece etkileşimli konsolda bekle. Çıktı/girdi yönlendirildiğinde (CI, dosyaya
+        // log alma) ReadKey InvalidOperationException atardı; bu kontrol onu önler.
+        if (!Console.IsInputRedirected)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
+        }
     }
 }
