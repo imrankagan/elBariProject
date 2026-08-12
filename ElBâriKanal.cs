@@ -144,49 +144,88 @@ namespace ElBâri
                 }
 
                 // 2) Bu kanal için ikinci derece fark daha mı iyi?
-                bool ikinciDerece = IkinciDereceDahaIyiMi(kanal);
+                //
+                // ÖNEMLİ: İkinci dereceye geçerken mutlak ilk değer akışın İÇİNDE
+                // bırakılmaz. Bırakılsaydı akış [x0, d1, d2, ...] olurdu; x0 mutlak
+                // (ör. 1.7 milyar), d1 ise minik bir fark olduğu için 0->1 geçişinde
+                // YAPAY ve devasa bir sıçrama oluşurdu. Bu sıçrama hem bir aykırı
+                // değer harcar hem de ElKâbıd'ın hızlı tarama istatistiklerini
+                // bozarak veriyi gereksiz yere reddettirebilir. Bu yüzden ilk değer
+                // yükün başına ayrı bir alan olarak yazılır ve akışta yalnızca
+                // farklar kalır.
+                bool ikinciDerece = uzunluk >= 3 && IkinciDereceDahaIyiMi(kanal);
+
+                int ilkDeger = 0;
+                scoped Span<int> yuk;
+
                 if (ikinciDerece)
                 {
-                    FarkaCevirYerinde(kanal);
+                    ilkDeger = kanal[0];
+                    // Yerinde sola kaydırarak fark akışı üret: [d1, d2, ..., d(m-1)]
+                    for (int i = 0; i < uzunluk - 1; i++)
+                    {
+                        kanal[i] = unchecked(kanal[i + 1] - kanal[i]);
+                    }
+                    yuk = kanal.Slice(0, uzunluk - 1);
                     ikinciDereceBayraklari[c >> 3] |= (byte)(1 << (c & 7));
                 }
+                else
+                {
+                    yuk = kanal;
+                }
 
-                int hamBayt = uzunluk * sizeof(int);
+                int onEkBoyu = ikinciDerece ? 4 : 0;
+                int hamBayt = yuk.Length * sizeof(int);
+
+                if (yazmaKonumu + onEkBoyu > cikti.Length)
+                {
+                    throw new ArgumentException(
+                        $"Çıktı tamponu çok küçük. EnKotuDurumCiktiBoyutu({toplam}, {kanalSayisi}) kullanın.",
+                        nameof(cikti));
+                }
+
+                if (ikinciDerece)
+                {
+                    MemoryMarshal.Write(cikti.Slice(yazmaKonumu, 4), in ilkDeger);
+                }
+
+                int yukKonumu = yazmaKonumu + onEkBoyu;
 
                 // 3) Sıkıştırmayı dene
                 int sonuc = -1;
-                if (cikti.Length - yazmaKonumu >= hamBayt + 64)
+                if (yuk.Length > 0 && cikti.Length - yukKonumu >= hamBayt + 64)
                 {
-                    sonuc = ElBâri.ElKâbıd(kanal, cikti.Slice(yazmaKonumu));
+                    sonuc = ElBâri.ElKâbıd(yuk, cikti.Slice(yukKonumu));
                 }
 
                 if (sonuc > 0 && sonuc < hamBayt)
                 {
-                    // Sıkıştırma kazançlı: olduğu gibi bırak
-                    MemoryMarshal.Write(boyutAlani.Slice(c * 4, 4), in sonuc);
-                    yazmaKonumu += sonuc;
+                    // Sıkıştırma kazançlı
+                    int kayitliBoyut = onEkBoyu + sonuc;
+                    MemoryMarshal.Write(boyutAlani.Slice(c * 4, 4), in kayitliBoyut);
+                    yazmaKonumu = yukKonumu + sonuc;
                 }
                 else
                 {
                     // 4) HAM GEÇİŞ: kazanç yok ya da reddedildi -> veriyi ham yaz.
-                    // Not: kanal ikinci dereceye çevrildiyse fark akışı ham yazılır;
-                    // bayrak zaten işaretli olduğu için çözücü doğru geri kurar.
-                    if (yazmaKonumu + hamBayt > cikti.Length)
+                    // Kayıpsızlık her koşulda korunur.
+                    if (yukKonumu + hamBayt > cikti.Length)
                     {
                         throw new ArgumentException(
                             $"Çıktı tamponu çok küçük. EnKotuDurumCiktiBoyutu({toplam}, {kanalSayisi}) kullanın.",
                             nameof(cikti));
                     }
 
-                    for (int i = 0; i < uzunluk; i++)
+                    for (int i = 0; i < yuk.Length; i++)
                     {
-                        int deger = kanal[i];
-                        MemoryMarshal.Write(cikti.Slice(yazmaKonumu + i * 4, 4), in deger);
+                        int deger = yuk[i];
+                        MemoryMarshal.Write(cikti.Slice(yukKonumu + i * 4, 4), in deger);
                     }
 
-                    MemoryMarshal.Write(boyutAlani.Slice(c * 4, 4), in hamBayt);
+                    int kayitliBoyut = onEkBoyu + hamBayt;
+                    MemoryMarshal.Write(boyutAlani.Slice(c * 4, 4), in kayitliBoyut);
                     hamGecisBayraklari[c >> 3] |= (byte)(1 << (c & 7));
-                    yazmaKonumu += hamBayt;
+                    yazmaKonumu = yukKonumu + hamBayt;
                 }
             }
 
@@ -261,22 +300,54 @@ namespace ElBâri
 
                 Span<int> kanal = calismaAlani.Slice(0, uzunluk);
 
-                if (hamGecis)
+                // İkinci derece kanallarda yükün başında mutlak ilk değer bulunur.
+                int onEkBoyu = ikinciDerece ? 4 : 0;
+                if (yukBoyutu < onEkBoyu)
                 {
-                    for (int i = 0; i < uzunluk; i++)
-                    {
-                        kanal[i] = MemoryMarshal.Read<int>(girdi.Slice(okumaKonumu + i * 4, 4));
-                    }
+                    throw new ArgumentException($"Girdi bozuk: kanal {c} yükü eksik.", nameof(girdi));
                 }
-                else
+
+                int ilkDeger = 0;
+                if (ikinciDerece)
                 {
-                    ElBâri.ElBâsıt(girdi.Slice(okumaKonumu, yukBoyutu), kanal);
+                    ilkDeger = MemoryMarshal.Read<int>(girdi.Slice(okumaKonumu, 4));
+                }
+
+                int yukKonumu = okumaKonumu + onEkBoyu;
+                int icBoyut = yukBoyutu - onEkBoyu;
+                int hedefUzunluk = ikinciDerece ? uzunluk - 1 : uzunluk;
+
+                if (hedefUzunluk > 0)
+                {
+                    Span<int> hedef = kanal.Slice(0, hedefUzunluk);
+
+                    if (hamGecis)
+                    {
+                        if (icBoyut < hedefUzunluk * 4)
+                        {
+                            throw new ArgumentException($"Girdi bozuk: kanal {c} ham yükü eksik.", nameof(girdi));
+                        }
+                        for (int i = 0; i < hedefUzunluk; i++)
+                        {
+                            hedef[i] = MemoryMarshal.Read<int>(girdi.Slice(yukKonumu + i * 4, 4));
+                        }
+                    }
+                    else
+                    {
+                        ElBâri.ElBâsıt(girdi.Slice(yukKonumu, icBoyut), hedef);
+                    }
                 }
 
                 okumaKonumu += yukBoyutu;
 
                 if (ikinciDerece)
                 {
+                    // Fark akışını sağa kaydırıp mutlak ilk değeri başa koy, sonra önek toplam al
+                    for (int i = uzunluk - 1; i >= 1; i--)
+                    {
+                        kanal[i] = kanal[i - 1];
+                    }
+                    kanal[0] = ilkDeger;
                     FarktanGeriDonYerinde(kanal);
                 }
 
@@ -331,16 +402,7 @@ namespace ElBâri
             return g < 0 ? -g : g;
         }
 
-        /// <summary>[a,b,c,d] -> [a, b-a, c-b, d-c] (yerinde, ilk eleman mutlak referans).</summary>
-        private static void FarkaCevirYerinde(scoped Span<int> kanal)
-        {
-            for (int i = kanal.Length - 1; i >= 1; i--)
-            {
-                kanal[i] = unchecked(kanal[i] - kanal[i - 1]);
-            }
-        }
-
-        /// <summary>FarkaCevirYerinde işleminin tersi (önek toplam).</summary>
+        /// <summary>Fark akışından orijinali geri kurar (önek toplam, yerinde).</summary>
         private static void FarktanGeriDonYerinde(scoped Span<int> kanal)
         {
             for (int i = 1; i < kanal.Length; i++)
