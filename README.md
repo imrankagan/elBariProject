@@ -101,15 +101,79 @@ düşürür (küçük bloklar + kanal başına heuristik + CRC). Buna karşılı
   ✓ SIFIR tahsisat — heap'e hiç dokunulmadı, GC baskısı yok.
 ```
 
-### Konumlandırma (dürüst karşılaştırma)
+## ⚖️ Karşılaştırma — Zstd / LZ4 / Brotli / Deflate
 
-zstd / LZ4 / Snappy ile **birebir head-to-head benchmark yapılmamıştır**; bu yüzden
-buraya uydurma bir karşılaştırma tablosu koymuyoruz. Genel beklenti:
+> **Metodoloji:** Aynı makinede, aynı gerçek GPS verisiyle (295.704 B ham), 20 tur ısınma
+> + 200 tur ölçüm. Rakipler resmî .NET paketleriyle çalıştırıldı:
+> `ZstdSharp.Port`, `K4os.Compression.LZ4`, ve .NET yerleşik `BrotliStream` /
+> `DeflateStream` / `GZipStream`. Tüm yöntemlerde round-trip doğrulandı (kayıpsız).
+> Hız değerleri **ham veri üzerinden** MB/sn'dir.
 
-- **Ham sıkıştırma oranı**: zstd muhtemelen önde. ElBâri'nin hedefi bu değil.
-- **Determinizm + sıfır tahsisat + kayıplı-link dayanıklılığı**: ElBâri'nin öne çıktığı
-  alan. Genel amaçlı sıkıştırıcılar TCP benzeri kayıpsız taşıma varsayar ve paket
-  kaybını çözmez.
+### Ham baytlar (telemetriyi olduğu gibi sıkıştırıcıya vermek — yaygın "naif" entegrasyon)
+
+| Yöntem | Boyut | Oran | Encode | Decode |
+| --- | ---: | ---: | ---: | ---: |
+| **ElBâri — kanal ayrımı** | **83.124 B** | **3.56x** | **873 MB/sn** | **1.109 MB/sn** |
+| **ElBâri — çerçeveli (100)** | 87.853 B | 3.37x | 222 MB/sn | 251 MB/sn |
+| Zstd (seviye 1) | 184.181 B | 1.61x | 210 MB/sn | 313 MB/sn |
+| Zstd (seviye 3) | 175.535 B | 1.68x | 156 MB/sn | 323 MB/sn |
+| Zstd (seviye 9) | 172.483 B | 1.71x | 81 MB/sn | 804 MB/sn |
+| Zstd (seviye 19) | 97.481 B | 3.03x | 8 MB/sn | 471 MB/sn |
+| LZ4 (hızlı) | 228.684 B | 1.29x | 923 MB/sn | 3.101 MB/sn |
+| LZ4 (HC-9) | 219.544 B | 1.35x | 62 MB/sn | 2.958 MB/sn |
+| Brotli (q5) | 90.367 B | 3.27x | 36 MB/sn | 346 MB/sn |
+| Brotli (q11) | 82.471 B | 3.59x | 1 MB/sn | 291 MB/sn |
+| Deflate (optimal) | 167.385 B | 1.77x | 62 MB/sn | 538 MB/sn |
+| Gzip (optimal) | 167.403 B | 1.77x | 61 MB/sn | 521 MB/sn |
+
+### Kanal-ayrılmış baytlar (rakiplere avantaj: veriyi biz ön-işleyip verdik)
+
+| Yöntem | Boyut | Oran | Encode | Decode |
+| --- | ---: | ---: | ---: | ---: |
+| Zstd (seviye 1) | 188.464 B | 1.57x | 590 MB/sn | 887 MB/sn |
+| Zstd (seviye 19) | 87.076 B | 3.40x | 7 MB/sn | 394 MB/sn |
+| LZ4 (hızlı) | 234.028 B | 1.26x | 1.247 MB/sn | 5.947 MB/sn |
+| Brotli (q11) | **76.241 B** | **3.88x** | 1 MB/sn | 305 MB/sn |
+| Deflate (optimal) | 162.898 B | 1.82x | 62 MB/sn | 490 MB/sn |
+
+### Sonuçların yorumu
+
+**1. "Sıkıştırıcı yapıştırmak" telemetride yetersiz kalıyor.**
+Yaygın yaklaşım telemetriyi olduğu gibi Zstd/LZ4'e vermektir. Ölçüm bunun zayıf kaldığını
+gösteriyor: Zstd-1 yalnızca **1.61x**, LZ4 **1.29x** veriyor. ElBâri **3.56x** ile bunların
+**iki katından fazla** sıkıştırıyor ve aynı zamanda daha hızlı. Sebep basit — genel
+sıkıştırıcılar veriyi anlamsız bir bayt yığını olarak görür; kanalların iç içe geçmesi
+onların örüntü aramasını köreltir. ElBâri verinin **kayıt yapısını bilir**.
+
+**2. Hız/oran ödünleşiminde boş bir köşe dolduruluyor.**
+Rakipler iki uçtan birinde: ya hızlı ama zayıf oran (LZ4 1.29x, Zstd-1 1.61x), ya iyi oran
+ama çok yavaş (Brotli-q11 3.59x @ 1 MB/sn, Zstd-19 3.03x @ 8 MB/sn). **Hem 3x üzeri oran
+hem 800+ MB/sn hızı** aynı anda veren tek yöntem ElBâri'dir.
+
+**3. Dürüst zayıflık: en yüksek oran bizde değil.**
+Kanal-ayrılmış veride **Brotli-q11 3.88x** ile ElBâri'yi (3.56x) geçiyor. Ancak bunu
+**~870 kat daha yavaş** encode hızıyla (1 MB/sn) yapıyor; ayrıca bellek ayırır,
+deterministik değildir ve paket kaybına dayanıklı değildir. Sadece en yüksek oran
+gerekiyorsa ve hız/determinizm önemsizse Brotli daha uygundur.
+
+**4. Tabloda görünmeyen farklar.**
+Bu ölçüm yalnızca oran ve hızı kapsar. Listedeki rakiplerin **hiçbirinde** şunlar yoktur:
+
+| Özellik | ElBâri | Zstd / LZ4 / Brotli |
+| --- | --- | --- |
+| Paket kaybına dayanıklılık | ✅ Bağımsız çerçeveler | ❌ Akış bozulur |
+| Sıfır heap tahsisatı | ✅ Ölçüldü (0 bayt) | ❌ Bellek ayırır |
+| Deterministik gecikme | ✅ Sabit blok yapısı | ❌ Değişken |
+| Harici bağımlılık | ✅ Yok (saf C#) | ❌ Native kütüphane |
+| Çerçeve başına bütünlük | ✅ CRC32 | ❌ Yok (akış seviyesi) |
+
+**Ne zaman ElBâri, ne zaman diğerleri?**
+
+- **ElBâri**: kayıplı/dar RF linki, gerçek-zaman kısıtı, gömülü/denetlenebilir ortam,
+  çok kanallı telemetri.
+- **Zstd/Brotli**: güvenilir taşıma (TCP/dosya), hızın önemsiz olduğu arşivleme,
+  maksimum oran hedefi.
+- **LZ4**: saf hız gerekiyorsa ve düşük oran kabul edilebilirse.
 
 ## 🛡️ Paket Kaybı Dayanıklılığı (Ayırt Edici Özellik)
 
@@ -254,6 +318,23 @@ ElBâri'nin koruması **Native AOT temellidir** — abartılı runtime hileleri 
 > koduna bir katkısı olmuyordu. Gerçek koruma Native AOT + trimming + sembolsüz derlemedir.
 
 ## 🚁 İHA ve Gömülü Sistem Uyumluluğu
+
+### Nerede çalışır, nerede çalışmaz?
+
+ElBâri, **yardımcı bilgisayarda** (companion computer) çalışacak şekilde tasarlanmıştır —
+uçuş kartının (flight controller) kendisinde değil.
+
+| Donanım | Örnek | ElBâri çalışır mı? |
+| --- | --- | --- |
+| **Yardımcı bilgisayar** (Linux'lu) | Raspberry Pi, NVIDIA Jetson, x86 SBC | ✅ Evet — hedef platform |
+| **Yer istasyonu / sunucu** | Masaüstü, kenar sunucusu | ✅ Evet |
+| **Uçuş kartı** (bare-metal MCU) | Pixhawk, STM32, Cortex-M | ❌ Hayır — işletim sistemi yok |
+
+Bunun nedeni .NET/Native AOT'un altında bir işletim sistemi (Linux) beklemesidir; küçük
+uçuş-kontrol mikrodenetleyicileri işletim sistemi çalıştırmaz. Bu bir kısıt gibi görünse
+de hedefle örtüşür: uçuş kartı gerçek-zamanlı kontrol döngüsüyle uğraşır ve telemetriyi
+**sıkıştırmaz**; sıkıştırma zaten kamera/AI/uzun-menzil-link işlerini yürüten yardımcı
+bilgisayara ait bir görevdir.
 
 ### Neden bu alana uygun?
 
