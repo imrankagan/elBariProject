@@ -174,8 +174,11 @@ public static class BenchmarkRunner
                 ElBâri.ElKâbıd(input, compressed);
             }, MEASUREMENT_ITERATIONS);
 
-            // Get actual compressed size
-            int compressedSize = GetCompressedSize(input, compressed);
+            // Gerçek sıkıştırılmış boyut: ElKâbıd'ın döndürdüğü byte sayısı.
+            // (quickCheck yukarıda aynı girdiyle encode edildi; encode deterministik olduğu
+            //  için boyut birebir aynıdır. Sondaki-sıfır tahmini kullanmak yanlış sonuç verirdi:
+            //  bit-packing çıktısı meşru olarak 0x00 ile bitebilir ve boyut olduğundan küçük ölçülürdü.)
+            int compressedSize = quickCheck;
 
             // Measure Decode
             long decodeNanos = MeasureOperation(() =>
@@ -249,22 +252,6 @@ public static class BenchmarkRunner
         sw.Stop();
 
         return (long)((double)sw.ElapsedTicks / iterations * 1_000_000_000.0 / Stopwatch.Frequency);
-    }
-
-    private static int GetCompressedSize(int[] input, byte[] compressed)
-    {
-        // ElBâri formatı: header (8 bytes) + bit-packed data
-        // Basit yaklaşım: Encode edip actual size'ı döndür
-        byte[] temp = new byte[input.Length * sizeof(int) * 2];
-        ElBâri.ElKâbıd(input, temp);
-
-        // Compressed size'ı bul (trailing zeros'a kadar)
-        int size = temp.Length;
-        while (size > 0 && temp[size - 1] == 0)
-        {
-            size--;
-        }
-        return Math.Max(size, 8); // Minimum header size
     }
 
     private static bool ValidateRoundTrip(int[] original, int[] decoded)

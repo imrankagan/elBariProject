@@ -18,17 +18,13 @@
 	<Message Text="===========================================" Importance="high" />
 	<Message Text="ElBâri Code Protection Pipeline Enabled" Importance="high" />
 	<Message Text="- Native AOT: ✓ Active" Importance="high" />
-	<Message Text="- Anti-Tamper: ✓ Active" Importance="high" />
 	<Message Text="- Obfuscation: Ready (requires Obfuscar tool)" Importance="high" />
 	<Message Text="===========================================" Importance="high" />
   </Target>
 
-  <!-- Assembly metadata koruma özellikleri -->
-  <ItemGroup Condition="'$(EnableProtection)' == 'true'">
-	<!-- ILDASM ile disassemble'ı engelle -->
-	<AssemblyAttribute Include="System.Runtime.CompilerServices.DisablePrivateReflection" />
-	<AssemblyAttribute Include="System.Runtime.CompilerServices.SuppressIldasmAttribute" />
-  </ItemGroup>
+  <!-- NOT: DisablePrivateReflection ve SuppressIldasm attribute'ları kaldırıldı.
+       .NET 6.0+ üzerinde hiçbir etkileri yok (SYSLIB0015 / SYSLIB0025) ve Native AOT
+       zaten IL göndermediği için ILDASM/reflection tabanlı korumaları gereksiz kılar. -->
 
   <!-- Post-build obfuscation adımı (opsiyonel - araç yüklüyse) -->
   <Target Name="RunObfuscation" AfterTargets="Build" Condition="'$(EnableProtection)' == 'true' AND Exists('$(ObfuscarToolPath)')">
@@ -38,20 +34,19 @@
 	<MakeDir Directories="$(ProtectedOutputPath)" />
 
 	<!-- Obfuscar çalıştır -->
-	<Exec Command="&quot;$(ObfuscarToolPath)&quot; obfuscar.xml" 
+	<Exec Command="&quot;$(ObfuscarToolPath)&quot; obfuscar.xml"
 		  WorkingDirectory="$(ProjectDir)"
 		  IgnoreExitCode="false" />
 
 	<Message Text="Code protection completed: $(ProtectedOutputPath)" Importance="high" />
   </Target>
 
-  <!-- Obfuscar yüklü değilse bilgilendirme -->
-  <Target Name="WarnMissingObfuscator" AfterTargets="Build" Condition="'$(EnableProtection)' == 'true' AND !Exists('$(ObfuscarToolPath)')">
-	<Warning Text="Obfuscar tool not found at: $(ObfuscarToolPath)" />
-	<Message Text="To enable full code protection:" Importance="high" />
-	<Message Text="  1. Install Obfuscar: dotnet tool install --global Obfuscar.GlobalTool" Importance="high" />
-	<Message Text="  2. Or download from: https://github.com/obfuscar/obfuscar" Importance="high" />
-	<Message Text="Native AOT and Anti-Tamper protections are still active." Importance="high" />
+  <!-- Obfuscar yüklü değilse bilgilendirme (opsiyonel adım olduğu için uyarı değil, info) -->
+  <Target Name="InformMissingObfuscator" AfterTargets="Build" Condition="'$(EnableProtection)' == 'true' AND !Exists('$(ObfuscarToolPath)')">
+	<Message Text="Obfuscar (opsiyonel) bulunamadı: $(ObfuscarToolPath) — obfuscation adımı atlandı." Importance="high" />
+	<Message Text="Etkinleştirmek için: dotnet tool install --global Obfuscar.GlobalTool" Importance="high" />
+	<Message Text="  veya indir: https://github.com/obfuscar/obfuscar" Importance="high" />
+	<Message Text="Native AOT koruması zaten aktif." Importance="high" />
   </Target>
 
   <!-- Strong name signing (opsiyonel - key dosyası varsa) -->
