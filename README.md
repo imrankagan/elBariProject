@@ -246,19 +246,12 @@ ElBâri'nin koruması **Native AOT temellidir** — abartılı runtime hileleri 
 | **No Debug Symbols** | `DebugType=none` (Release) | PDB yok, sembol bilgisi yok |
 | **Reflection Disabled** | `IlcDisableReflection=true` | Runtime type inspection kapalı |
 | **Full Trimming** | IL trimmer | Kullanılmayan metadata çıkarılır |
-| **Obfuscation** | Obfuscar (opsiyonel) | Kuruluysa string/kontrol akışı karıştırma |
 
-> **Not:** Önceki sürümlerde bulunan runtime "Anti-Tamper / Anti-Debug" katmanı
-> kaldırılmıştır. `Debugger.IsAttached` ve assembly-hash kontrolü gibi teknikler
-> .NET 6+ / Native AOT bağlamında güvenilir bir koruma sağlamıyordu ve bakım yükü
-> getiriyordu. Gerçek koruma Native AOT + trimming + sembolsüz derlemedir.
-
-Obfuscar kuruluysa Release build otomatik çalıştırır:
-
-```bash
-dotnet tool install --global Obfuscar.GlobalTool
-dotnet build -c Release
-```
+> **Not:** Önceki sürümlerde bulunan runtime "Anti-Tamper / Anti-Debug" katmanı ve
+> Obfuscar build pipeline'ı kaldırılmıştır. `Debugger.IsAttached` / assembly-hash
+> kontrolü gibi teknikler .NET 6+ / Native AOT bağlamında güvenilir koruma sağlamıyor;
+> Obfuscar ise hiç kurulmamıştı ve IL'i karıştırdığı için Native AOT'un ürettiği makine
+> koduna bir katkısı olmuyordu. Gerçek koruma Native AOT + trimming + sembolsüz derlemedir.
 
 ## 🚁 İHA ve Gömülü Sistem Uyumluluğu
 

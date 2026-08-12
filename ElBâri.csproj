@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -10,8 +10,6 @@
     <StartupObject>Program</StartupObject>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
-    <!-- Kod Koruma Özellikleri -->
-    <EnableCodeProtection>true</EnableCodeProtection>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <Deterministic>true</Deterministic>
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
@@ -30,9 +28,10 @@
     <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
     <IlcDisableReflection>true</IlcDisableReflection>
     <TrimMode>full</TrimMode>
+    <!-- AOT ara/analiz dosyalarini uretme (sadeleme) -->
+    <IlcGenerateMstatFile>false</IlcGenerateMstatFile>
+    <IlcGenerateDgmlFile>false</IlcGenerateDgmlFile>
+    <IlcGenerateMapFile>false</IlcGenerateMapFile>
   </PropertyGroup>
-
-  <!-- Koruma Pipeline'ını Import Et -->
-  <Import Project="ElBâri.Protection.targets" />
 
 </Project>
