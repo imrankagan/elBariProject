@@ -105,6 +105,25 @@ girdiyi kabul edip anlamsiz veri uretebilir (tampon tasirmaz, cokmez).
 Bu yuzden GUVENILMEYEN kaynaktan gelen veri DAIMA cerceve katmanindan
 gecirilmelidir. Ayrinti icin src/elbari.h basindaki guvenlik notuna bakin.
 
+## Float kuantalama
+
+src/elbari_float.c - ondalikli telemetriyi istenen hassasiyete gore
+tamsayiya cevirir; sonuc mevcut boru hattina verilir, bicim degismez.
+
+!!! KAYIPLIDIR !!! Secilen hassasiyetin altindaki kisim atilir. Tam degerin
+korunmasi gereken veriler bu katmandan gecirilmemelidir. Kayipsiz float
+sikistirma (XOR tabanli) bu surumde yoktur.
+
+Olculen (12.000 kayit x 6 kanal, gercekci ucus verisi):
+  ham float32                 : 288.000 bayt
+  kuantalama + kanal katmani  :  35.935 bayt  (8.01x)
+  float bit desenini dogrudan : 195.039 bayt  (1.48x)
+  -> kuantalama 5.4 kat daha iyi
+
+Ikili uyumluluk: 72.000 degerin tamami C ve .NET'te ayni yuvarlandi.
+Yuvarlama cift duyarlikta ve acikca "sifirdan uzaga" yapilir; C#'in
+varsayilan bankaci yuvarlamasi kullanilmaz.
+
 ## Uygunluk (conformance) testi
 
 Bicim spesifikasyonu: ../BICIM_SPESIFIKASYONU.md

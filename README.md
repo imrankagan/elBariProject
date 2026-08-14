@@ -548,6 +548,77 @@ olcum.exe <referans_dizini>      # verim + gecikme dağılımı
 fuzz.exe [tur_sayisi]            # düşmanca girdi sağlamlık testi
 ```
 
+## 🔢 Float (Ondalıklı) Telemetri Desteği
+
+Çekirdek motor tamsayı üzerinde çalışır. Gerçek telemetrinin önemli bir kısmı ise
+ondalıklı taşınır: yönelim açıları, hız, ivme, batarya gerilimi, quaternion bileşenleri.
+
+**Kuantalama katmanı** ([ElBâriFloat.cs](ElB%C3%A2riFloat.cs) / [elbari_float.c](c/src/elbari_float.c))
+ondalıklı değerleri istenen **hassasiyete** göre ölçekleyip tamsayıya çevirir. Sonuç mevcut
+kanal ve çerçeve katmanlarına olduğu gibi verilir — **biçim değişmez**.
+
+### ⚠️ Bu katman kayıplıdır
+
+Kuantalama, seçilen hassasiyetin altındaki kısmı atar. Telemetri için genellikle istenen
+davranış budur: bir yönelim açısını 0.001 radyan (0.06°) hassasiyetle taşımak fazlasıyla
+yeterlidir ve tam float taşımak bant genişliği israfıdır.
+
+**Ancak** tam değerin korunması gereken veriler (ham sensör kaydı, sağlama toplamı,
+kriptografik malzeme) bu katmandan **geçirilmemelidir**. Kayıpsız float sıkıştırma
+(XOR tabanlı, Gorilla/Chimp ailesi) ayrı bir bit biçimi gerektirir ve **bu sürümde yoktur**.
+
+### Ölçülen sonuç — gerçekçi uçuş verisi
+
+12.000 kayıt × 6 kanal (roll, pitch, yaw, hız, batarya, irtifa), 50 Hz:
+
+| Yöntem | Boyut | Oran |
+| --- | ---: | ---: |
+| Ham float32 | 288.000 B | — |
+| **Kuantalama + kanal katmanı** | **35.935 B** | **8.01x** |
+| Float bit desenini doğrudan vermek | 195.039 B | 1.48x |
+
+> Kuantalama, float bit desenini doğrudan sıkıştırmaktan **5.4 kat** daha iyi. Sebebi:
+> float bit desenlerinin ardışık farkları büyük ve düzensizdir; kuantalanmış tamsayılar
+> ise düzgün delta üretir.
+
+### Kuantalama hatası — ölçüldü
+
+| Kanal | Hedef hassasiyet | Ölçülen maks hata |
+| --- | ---: | ---: |
+| roll / pitch / yaw | 0.001 rad | 5.0 × 10⁻⁴ |
+| hız / batarya / irtifa | 0.01 birim | 5.0 × 10⁻³ |
+
+Her kanalda hata **hassasiyetin tam yarısını** aşmıyor — kuantalamanın matematiksel
+olarak ulaşabileceği en iyi sonuç bu.
+
+### İkili uyumluluk
+
+Kayan nokta yuvarlaması iki dilde kolayca ayrışır (C# varsayılanı bankacı yuvarlamasıdır).
+Bu yüzden her iki sürümde de hesap çift duyarlıkta yapılır ve yuvarlama açıkça
+**sıfırdan uzağa** uygulanır. Doğrulandı:
+
+```
+[GEÇTİ] float: C kuantalaması == .NET      72.000 değerin tamamı aynı yuvarlandı
+[GEÇTİ] float: sıkıştırma C == .NET        35.935 bayt birebir aynı
+[GEÇTİ] float: tam tur hata sınırı içinde  maks hata 4.999e-03, sınır 5.005e-03
+```
+
+### Kullanım
+
+```csharp
+float[] olcekler = { 1000f, 1000f, 1000f, 100f, 100f, 100f };  // kanal başına
+int[] tamsayi = new int[veri.Length];
+
+ElBâriFloat.KuantalaKanalli(veri, kanal, olcekler, tamsayi);
+int n = ElBâriKanal.ElKâbıdKanal(tamsayi, kanal, calisma, cikti);
+// ...
+ElBâriFloat.CozKanalli(geriTamsayi, kanal, olcekler, geriFloat);
+```
+
+> **Ölçekler biçim içinde taşınmaz.** Gönderici ve alıcı aynı ölçek dizisini kullanmak
+> zorundadır (telemetri şemasının parçası olarak, bant dışı). Bu, MAVLink gibi
+> protokollerin çalışma biçimiyle aynıdır: alan tanımları iki tarafta da bilinir.
+
 ## 📐 Biçim Spesifikasyonu ve Uygunluk Vektörleri
 
 Bayt düzeyindeki veri biçimi tam olarak belgelenmiştir:

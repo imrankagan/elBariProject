@@ -435,9 +435,191 @@ int main(int argc, char **argv)
     }
 
     /* =================================================================
-     * 4) KENAR DURUMLAR VE SAVUNMACILIK
+     * 4) FLOAT KUANTALAMA - ikili uyumluluk
+     * =================================================================
+     * Kayan nokta yuvarlamasi iki dilde kolayca ayrisir. Bu bolum, C ve
+     * .NET surumlerinin AYNI tamsayilari uretip uretmedigini dogrular.
      * ================================================================= */
-    printf("\n--- 4) Kenar durumlar ve savunmacilik ---\n");
+    printf("\n--- 4) Float kuantalama (ikili uyumluluk) ---\n");
+
+    {
+        unsigned char *fg = NULL;
+        long fg_boy = 0;
+
+        yol_birlestir(yol, sizeof(yol), dizin, "float_girdi.bin");
+        fg = dosya_oku(yol, &fg_boy);
+
+        if (fg == NULL)
+        {
+            printf("  (atlandi: float_girdi.bin bulunamadi)\n");
+        }
+        else
+        {
+            int32_t f_kanal;
+            int32_t f_adet;
+            float  *olcekler;
+            float  *degerler;
+            int32_t *kuantalanmis;
+            unsigned char *ref_tam = NULL;
+            long ref_tam_boy = 0;
+            int32_t durum2;
+
+            (void)memcpy(&f_kanal, &fg[0], 4);
+            (void)memcpy(&f_adet, &fg[4], 4);
+
+            olcekler = (float *)malloc((size_t)f_kanal * sizeof(float));
+            degerler = (float *)malloc((size_t)f_adet * sizeof(float));
+            kuantalanmis = (int32_t *)malloc((size_t)f_adet * sizeof(int32_t));
+
+            if ((olcekler == NULL) || (degerler == NULL) || (kuantalanmis == NULL))
+            {
+                (void)fprintf(stderr, "HATA: bellek ayrilamadi\n");
+                return 2;
+            }
+
+            (void)memcpy(olcekler, &fg[8], (size_t)f_kanal * sizeof(float));
+            (void)memcpy(degerler, &fg[8 + (f_kanal * 4)], (size_t)f_adet * sizeof(float));
+
+            printf("  veri: %d float, %d kanal\n", (int)f_adet, (int)f_kanal);
+
+            durum2 = elbari_float_kuantala_kanalli(degerler, f_adet, f_kanal,
+                                                   olcekler, kuantalanmis);
+            if (durum2 != ELBARI_TAMAM)
+            {
+                sonuc_yaz("float: kuantalama", 0, "hata kodu dondu");
+            }
+            else
+            {
+                /* .NET'in urettigi tamsayilarla birebir ayni mi? */
+                yol_birlestir(yol, sizeof(yol), dizin, "float_ref_tamsayi.bin");
+                ref_tam = dosya_oku(yol, &ref_tam_boy);
+
+                if ((ref_tam == NULL) || (ref_tam_boy != (long)f_adet * 4))
+                {
+                    sonuc_yaz("float: C kuantalamasi == .NET", 0, "referans dosyasi yok/bozuk");
+                }
+                else
+                {
+                    int ayni = 1;
+                    for (i = 0; i < f_adet; i++)
+                    {
+                        int32_t beklenen_deger;
+                        (void)memcpy(&beklenen_deger, &ref_tam[i * 4], 4);
+                        if (kuantalanmis[i] != beklenen_deger)
+                        {
+                            (void)snprintf(mesaj, sizeof(mesaj),
+                                           "eleman %d: C=%d, .NET=%d",
+                                           (int)i, (int)kuantalanmis[i], (int)beklenen_deger);
+                            ayni = 0;
+                            break;
+                        }
+                    }
+                    if (ayni != 0)
+                    {
+                        (void)snprintf(mesaj, sizeof(mesaj),
+                                       "%d degerin tamami ayni yuvarlandi", (int)f_adet);
+                    }
+                    sonuc_yaz("float: C kuantalamasi == .NET", ayni, mesaj);
+                    free(ref_tam);
+                    ref_tam = NULL;
+                }
+
+                /* Kuantalanmis veriyi sikistirip .NET ciktisiyla karsilastir */
+                {
+                    int32_t kap = elbari_kanal_en_kotu_durum_boyutu(f_adet, f_kanal);
+                    int32_t cal_kap = elbari_kanal_gerekli_calisma_alani(f_adet, f_kanal);
+                    unsigned char *fc = (unsigned char *)malloc((size_t)kap);
+                    int32_t *fcal = (int32_t *)malloc((size_t)cal_kap * sizeof(int32_t));
+                    int32_t fn;
+
+                    if ((fc == NULL) || (fcal == NULL))
+                    {
+                        (void)fprintf(stderr, "HATA: bellek ayrilamadi\n");
+                        return 2;
+                    }
+
+                    fn = elbari_kanal_kabid(kuantalanmis, f_adet, f_kanal,
+                                            fcal, cal_kap, fc, kap);
+
+                    yol_birlestir(yol, sizeof(yol), dizin, "float_ref_kanal.bin");
+                    ref = dosya_oku(yol, &ref_boy);
+
+                    if ((ref != NULL) && (fn > 0))
+                    {
+                        int esit = tampon_karsilastir(fc, fn, ref, (int32_t)ref_boy,
+                                                      mesaj, sizeof(mesaj));
+                        sonuc_yaz("float: sikistirma C == .NET", esit, mesaj);
+                        free(ref);
+                        ref = NULL;
+                    }
+                    else
+                    {
+                        sonuc_yaz("float: sikistirma C == .NET", 0, "referans yok ya da hata");
+                    }
+
+                    /* Tam tur: coz -> kuantalamadan geri don -> hata olc */
+                    {
+                        int32_t *gt = (int32_t *)malloc((size_t)f_adet * sizeof(int32_t));
+                        float *gf = (float *)malloc((size_t)f_adet * sizeof(float));
+                        int32_t *fcal2 = (int32_t *)malloc((size_t)cal_kap * sizeof(int32_t));
+
+                        if ((gt == NULL) || (gf == NULL) || (fcal2 == NULL))
+                        {
+                            (void)fprintf(stderr, "HATA: bellek ayrilamadi\n");
+                            return 2;
+                        }
+
+                        durum2 = elbari_kanal_basit(fc, fn, fcal2, cal_kap, gt, f_adet);
+                        if (durum2 == ELBARI_TAMAM)
+                        {
+                            durum2 = elbari_float_coz_kanalli(gt, f_adet, f_kanal, olcekler, gf);
+                        }
+
+                        if (durum2 == ELBARI_TAMAM)
+                        {
+                            float hata = elbari_float_maks_hata(degerler, gf, f_adet);
+                            float en_kaba = 0.0f;
+                            int32_t k;
+
+                            /* Beklenen sinir: en kaba kanalin yarim adimi */
+                            for (k = 0; k < f_kanal; k++)
+                            {
+                                float adim = 1.0f / olcekler[k];
+                                if (adim > en_kaba) { en_kaba = adim; }
+                            }
+
+                            (void)snprintf(mesaj, sizeof(mesaj),
+                                           "maks hata %.3e, sinir %.3e",
+                                           (double)hata, (double)(en_kaba * 0.5f * 1.001f));
+                            sonuc_yaz("float: tam tur hata siniri icinde",
+                                      (hata <= (en_kaba * 0.5f * 1.001f)) ? 1 : 0, mesaj);
+                        }
+                        else
+                        {
+                            sonuc_yaz("float: tam tur hata siniri icinde", 0, "cozme hatasi");
+                        }
+
+                        free(gt);
+                        free(gf);
+                        free(fcal2);
+                    }
+
+                    free(fc);
+                    free(fcal);
+                }
+            }
+
+            free(olcekler);
+            free(degerler);
+            free(kuantalanmis);
+            free(fg);
+        }
+    }
+
+    /* =================================================================
+     * 5) KENAR DURUMLAR VE SAVUNMACILIK
+     * ================================================================= */
+    printf("\n--- 5) Kenar durumlar ve savunmacilik ---\n");
 
     {
         int32_t kucuk[3];

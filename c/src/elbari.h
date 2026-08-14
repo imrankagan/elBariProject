@@ -334,6 +334,70 @@ int32_t elbari_cerceve_gerekli_calisma_alani(int32_t kayit_sayisi,
  */
 uint32_t elbari_crc32(const uint8_t *veri, int32_t boyut);
 
+/* =====================================================================
+ * FLOAT KUANTALAMA (istege bagli on/son isleme)
+ * =====================================================================
+ *
+ * Cekirdek motor tamsayi uzerinde calisir. Ondalikli telemetri (yonelim,
+ * hiz, batarya gerilimi, quaternion) bu katmanla istenen HASSASIYETE
+ * gore tamsayiya cevrilir ve mevcut boru hattina verilir. BICIM DEGISMEZ.
+ *
+ * !!! BU KATMAN KAYIPLIDIR !!!
+ * Secilen hassasiyetin altindaki kisim atilir. Telemetri icin genellikle
+ * istenen davranistir (0.001 radyan hassasiyet fazlasiyla yeterlidir),
+ * ancak tam degerin korunmasi gereken veriler bu katmandan
+ * GECIRILMEMELIDIR. Kayipsiz float sikistirma (XOR tabanli) bu surumde
+ * YOKTUR.
+ *
+ * Olcekler bicim icinde TASINMAZ: gonderici ve alici ayni olcek dizisini
+ * kullanmak zorundadir (telemetri semasinin parcasi olarak, bant disi).
+ * ===================================================================== */
+
+/**
+ * Ondalikli degerleri olcekleyip tamsayiya cevirir (KAYIPLI).
+ *
+ * @param olcek  1 / istenen_hassasiyet. Ornek: 0.001 hassasiyet -> 1000.
+ * @return ELBARI_TAMAM, ya da tasma/NaN/gecersiz olcek durumunda
+ *         ELBARI_HATA_PARAMETRE (sessizce yanlis deger uretilmez).
+ */
+int32_t elbari_float_kuantala(const float *girdi,
+                              int32_t      adet,
+                              float        olcek,
+                              int32_t     *cikti);
+
+/** Kuantalamanin tersi: tamsayidan ondalikliya. */
+int32_t elbari_float_coz(const int32_t *girdi,
+                         int32_t        adet,
+                         float          olcek,
+                         float         *cikti);
+
+/**
+ * Cok kanalli surum: her kanalin kendi olcegi vardir.
+ * Bir yonelim acisi ile batarya gerilimi ayni hassasiyeti gerektirmez.
+ *
+ * @param olcekler kanal_sayisi uzunlugunda olcek dizisi
+ */
+int32_t elbari_float_kuantala_kanalli(const float *girdi,
+                                      int32_t      eleman_sayisi,
+                                      int32_t      kanal_sayisi,
+                                      const float *olcekler,
+                                      int32_t     *cikti);
+
+/** Cok kanalli kuantalamanin tersi. */
+int32_t elbari_float_coz_kanalli(const int32_t *girdi,
+                                 int32_t        eleman_sayisi,
+                                 int32_t        kanal_sayisi,
+                                 const float   *olcekler,
+                                 float         *cikti);
+
+/** Istenen hassasiyet icin olcek degeri (1 / hassasiyet). */
+float elbari_float_olcek_oner(float hassasiyet);
+
+/** Iki dizi arasindaki en buyuk mutlak fark (kuantalama hatasi olcumu). */
+float elbari_float_maks_hata(const float *orijinal,
+                             const float *geri,
+                             int32_t      adet);
+
 #ifdef __cplusplus
 }
 #endif
