@@ -74,6 +74,30 @@ Ozet:
 Not: Elle yapilmis oz-degerlendirmedir; sertifikali bir MISRA araciyla
 henuz dogrulanmamistir.
 
+## Saglamlik (fuzz) testi
+
+Cozucu, dusmanca ve bozuk girdilere karsi 400.000 tur fuzz testinden
+gecirildi. Cikti tamponlari "kanarya" desenleriyle cevrelenerek cokmeye
+yol acmayan sessiz tasmalar da yakalandi.
+
+    fuzz.exe [tur_sayisi]
+
+Sonuc:
+    Toplam tur           : 400.000
+    TAMPON TASMASI       : 0
+    Bozulmus cerceveler  : %100 reddedildi (99.790/99.790)
+
+Katman kirilimi (butunluk kontrolu tasarimi):
+    cekirdek   kabul 88.963  red  11.622   <- saglama toplami YOK
+    kanal      kabul      0  red 199.625   <- baslik tutarlilik kontrolu
+    cerceve    kabul      0  red  99.790   <- CRC32 KORUMALI
+
+GUVENLIK KURALI:
+Butunluk kontrolu yalnizca cerceve katmanindadir. Cekirdek cozucu bozuk
+girdiyi kabul edip anlamsiz veri uretebilir (tampon tasirmaz, cokmez).
+Bu yuzden GUVENILMEYEN kaynaktan gelen veri DAIMA cerceve katmanindan
+gecirilmelidir. Ayrinti icin src/elbari.h basindaki guvenlik notuna bakin.
+
 ## Olcum
 
     derle.bat
@@ -90,6 +114,9 @@ Olculen (gercek GPS verisi, 24.642 kayit):
 
 Tamamlanan: uc katman, .NET ile ikili uyumluluk, verim ve gecikme
 olcumu, MISRA oz-degerlendirmesi, tamsayi tasma korumasi.
+
+Ayrica: 400.000 turluk fuzz testi (tampon tasmasi 0), tamsayi tasma
+korumasi, katmanli butunluk modeli belgelendi.
 
 Yapilacak: sertifikali MISRA araci ile dogrulama, GCC/Clang derleme,
 ARM ve big-endian dogrulama, RTOS uzerinde WCET analizi, elle SIMD.

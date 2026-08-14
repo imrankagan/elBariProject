@@ -101,6 +101,38 @@ extern "C" {
 #define ELBARI_CERCEVE_BASLIK_BOYUTU    (16)
 
 /* =====================================================================
+ * KATMANLI BUTUNLUK MODELI - GUVENLIK NOTU
+ * =====================================================================
+ *
+ * Butunluk kontrolu (saglama toplami) YALNIZCA cerceve katmanindadir.
+ *
+ *   Cekirdek (elbari_basit)      : saglama toplami YOK
+ *   Kanal    (elbari_kanal_basit): yalnizca baslik tutarlilik kontrolu
+ *   Cerceve  (elbari_cerceve_oku): CRC32 ile korunur
+ *
+ * Bu bilincli bir tasarim tercihidir: alt katmanlar sicak yolda calisir
+ * ve zaten dogrulanmis veri uzerinde islem yapmalari beklenir. Saglama
+ * toplamini her katmanda tekrarlamak gereksiz maliyet olurdu.
+ *
+ * SONUCU SUDUR:
+ * Cekirdek cozucuye rastgele/bozuk bayt verilirse HATA DONDURMEYEBILIR;
+ * bit akisini oldugu gibi yorumlar ve ANLAMSIZ VERI uretir. Bu bir
+ * guvenlik acigi degildir (tampon tasmasi olusmaz, surec cokmez), ancak
+ * sessizce yanlis veri uretir.
+ *
+ * KURAL:
+ *   GUVENILMEYEN kaynaktan (telsiz linki, ag, disk) gelen veri
+ *   DAIMA cerceve katmanindan gecirilmelidir. elbari_basit ve
+ *   elbari_kanal_basit dogrudan guvenilmeyen veriye uygulanmamalidir.
+ *
+ * Fuzz testi sonucu (400.000 tur, kanarya korumali tamponlar):
+ *   - bozulmus cerceveler: %100 reddedildi (99.790/99.790)
+ *   - kanal katmani      : rastgele girdinin tamami reddedildi
+ *   - cekirdek           : rastgele girdiyi kabul etti (yukaridaki kural)
+ *   - tampon tasmasi     : 0
+ * ===================================================================== */
+
+/* =====================================================================
  * KATMAN 1 - CEKIRDEK
  * ===================================================================== */
 
