@@ -1,4 +1,9 @@
+# Derleme ciktilari
 *.exe
 *.obj
 *.pdb
 *.ilk
+
+# Statik analiz artiklari
+*.nativecodeanalysis.xml
+*.sarif
