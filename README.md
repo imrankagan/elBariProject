@@ -17,7 +17,9 @@ sunmasıdır:
 1. **Kayıplı link üzerinde çalışabilme** — bir paket düşerse yalnızca o paketin
    kayıtları kaybolur; sonraki veri etkilenmez (aşağıya bkz. *Paket Kaybı Dayanıklılığı*).
 2. **Sıfır heap tahsisatı** — GC duraklaması yok, deterministik davranış.
-3. **Bağımlılıksız + Native AOT** — harici kütüphane yok, IL yerine doğrudan makine kodu.
+3. **Bağımlılıksız ve her yere taşınabilir** — harici kütüphane yok. .NET sürümü Native
+   AOT ile makine koduna derlenir; **C sürümü** ise RTOS ve bare-metal dahil derleyicisi
+   olan her mimariye girer. İkisi bit bit aynı çıktı üretir.
 
 Kodun görüntülenmesi, değiştirilmesi veya kullanılması için geçerli bir lisans gereklidir.
 GitHub'daki görünürlük **sadece tanıtım amaçlıdır**.
@@ -27,11 +29,16 @@ GitHub'daki görünürlük **sadece tanıtım amaçlıdır**.
 ElBâri üç bağımsız katmandan oluşur. Her katman bir öncekinin üzerine oturur; ihtiyacına
 göre yalnızca gerekeni kullanırsın.
 
-| Katman | Dosya | Ne işe yarar |
-| --- | --- | --- |
-| **Çekirdek** | [ElBâri.cs](ElB%C3%A2ri.cs) | `ElKâbıd` (kodlayıcı) / `ElBâsıt` (çözücü). Tek bir tamsayı akışını delta + adaptif bit-packing ile sıkıştırır. SIMD hızlandırmalı. |
-| **Kanal** | [ElBâriKanal.cs](ElB%C3%A2riKanal.cs) | Çok kanallı telemetriyi (kayıt akışı) kanallara ayırıp her kanalı kendi içinde sıkıştırır. Kanal başına adaptif fark derecesi seçer. |
-| **Çerçeve** | [ElBâriÇerçeve.cs](ElB%C3%A2ri%C3%87er%C3%A7eve.cs) | Akışı bağımsız çözülebilir, sıra numaralı, CRC32 korumalı çerçevelere böler. Paket kaybına dayanıklılık buradan gelir. |
+| Katman | C# | C | Ne işe yarar |
+| --- | --- | --- | --- |
+| **Çekirdek** | [ElBâri.cs](ElB%C3%A2ri.cs) | [elbari.c](c/src/elbari.c) | `ElKâbıd` (kodlayıcı) / `ElBâsıt` (çözücü). Tek bir tamsayı akışını delta + adaptif bit-packing ile sıkıştırır. |
+| **Kanal** | [ElBâriKanal.cs](ElB%C3%A2riKanal.cs) | [elbari_kanal.c](c/src/elbari_kanal.c) | Çok kanallı telemetriyi (kayıt akışı) kanallara ayırıp her kanalı kendi içinde sıkıştırır. Kanal başına adaptif fark derecesi seçer. |
+| **Çerçeve** | [ElBâriÇerçeve.cs](ElB%C3%A2ri%C3%87er%C3%A7eve.cs) | [elbari_cerceve.c](c/src/elbari_cerceve.c) | Akışı bağımsız çözülebilir, sıra numaralı, CRC32 korumalı çerçevelere böler. Paket kaybına dayanıklılık buradan gelir. |
+
+**İki implementasyon, tek biçim.** C# sürümü SIMD hızlandırmalıdır ve sunucu/yardımcı
+bilgisayar tarafını hedefler; C sürümü bağımlılıksızdır ve gömülü/RTOS hedeflerine girer.
+İkisi **bit bit aynı** çıktı üretir ve birbirinin çıktısını çözebilir — bu, gerçek GPS
+verisiyle doğrulanmıştır (bkz. [C Sürümü](#-c-sürümü-gömülü-ve-savunma-hedefleri)).
 
 ### Neden Kanal Katmanı gerekli?
 
@@ -252,6 +259,122 @@ bool ok = ElBâriÇerçeve.CerceveOku(gelenPaket, kanal, calisma, cikti,
 // ok == false => paket bozuk/eksik, atılmalı (kalanları etkilemez)
 ```
 
+## 🔧 C Sürümü (gömülü ve savunma hedefleri)
+
+Kaynak: [c/](c/) — ayrıntılı notlar [c/BENIOKU.md](c/BENIOKU.md)
+
+### Neden var?
+
+Savunma ve gömülü sistemlerde uçan yazılım neredeyse tamamen C'dir. Bunun üç sebebi var
+ve üçü de .NET sürümünü dışarıda bırakır:
+
+1. **Hedef donanım** — RTOS'lar (VxWorks, PikeOS, NuttX) ve bare-metal MCU'lar .NET
+   çalıştırmaz. C her yere girer.
+2. **Sertifikasyon** — DO-178C gibi havacılık standartları için C'nin olgun araç zinciri
+   (nitelikli derleyici, statik analiz) vardır; .NET için pratikte yoktur.
+3. **Denetim** — müşterinin güvenlik ekibi ~1.200 satır C'yi satır satır okuyabilir;
+   içinde runtime gömülü birkaç MB'lık bir ikiliyi okuyamaz. Savunmada bu belirleyicidir.
+
+Ek olarak C'nin **kararlı ABI**'si sayesinde kütüphaneyi her dil bağlayabilir
+(C#, Python, Rust, MATLAB, C++).
+
+### Tasarım kuralları
+
+Kod baştan MISRA C disipliniyle yazılmıştır:
+
+- **Kaynak C99 uyumlu, C17 ile derlenir.** C11 özellikleri yalnızca `#if` koruması
+  arkasında, isteğe bağlı ek denetim olarak kullanılır — böylece eski/sertifikalı araç
+  zincirleri de derleyebilir.
+- **Dinamik bellek yok** — tüm tamponları çağıran verir
+- **Özyineleme yok** — yığın derinliği sabit ve öngörülebilir
+- **Tüm döngüler sınırlı** — sonsuz döngü oluşamaz
+- **İstisna yok** — hatalar dönüş kodu ile bildirilir
+- **Harici bağımlılık yok** — yalnızca `<stdint.h>`, `<string.h>`
+- **İşaretli taşma yok** — C'de işaretli taşma tanımsız davranıştır; tüm fark hesapları
+  işaretsiz aritmetik üzerinden yapılır. Bu, .NET'in `unchecked` davranışıyla birebir
+  aynı sonucu üretir.
+- **Bayt düzeni açık** — little-endian elle yazılır/okunur, big-endian işlemcide de
+  aynı biçim üretilir
+
+### İkili uyumluluk — ölçülmüş
+
+C ve C# sürümleri **aynı bit dizisini** üretmelidir. Gerçek GPS verisiyle (24.642 kayıt)
+doğrulandı:
+
+```
+--- Kanal katmanı ---
+  [GEÇTİ] C çıktısı == .NET çıktısı            83124 bayt BİREBİR AYNI
+  [GEÇTİ] C round-trip kayıpsız                tüm elemanlar birebir geri geldi
+  [GEÇTİ] C, .NET çıktısını çözebiliyor        çapraz uyumluluk doğrulandı
+
+--- Çerçeve katmanı ---
+  [GEÇTİ] yaz/oku bağımsız ve kayıpsız         247 çerçeve, 3.37x
+  [GEÇTİ] tek-bit bozulma CRC ile yakalandı    247/247
+
+--- Kenar durumlar ---
+  [GEÇTİ] NULL girdi reddedildi                çökme yok
+  [GEÇTİ] yetersiz tampon reddedildi           çökme yok
+  [GEÇTİ] rastgele bayt çerçeve değil          sihirli sayı/CRC tuttu
+
+  SONUÇ: 10 geçti, 0 kaldı
+```
+
+> **Yan fayda:** İki bağımsız implementasyonun aynı çıktıyı üretmesi, **biçim
+> spesifikasyonunun da doğrulandığı** anlamına gelir. Arayüz kontrol dokümanı (ICD)
+> yazarken bu doğrudan kanıt olur.
+
+### Derleme
+
+```bash
+# Windows (MSVC)
+c\derle.bat
+
+# Linux / macOS (gcc veya clang)
+cc -std=c17 -O2 -Wall -Wextra -o dogrulama \
+   c/test/dogrulama.c c/src/elbari.c c/src/elbari_kanal.c c/src/elbari_cerceve.c
+```
+
+### Kullanım (C)
+
+```c
+#include "elbari.h"
+
+int32_t kanal = 3;                 /* enlem, boylam, zaman */
+int32_t calisma[ELBARI_CALISMA];   /* boyut: elbari_kanal_gerekli_calisma_alani(...) */
+uint8_t cikti[ELBARI_CIKTI];       /* boyut: elbari_kanal_en_kotu_durum_boyutu(...) */
+
+int32_t n = elbari_kanal_kabid(kayitlar, eleman_sayisi, kanal,
+                               calisma, ELBARI_CALISMA,
+                               cikti, ELBARI_CIKTI);
+if (n < 0) { /* hata kodu: ELBARI_HATA_* */ }
+
+/* Kayıplı link: her çerçeve bağımsız gönderilir ve bağımsız çözülür */
+int32_t paket_boyu = elbari_cerceve_yaz(kayit_dilimi, adet * kanal, kanal, sira_no,
+                                        calisma, ELBARI_CALISMA, paket, ELBARI_PAKET);
+
+int32_t durum = elbari_cerceve_oku(gelen_paket, gelen_boyut, kanal,
+                                   calisma, ELBARI_CALISMA,
+                                   geri, ELBARI_GERI, &sira_no, &kayit_sayisi);
+/* durum != ELBARI_TAMAM  =>  paket bozuk/eksik, atılmalı (kalanları etkilemez) */
+```
+
+### Mevcut durum ve bilinen sınırlar
+
+| Konu | Durum |
+| --- | --- |
+| Çekirdek / kanal / çerçeve katmanları | ✅ Tamamlandı |
+| .NET ile ikili uyumluluk | ✅ Gerçek veriyle doğrulandı |
+| MSVC x64 derleme | ✅ `/W4` ile 0 uyarı |
+| GCC / Clang derleme | ⏳ Henüz denenmedi |
+| ARM / big-endian üzerinde doğrulama | ⏳ Henüz yapılmadı |
+| SIMD hızlandırma | ⏳ Yok — saf skaler (C# sürümü SIMD'li olduğu için daha hızlı) |
+| MISRA C statik analiz geçişi | ⏳ Kurallar gözetildi, araçla doğrulanmadı |
+| En-kötü-durum gecikme (jitter) ölçümü | ⏳ Yapılmadı |
+
+> C sürümünün hız ölçümü **henüz yapılmamıştır**. Yukarıdaki performans tablosundaki
+> sayılar C# sürümüne aittir. C sürümü saf skaler olduğu için şu an daha yavaş olması
+> beklenir; ölçülmeden buraya sayı yazılmayacaktır.
+
 ## 🧪 Test ve Doğrulama
 
 Benchmark suite'i projenin kendi içinde çalışır ve **gerçek GPS verisini** kullanır:
@@ -319,22 +442,25 @@ ElBâri'nin koruması **Native AOT temellidir** — abartılı runtime hileleri 
 
 ## 🚁 İHA ve Gömülü Sistem Uyumluluğu
 
-### Nerede çalışır, nerede çalışmaz?
+### Nerede çalışır?
 
-ElBâri, **yardımcı bilgisayarda** (companion computer) çalışacak şekilde tasarlanmıştır —
-uçuş kartının (flight controller) kendisinde değil.
+Hangi sürümü kullandığına bağlı:
 
-| Donanım | Örnek | ElBâri çalışır mı? |
-| --- | --- | --- |
-| **Yardımcı bilgisayar** (Linux'lu) | Raspberry Pi, NVIDIA Jetson, x86 SBC | ✅ Evet — hedef platform |
-| **Yer istasyonu / sunucu** | Masaüstü, kenar sunucusu | ✅ Evet |
-| **Uçuş kartı** (bare-metal MCU) | Pixhawk, STM32, Cortex-M | ❌ Hayır — işletim sistemi yok |
+| Donanım | Örnek | C# / .NET AOT | C |
+| --- | --- | --- | --- |
+| **Yer istasyonu / sunucu** | Masaüstü, kenar sunucusu | ✅ | ✅ |
+| **Yardımcı bilgisayar** (Linux) | Raspberry Pi, NVIDIA Jetson, x86 SBC | ✅ | ✅ |
+| **Görev bilgisayarı** (RTOS) | VxWorks, PikeOS, INTEGRITY | ❌ | ✅ |
+| **Uçuş kartı** (bare-metal MCU) | Pixhawk, STM32, Cortex-M | ❌ | ✅ |
+| **DSP / özel donanım** | TI, RISC-V | ❌ | ✅ |
 
-Bunun nedeni .NET/Native AOT'un altında bir işletim sistemi (Linux) beklemesidir; küçük
-uçuş-kontrol mikrodenetleyicileri işletim sistemi çalıştırmaz. Bu bir kısıt gibi görünse
-de hedefle örtüşür: uçuş kartı gerçek-zamanlı kontrol döngüsüyle uğraşır ve telemetriyi
-**sıkıştırmaz**; sıkıştırma zaten kamera/AI/uzun-menzil-link işlerini yürüten yardımcı
-bilgisayara ait bir görevdir.
+.NET/Native AOT, altında bir işletim sistemi (Windows/Linux/macOS) bekler; gerçek-zamanlı
+işletim sistemleri ve bare-metal hedefler .NET çalıştırmaz. Ayrıca bir AOT ikilisi tipik
+olarak birkaç MB'dır — Pixhawk sınıfı bir kartın *toplam* flash'ı ~2 MB'dır, yani hedef
+desteklense bile sığmazdı.
+
+**C sürümü bu kısıtı tamamen kaldırır.** Dinamik bellek, işletim sistemi çağrısı ve harici
+bağımlılık kullanmadığı için derleyicisi olan her mimariye girer.
 
 ### Neden bu alana uygun?
 
