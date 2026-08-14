@@ -365,15 +365,59 @@ int32_t durum = elbari_cerceve_oku(gelen_paket, gelen_boyut, kanal,
 | Çekirdek / kanal / çerçeve katmanları | ✅ Tamamlandı |
 | .NET ile ikili uyumluluk | ✅ Gerçek veriyle doğrulandı |
 | MSVC x64 derleme | ✅ `/W4` ile 0 uyarı |
+| Verim ve gecikme dağılımı ölçümü | ✅ Ölçüldü (aşağıda) |
 | GCC / Clang derleme | ⏳ Henüz denenmedi |
 | ARM / big-endian üzerinde doğrulama | ⏳ Henüz yapılmadı |
-| SIMD hızlandırma | ⏳ Yok — saf skaler (C# sürümü SIMD'li olduğu için daha hızlı) |
+| Elle yazılmış SIMD | ⏳ Yok — saf skaler (derleyici otomatik vektörleştirmesi var) |
 | MISRA C statik analiz geçişi | ⏳ Kurallar gözetildi, araçla doğrulanmadı |
-| En-kötü-durum gecikme (jitter) ölçümü | ⏳ Yapılmadı |
 
-> C sürümünün hız ölçümü **henüz yapılmamıştır**. Yukarıdaki performans tablosundaki
-> sayılar C# sürümüne aittir. C sürümü saf skaler olduğu için şu an daha yavaş olması
-> beklenir; ölçülmeden buraya sayı yazılmayacaktır.
+### C mi hızlı, C# mı? — ölçüldü
+
+Sezgiye aykırı bir sonuç: **saf skaler C, SIMD'li C#'tan hızlı çıktı.**
+
+| İşlem | C (skaler) | C# (AVX2) | Fark |
+| --- | ---: | ---: | --- |
+| encode | **1.055 MB/sn** | 873 MB/sn | C %21 hızlı |
+| decode | **1.447 MB/sn** | 1.109 MB/sn | C %30 hızlı |
+
+Sebebi: C# tarafındaki AVX2 yalnızca **fark hesabını ve aykırı maskeyi** hızlandırır.
+İşin asıl yükü olan **bit paketleme döngüsü** her iki sürümde de skalerdir — yani SIMD
+toplam işin küçük bir kısmına dokunur. Buna karşılık C tarafında dizi sınır kontrolü
+yoktur ve derleyici bazı döngüleri kendiliğinden vektörleştirir.
+
+> Pratik sonuç: gömülü/savunma hedefleri, aynı zamanda **daha hızlı** olan sürümü alır.
+> Elle SIMD eklemek ileride ek kazanç sağlayabilir, ancak öncelik değildir.
+
+### Gecikme dağılımı — "deterministik" iddiasının sınavı
+
+Gerçek-zamanlı sistemde ortalama gecikme neredeyse anlamsızdır; önemli olan **en kötü
+ihtimalle ne kadar sürdüğüdür**. Çerçeve başına (100 kayıt × 3 kanal), 246 çerçeve ×
+200 tekrar:
+
+| İşlem | en küçük | medyan | p95 | p99 | p99.9 | en büyük |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| encode | 1.20 µs | 1.80 µs | 2.10 µs | 2.70 µs | 4.00 µs | 18.30 µs |
+| decode | 0.90 µs | 1.40 µs | 1.70 µs | 1.90 µs | 2.70 µs | 19.70 µs |
+
+**Oynama oranı (p99 / medyan): encode 1.50x, decode 1.36x.** Bu dar bir bant.
+
+**Veriye bağlı (algoritmik) değişkenlik: 1.78x.** Her çerçeve için 200 tekrarın ortalaması
+alınarak işletim sistemi gürültüsü bastırıldığında, en yavaş çerçeve en hızlının iki
+katından az sürüyor. Bu, sabit blok yapısının beklenen davranışıdır.
+
+> **Dürüstlük notu:** Bu ölçüm genel amaçlı bir işletim sistemi üzerinde yapılmıştır.
+> En büyük değerler (18–20 µs) büyük ölçüde **işletim sistemi gürültüsüdür** — zamanlayıcı
+> kesintileri, sayfa hataları, frekans ölçekleme. Algoritmanın kendisi değildir. Gerçek
+> en-kötü-durum (WCET) analizi ancak bir RTOS üzerinde ve statik analizle yapılabilir;
+> bu henüz yapılmamıştır.
+
+### Ölçümü kendiniz çalıştırın
+
+```bash
+c\derle.bat
+olcum.exe <referans_dizini>      # verim + gecikme dağılımı
+dogrulama.exe <referans_dizini>  # .NET ile ikili uyumluluk
+```
 
 ## 🧪 Test ve Doğrulama
 
