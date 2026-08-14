@@ -63,6 +63,10 @@ int32_t elbari_cekirdek_en_kotu_durum_boyutu(int32_t eleman_sayisi)
     {
         sonuc = ELBARI_REFERANS_BOYUTU;
     }
+    else if (eleman_sayisi > ELBARI_MAKS_ELEMAN)
+    {
+        sonuc = ELBARI_HATA_PARAMETRE;
+    }
     else
     {
         /* Referans + her eleman icin 4 bayt (aykiri durumu) + etiket/maske payi */
@@ -227,6 +231,11 @@ int32_t elbari_kabid(const int32_t *ham_veri,
     int32_t  en_az_gereken;
 
     if ((ham_veri == NULL) || (cikti == NULL) || (eleman_sayisi < 0))
+    {
+        return ELBARI_HATA_PARAMETRE;
+    }
+    /* Boyut hesaplarinda 32 bit tasmasini onler (bkz. ELBARI_MAKS_ELEMAN). */
+    if (eleman_sayisi > ELBARI_MAKS_ELEMAN)
     {
         return ELBARI_HATA_PARAMETRE;
     }
@@ -439,6 +448,10 @@ int32_t elbari_basit(const uint8_t *girdi,
     int32_t  gecici[ELBARI_BLOK_BOYUTU];
 
     if ((girdi == NULL) || (cikti == NULL) || (eleman_sayisi < 0))
+    {
+        return ELBARI_HATA_PARAMETRE;
+    }
+    if (eleman_sayisi > ELBARI_MAKS_ELEMAN)
     {
         return ELBARI_HATA_PARAMETRE;
     }

@@ -60,11 +60,36 @@ Gercek GPS verisiyle (24.642 kayit) alinan sonuc:
     cerceve: yaz/oku bagimsiz ve kayipsiz   247 cerceve, 3.37x
     cerceve: tek-bit bozulma CRC ile        247/247 yakalandi
 
+## MISRA C uyumu
+
+Kod MISRA C:2012 disipliniyle yazilmistir. Uyum matrisi ve sapma kaydi:
+MISRA_UYUM.md
+
+Ozet:
+  - Zorunlu ve Gerekli kurallarda bilinen ihlal yok
+  - 2 bilincli sapma (tek cikis noktasi, kayan nokta) gerekceli olarak kayitli
+  - MSVC /Wall /analyze: 0 bulgu
+  - MSVC /W4: 0 uyari
+
+Not: Elle yapilmis oz-degerlendirmedir; sertifikali bir MISRA araciyla
+henuz dogrulanmamistir.
+
+## Olcum
+
+    derle.bat
+    olcum.exe <referans_dizini>      verim + gecikme dagilimi
+    dogrulama.exe <referans_dizini>  .NET ile ikili uyumluluk
+    analiz.bat                       MSVC statik analiz
+
+Olculen (gercek GPS verisi, 24.642 kayit):
+  encode 1055 MB/sn, decode 1447 MB/sn (saf skaler C)
+  cerceve basina gecikme: medyan 1.80us, p99 2.70us, p99.9 4.00us
+  oynama orani (p99/medyan): 1.50x
+
 ## Durum
 
-Tamamlanan: cekirdek, kanal ve cerceve katmanlari; .NET ile ikili
-uyumluluk dogrulandi.
+Tamamlanan: uc katman, .NET ile ikili uyumluluk, verim ve gecikme
+olcumu, MISRA oz-degerlendirmesi, tamsayi tasma korumasi.
 
-Yapilacak: SIMD hizlandirma (opsiyonel, #ifdef arkasinda), MISRA C
-statik analiz gecisi, en-kotu-durum gecikme olcumu, ARM uzerinde
-dogrulama.
+Yapilacak: sertifikali MISRA araci ile dogrulama, GCC/Clang derleme,
+ARM ve big-endian dogrulama, RTOS uzerinde WCET analizi, elle SIMD.

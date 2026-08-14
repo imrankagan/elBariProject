@@ -81,6 +81,22 @@ extern "C" {
 /** Desteklenen en fazla kanal sayisi (baslikta 1 bayt ile tutulur). */
 #define ELBARI_MAKS_KANAL               (255)
 
+/**
+ * Tek bir cagrida islenebilecek en fazla eleman sayisi.
+ *
+ * NEDEN SINIR VAR:
+ * Boyut hesaplari 32 bit tamsayi ile yapilir (eleman_sayisi * 4 + pay).
+ * Bu sinir olmasaydi cok buyuk bir eleman_sayisi degeri carpma sirasinda
+ * tasar, negatif ya da kucuk bir "gerekli boyut" uretir ve cagiran
+ * yetersiz bir tampon ayirirdi. Sinir, tum ic hesaplarin INT32 araliginda
+ * kalmasini garanti eder.
+ *
+ * 200.000.000 eleman = 800 MB ham veri; pratikte fazlasiyla yeterlidir.
+ * Daha buyuk veri parca parca islenmelidir (zaten cerceve katmaninin
+ * onerdigi kullanim bicimi budur).
+ */
+#define ELBARI_MAKS_ELEMAN              (200000000)
+
 /** Cerceve basliginin bayt uzunlugu. */
 #define ELBARI_CERCEVE_BASLIK_BOYUTU    (16)
 

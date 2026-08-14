@@ -50,7 +50,8 @@ int32_t elbari_kanal_en_kotu_durum_boyutu(int32_t eleman_sayisi,
     int32_t bayrak_bayt;
     int32_t baslik;
 
-    if ((kanal_sayisi < 1) || (kanal_sayisi > ELBARI_MAKS_KANAL) || (eleman_sayisi < 0))
+    if ((kanal_sayisi < 1) || (kanal_sayisi > ELBARI_MAKS_KANAL) ||
+        (eleman_sayisi < 0) || (eleman_sayisi > ELBARI_MAKS_ELEMAN))
     {
         return ELBARI_HATA_PARAMETRE;
     }
@@ -152,7 +153,7 @@ int32_t elbari_kanal_kabid(const int32_t *ham_veri,
     int32_t i;
 
     if ((ham_veri == NULL) || (calisma_alani == NULL) || (cikti == NULL) ||
-        (eleman_sayisi < 0))
+        (eleman_sayisi < 0) || (eleman_sayisi > ELBARI_MAKS_ELEMAN))
     {
         return ELBARI_HATA_PARAMETRE;
     }
@@ -321,7 +322,7 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
     const uint8_t *boyut_alani;
 
     if ((girdi == NULL) || (calisma_alani == NULL) || (cikti == NULL) ||
-        (eleman_sayisi < 0))
+        (eleman_sayisi < 0) || (eleman_sayisi > ELBARI_MAKS_ELEMAN))
     {
         return ELBARI_HATA_PARAMETRE;
     }

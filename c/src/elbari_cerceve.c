@@ -103,6 +103,11 @@ int32_t elbari_cerceve_en_kotu_durum_boyutu(int32_t kayit_sayisi,
     {
         return ELBARI_HATA_PARAMETRE;
     }
+    /* kayit_sayisi * kanal_sayisi carpimi tasmamali */
+    if (kayit_sayisi > (ELBARI_MAKS_ELEMAN / kanal_sayisi))
+    {
+        return ELBARI_HATA_PARAMETRE;
+    }
 
     ic = elbari_kanal_en_kotu_durum_boyutu(kayit_sayisi * kanal_sayisi, kanal_sayisi);
     if (ic < 0)
@@ -115,6 +120,14 @@ int32_t elbari_cerceve_en_kotu_durum_boyutu(int32_t kayit_sayisi,
 int32_t elbari_cerceve_gerekli_calisma_alani(int32_t kayit_sayisi,
                                              int32_t kanal_sayisi)
 {
+    if ((kayit_sayisi < 0) || (kanal_sayisi < 1) || (kanal_sayisi > ELBARI_MAKS_KANAL))
+    {
+        return ELBARI_HATA_PARAMETRE;
+    }
+    if (kayit_sayisi > (ELBARI_MAKS_ELEMAN / kanal_sayisi))
+    {
+        return ELBARI_HATA_PARAMETRE;
+    }
     return elbari_kanal_gerekli_calisma_alani(kayit_sayisi * kanal_sayisi, kanal_sayisi);
 }
 
@@ -147,6 +160,10 @@ int32_t elbari_cerceve_yaz(const int32_t *kayitlar,
     }
     /* Cerceveler tam kayit sinirinda bolunmelidir. */
     if ((eleman_sayisi % kanal_sayisi) != 0)
+    {
+        return ELBARI_HATA_PARAMETRE;
+    }
+    if (eleman_sayisi > ELBARI_MAKS_ELEMAN)
     {
         return ELBARI_HATA_PARAMETRE;
     }
@@ -278,7 +295,8 @@ int32_t elbari_cerceve_oku(const uint8_t *cerceve,
     sira_no      = elbari_cerceve_sira_no(cerceve);
     kayit_sayisi = elbari_cerceve_kayit_sayisi(cerceve);
 
-    if (kayit_sayisi < 0)
+    /* kayit_sayisi bozuk girdiden gelir; carpim tasmasina karsi dogrulanir. */
+    if ((kayit_sayisi < 0) || (kayit_sayisi > (ELBARI_MAKS_ELEMAN / kanal_sayisi)))
     {
         return ELBARI_HATA_BOZUK_GIRDI;
     }
