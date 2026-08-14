@@ -548,6 +548,41 @@ olcum.exe <referans_dizini>      # verim + gecikme dağılımı
 fuzz.exe [tur_sayisi]            # düşmanca girdi sağlamlık testi
 ```
 
+## 📐 Biçim Spesifikasyonu ve Uygunluk Vektörleri
+
+Bayt düzeyindeki veri biçimi tam olarak belgelenmiştir:
+**[BICIM_SPESIFIKASYONU.md](BICIM_SPESIFIKASYONU.md)** (Arayüz Kontrol Dokümanı / ICD)
+
+Belge, bağımsız bir tarafın sıfırdan uyumlu bir kodlayıcı/çözücü yazabilmesi için
+gereken her şeyi içerir: üç katmanın bayt düzeni, blok/etiket kodlaması, bit genişliği
+seçim kuralları, aykırı değer mekanizması, ikinci derece fark, ham geçiş, CRC kapsamı
+ve doğrulama sırası.
+
+### Dondurulmuş uygunluk vektörleri
+
+[`TestVectors/vektorler.txt`](TestVectors/vektorler.txt) — 18 referans vektör. Her bit
+genişliğini (2/4/8/16), aykırı değerleri, kısmi blokları, ikinci derece farkı, ham
+geçişi ve çerçeve başlığını kapsar.
+
+Bir implementasyon uyumlu sayılır **ancak ve ancak**:
+
+1. Her vektörün girdisinden **birebir aynı bayt dizisini** üretiyorsa, **ve**
+2. Her vektörün çıktısından **birebir aynı girdiyi** geri kurabiliyorsa.
+
+| Implementasyon | Uygunluk |
+| --- | --- |
+| C# (.NET 10) | ✅ Referans — vektörler bundan üretildi |
+| C (C99/C17) | ✅ **18 vektör, 36 kontrol, 0 hata** |
+
+```bash
+c\derle.bat
+uygunluk.exe ..\TestVectorsektorler.txt
+```
+
+> **Neden bu önemli:** Savunma ve havacılık tedarikinde satın alınan şey koddan çok
+> **spesifikasyondur**. İki bağımsız implementasyonun aynı vektörleri üretmesi, biçimin
+> belgeyle tutarlı olduğunun kanıtıdır — belge ile kod arasında sessiz bir sapma yoktur.
+
 ## 🧪 Test ve Doğrulama
 
 Benchmark suite'i projenin kendi içinde çalışır ve **gerçek GPS verisini** kullanır:

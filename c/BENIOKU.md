@@ -105,6 +105,17 @@ girdiyi kabul edip anlamsiz veri uretebilir (tampon tasirmaz, cokmez).
 Bu yuzden GUVENILMEYEN kaynaktan gelen veri DAIMA cerceve katmanindan
 gecirilmelidir. Ayrinti icin src/elbari.h basindaki guvenlik notuna bakin.
 
+## Uygunluk (conformance) testi
+
+Bicim spesifikasyonu: ../BICIM_SPESIFIKASYONU.md
+Dondurulmus vektorler: ../TestVectors/vektorler.txt
+
+    uygunluk.exe ..\TestVectorsektorler.txt
+
+C surumu 18 vektorun tamamini gecer (36 kontrol: 18 kodlama + 18 cozme).
+Vektorler C# referansindan uretilmistir; C bunlari birebir tutturuyorsa
+iki implementasyon bicim acisindan denktir.
+
 ## Olcum
 
     derle.bat
