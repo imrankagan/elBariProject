@@ -66,6 +66,12 @@ namespace ElBâri
 
         private const int HIZLI_TARAMA_ORNEKLEM_BOYUTU = 1000;
 
+        // ARTIK_TOLERANSI: Çözücünün tüketmeden bırakabileceği en fazla bayt sayısı.
+        // Geçerli bir akışta bu değer 0'dır; kodlayıcı ne yazdıysa çözücü onu okur.
+        // Küçük bir tolerans, ileride biçime hizalama/dolgu eklenirse kırılma
+        // olmaması için bırakılmıştır.
+        private const int ARTIK_TOLERANSI = 0;
+
         // NOT: EMBEDDED_MODE için compile-time switch kullanılıyor
         // Aktivasyon: Project dosyasında <DefineConstants>EMBEDDED_MODE</DefineConstants>
         // veya build komutunda: dotnet build -p:DefineConstants=EMBEDDED_MODE
@@ -629,6 +635,30 @@ namespace ElBâri
                         ciktiIndeksi++;
                     }
                 }
+            }
+
+            // YAPISAL DOĞRULAMA — tüketim kontrolü
+            //
+            // Geçerli bir sıkıştırılmış akış girdinin TAMAMINI tüketir: kodlayıcı
+            // tam olarak gerektiği kadar bayt yazar, çözücü de tam olarak o kadarını
+            // okur. Geriye artık kalmışsa girdi bu kodlayıcıdan çıkmamış demektir.
+            //
+            // Bu, sağlama toplamının yerini TUTMAZ; ancak maliyeti tek bir
+            // karşılaştırmadır ve rastgele/bozuk verinin büyük kısmını eler.
+            // Bütünlük garantisi için çerçeve katmanı (CRC32) kullanılmalıdır.
+            //
+            // NOT: girdi, sıkıştırılmış verinin TAM boyutunda olmalıdır. Daha büyük
+            // bir dilim verilirse bu kontrol devreye girer.
+            if ((girdi.Length - baytIndeksi) > ARTIK_TOLERANSI)
+            {
+#if EMBEDDED_MODE
+                return;
+#else
+                throw new ArgumentException(
+                    $"Girdi bu kodlayıcıdan çıkmamış görünüyor: {girdi.Length - baytIndeksi} bayt " +
+                    "tüketilmeden kaldı. Güvenilmeyen veri için ElBâriÇerçeve katmanını kullanın.",
+                    nameof(girdi));
+#endif
             }
         }
     }

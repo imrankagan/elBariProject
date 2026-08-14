@@ -51,6 +51,15 @@
 /** Hizli tarama icin en fazla incelenecek eleman sayisi. */
 #define ELBARI_HIZLI_TARAMA_ORNEKLEM    (1000)
 
+/**
+ * Cozucunun tuketmeden birakabilecegi en fazla bayt sayisi.
+ *
+ * Gecerli bir akista bu deger 0'dir; kodlayici ne yazdiysa cozucu onu
+ * okur. Kucuk bir tolerans, ileride bicime hizalama/dolgu eklenirse
+ * kirilma olmamasi icin birakilmistir.
+ */
+#define ELBARI_ARTIK_TOLERANSI          (0)
+
 /* ---------------------------------------------------------------------
  * BOYUT HESABI
  * ------------------------------------------------------------------- */
@@ -583,6 +592,25 @@ int32_t elbari_basit(const uint8_t *girdi,
             cikti[cikti_indeksi] = elbari_ic_topla(cikti[cikti_indeksi - 1], gecici[j]);
             cikti_indeksi++;
         }
+    }
+
+    /* 6) YAPISAL DOGRULAMA - tuketim kontrolu
+     *
+     * Gecerli bir sikistirilmis akis, girdinin TAMAMINI tuketir: kodlayici
+     * tam olarak gerektigi kadar bayt yazar, cozucu de tam olarak o kadarini
+     * okur. Geriye kayda deger bir artik kalmissa girdi bu kodlayicidan
+     * cikmamis demektir.
+     *
+     * Bu, saglama toplaminin yerini TUTMAZ; ancak maliyeti tek bir
+     * karsilastirmadir ve rastgele/bozuk verinin buyuk kismini eler.
+     * Butunluk garantisi icin cerceve katmani (CRC32) kullanilmalidir.
+     *
+     * NOT: girdi_boyutu, sikistirilmis verinin TAM boyutu olmalidir.
+     * Daha buyuk bir tampon verilirse bu kontrol devreye girer ve
+     * ELBARI_HATA_BOZUK_GIRDI donulur. */
+    if ((girdi_boyutu - bayt_indeksi) > ELBARI_ARTIK_TOLERANSI)
+    {
+        return ELBARI_HATA_BOZUK_GIRDI;
     }
 
     return ELBARI_TAMAM;

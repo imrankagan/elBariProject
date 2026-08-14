@@ -168,10 +168,14 @@ public static class BenchmarkRunner
             }
 
             // Warmup
+            // NOT: ElBâsıt'a sıkıştırılmış verinin TAM boyutu verilmelidir.
+            // Tampon fazla büyük verilirse çözücü, yapısal tüketim kontrolü
+            // gereği bunu "bu akış benden çıkmamış" diye reddeder. Çözücü
+            // verinin nerede bittiğini kendi başına bilemez.
             for (int i = 0; i < WARMUP_ITERATIONS; i++)
             {
                 ElBâri.ElKâbıd(input, compressed);
-                ElBâri.ElBâsıt(compressed, decompressed);
+                ElBâri.ElBâsıt(compressed.AsSpan(0, quickCheck), decompressed);
             }
 
             // Measure Encode
@@ -186,10 +190,10 @@ public static class BenchmarkRunner
             //  bit-packing çıktısı meşru olarak 0x00 ile bitebilir ve boyut olduğundan küçük ölçülürdü.)
             int compressedSize = quickCheck;
 
-            // Measure Decode
+            // Measure Decode (tam boyut ile — yukarıdaki nota bakınız)
             long decodeNanos = MeasureOperation(() =>
             {
-                ElBâri.ElBâsıt(compressed, decompressed);
+                ElBâri.ElBâsıt(compressed.AsSpan(0, compressedSize), decompressed);
             }, MEASUREMENT_ITERATIONS);
 
             // Validate round-trip

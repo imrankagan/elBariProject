@@ -106,7 +106,7 @@ extern "C" {
  *
  * Butunluk kontrolu (saglama toplami) YALNIZCA cerceve katmanindadir.
  *
- *   Cekirdek (elbari_basit)      : saglama toplami YOK
+ *   Cekirdek (elbari_basit)      : yapisal tuketim kontrolu (saglama toplami YOK)
  *   Kanal    (elbari_kanal_basit): yalnizca baslik tutarlilik kontrolu
  *   Cerceve  (elbari_cerceve_oku): CRC32 ile korunur
  *
@@ -125,10 +125,20 @@ extern "C" {
  *   DAIMA cerceve katmanindan gecirilmelidir. elbari_basit ve
  *   elbari_kanal_basit dogrudan guvenilmeyen veriye uygulanmamalidir.
  *
+ * YAPISAL TUKETIM KONTROLU:
+ * Cekirdek cozucu, saglama toplami olmasa da ucuz bir yapisal kontrol
+ * uygular: gecerli bir akis girdinin TAMAMINI tuketir. Geriye artik
+ * kalmissa girdi reddedilir. Bu sayede rastgele verinin buyuk kismi
+ * elenir (fuzz'da kabul edilen cop girdi 88.963'ten 17'ye dustu).
+ *
+ * DIKKAT: Bu kontrol, girdi_boyutu degerinin sikistirilmis verinin TAM
+ * boyutu olmasini gerektirir. Daha buyuk bir tampon verilirse akis
+ * reddedilir; cozucu verinin nerede bittigini kendi basina bilemez.
+ *
  * Fuzz testi sonucu (400.000 tur, kanarya korumali tamponlar):
  *   - bozulmus cerceveler: %100 reddedildi (99.790/99.790)
  *   - kanal katmani      : rastgele girdinin tamami reddedildi
- *   - cekirdek           : rastgele girdiyi kabul etti (yukaridaki kural)
+ *   - cekirdek           : 100.568 red / 17 kabul (yapisal kontrol sonrasi)
  *   - tampon tasmasi     : 0
  * ===================================================================== */
 

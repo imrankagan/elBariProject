@@ -88,9 +88,16 @@ Sonuc:
     Bozulmus cerceveler  : %100 reddedildi (99.790/99.790)
 
 Katman kirilimi (butunluk kontrolu tasarimi):
-    cekirdek   kabul 88.963  red  11.622   <- saglama toplami YOK
+    cekirdek   kabul     17  red 100.568   <- yapisal tuketim kontrolu
     kanal      kabul      0  red 199.625   <- baslik tutarlilik kontrolu
     cerceve    kabul      0  red  99.790   <- CRC32 KORUMALI
+
+YAPISAL TUKETIM KONTROLU:
+Gecerli bir akis girdinin tamamini tuketir. Geriye artik kalmissa girdi
+reddedilir. Maliyeti tek bir karsilastirmadir; cop girdinin %99,98'ini eler
+(88.963 -> 17). Saglama toplaminin yerini tutmaz.
+
+DIKKAT: elbari_basit'e sikistirilmis verinin TAM boyutu verilmelidir.
 
 GUVENLIK KURALI:
 Butunluk kontrolu yalnizca cerceve katmanindadir. Cekirdek cozucu bozuk

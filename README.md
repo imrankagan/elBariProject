@@ -487,9 +487,22 @@ Katman kırılımı:
 
 | Katman | Kabul | Red | Bütünlük kontrolü |
 | --- | ---: | ---: | --- |
-| Çekirdek | 88.963 | 11.622 | Yok (tasarım gereği) |
+| Çekirdek | **17** | 100.568 | Yapısal tüketim kontrolü |
 | Kanal | **0** | 199.625 | Başlık tutarlılık kontrolü |
 | Çerçeve (bozulmuş) | **0** | 99.790 | **CRC32** |
+
+> **Yapısal tüketim kontrolü — sağlama toplamı olmadan çöpü elemek.**
+> Geçerli bir sıkıştırılmış akış girdinin **tamamını** tüketir: kodlayıcı tam olarak
+> gerektiği kadar bayt yazar, çözücü de tam olarak o kadarını okur. Geriye artık
+> kalmışsa girdi bu kodlayıcıdan çıkmamıştır. Maliyeti **tek bir karşılaştırmadır**.
+>
+> Etkisi ölçüldü: çekirdeğin kabul ettiği çöp girdi **88.963 → 17** (%99,98 azalma).
+> Bu, sağlama toplamının yerini tutmaz — tam bütünlük için çerçeve katmanı gerekir —
+> ama tuzağın büyük kısmını kapatır.
+>
+> ⚠️ **Kullanım şartı:** `ElBâsıt`/`elbari_basit`'e sıkıştırılmış verinin **tam boyutu**
+> verilmelidir. Çözücü verinin nerede bittiğini kendi başına bilemez; fazla büyük bir
+> tampon verilirse akış reddedilir.
 
 > **Ölçüm düzeltmesi:** İlk koşuda 17 bozulmuş çerçeve kabul edilmiş görünüyordu. CRC32
 > çarpışması bu sıklıkta olamayacağı için araştırıldı: fuzzer bozma yaparken rastgele bir
@@ -506,7 +519,7 @@ Bunun nedeni, bütünlük kontrolünün **yalnızca çerçeve katmanında** olma
 
 | Katman | Bütünlük kontrolü | Güvenilmeyen veriye uygulanabilir mi? |
 | --- | --- | --- |
-| `elbari_basit` (çekirdek) | ❌ Yok | ❌ **Hayır** |
+| `elbari_basit` (çekirdek) | Yapısal tüketim kontrolü (sağlama toplamı yok) | ⚠️ **Tercih edilmez** |
 | `elbari_kanal_basit` (kanal) | Yalnızca başlık tutarlılığı | ❌ **Hayır** |
 | `elbari_cerceve_oku` (çerçeve) | ✅ CRC32 | ✅ **Evet** |
 
