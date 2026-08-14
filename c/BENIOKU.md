@@ -110,7 +110,7 @@ gecirilmelidir. Ayrinti icin src/elbari.h basindaki guvenlik notuna bakin.
 Bicim spesifikasyonu: ../BICIM_SPESIFIKASYONU.md
 Dondurulmus vektorler: ../TestVectors/vektorler.txt
 
-    uygunluk.exe ..\TestVectorsektorler.txt
+    uygunluk.exe ../TestVectors/vektorler.txt
 
 C surumu 18 vektorun tamamini gecer (36 kontrol: 18 kodlama + 18 cozme).
 Vektorler C# referansindan uretilmistir; C bunlari birebir tutturuyorsa

@@ -576,7 +576,7 @@ Bir implementasyon uyumlu sayılır **ancak ve ancak**:
 
 ```bash
 c\derle.bat
-uygunluk.exe ..\TestVectorsektorler.txt
+uygunluk.exe ../TestVectors/vektorler.txt
 ```
 
 > **Neden bu önemli:** Savunma ve havacılık tedarikinde satın alınan şey koddan çok
