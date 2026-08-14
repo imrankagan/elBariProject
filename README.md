@@ -368,6 +368,7 @@ int32_t durum = elbari_cerceve_oku(gelen_paket, gelen_boyut, kanal,
 | Verim ve gecikme dağılımı ölçümü | ✅ Ölçüldü (aşağıda) |
 | MISRA C:2012 uyum incelemesi | ✅ Elle yapıldı, belgelendi ([MISRA_UYUM.md](c/MISRA_UYUM.md)) |
 | MSVC `/Wall /analyze` statik analiz | ✅ 0 bulgu |
+| Sağlamlık (fuzz) testi | ✅ 400.000 tur, 0 tampon taşması |
 | Sertifikalı MISRA aracıyla doğrulama | ⏳ Yapılmadı |
 | GCC / Clang derleme | ⏳ Henüz denenmedi |
 | ARM / big-endian üzerinde doğrulama | ⏳ Henüz yapılmadı |
@@ -463,13 +464,75 @@ if (kayit_sayisi > (ELBARI_MAKS_ELEMAN / kanal_sayisi))
 > Polyspace) doğrulanmamıştır ve resmî bir uygunluk beyanı değildir. Ticari teslimat
 > öncesi nitelikli bir araçla doğrulanmalıdır.
 
+### Sağlamlık (fuzz) testi — düşmanca girdiye dayanıklılık
+
+Telemetri çözücüsü kayıplı ve **düşmanca** bir telsiz ortamından veri alır. Saldırgan,
+özel hazırlanmış bir paketle alıcı sistemi çökertmeye çalışabilir. Bu yüzden çözücünün
+**hiçbir girdide** çökmemesi, taşmaması ve kilitlenmemesi bir güvenlik gereksinimidir.
+
+**Yöntem:** Çıktı tamponlarının önüne ve arkasına bilinen bir desen ("kanarya") yazılır;
+çağrı sonrası desen bozulmuşsa kütüphane tampon dışına yazmış demektir. Bu, çökmeye yol
+açmayan **sessiz taşmaları** da yakalar. Üreteç deterministiktir — bulunan her hata
+birebir yeniden üretilebilir.
+
+**Sonuç (400.000 tur):**
+
+| Ölçüt | Sonuç |
+| --- | --- |
+| **Tampon taşması** | **0** |
+| Süreç çökmesi | Yok |
+| Bozulmuş çerçevelerin reddi | **%100.00** (99.790 / 99.790) |
+
+Katman kırılımı:
+
+| Katman | Kabul | Red | Bütünlük kontrolü |
+| --- | ---: | ---: | --- |
+| Çekirdek | 88.963 | 11.622 | Yok (tasarım gereği) |
+| Kanal | **0** | 199.625 | Başlık tutarlılık kontrolü |
+| Çerçeve (bozulmuş) | **0** | 99.790 | **CRC32** |
+
+> **Ölçüm düzeltmesi:** İlk koşuda 17 bozulmuş çerçeve kabul edilmiş görünüyordu. CRC32
+> çarpışması bu sıklıkta olamayacağı için araştırıldı: fuzzer bozma yaparken rastgele bir
+> değer *atıyordu*, yani 1/256 olasılıkla aynı baytı yazıp paketi aslında hiç bozmuyordu.
+> Bozma XOR'a çevrildi; reddetme oranı %100.00 oldu. **Kütüphanede hata yoktu, ölçümde
+> vardı.**
+
+### ⚠️ Katmanlı bütünlük modeli — API kullanım kuralı
+
+Fuzz sonuçları önemli bir tasarım gerçeğini görünür kılıyor: **çekirdek çözücü 88.963
+rastgele girdiyi kabul etti.**
+
+Bunun nedeni, bütünlük kontrolünün **yalnızca çerçeve katmanında** olmasıdır:
+
+| Katman | Bütünlük kontrolü | Güvenilmeyen veriye uygulanabilir mi? |
+| --- | --- | --- |
+| `elbari_basit` (çekirdek) | ❌ Yok | ❌ **Hayır** |
+| `elbari_kanal_basit` (kanal) | Yalnızca başlık tutarlılığı | ❌ **Hayır** |
+| `elbari_cerceve_oku` (çerçeve) | ✅ CRC32 | ✅ **Evet** |
+
+Bu bilinçli bir tasarım tercihidir — alt katmanlar sıcak yolda çalışır ve zaten
+doğrulanmış veri üzerinde işlem yapmaları beklenir; sağlama toplamını her katmanda
+tekrarlamak gereksiz maliyet olurdu.
+
+Ancak bunun bir sonucu vardır: çekirdek çözücüye bozuk bayt verilirse **hata
+döndürmeyebilir** — bit akışını olduğu gibi yorumlar ve **anlamsız veri üretir**. Bu bir
+güvenlik açığı değildir (tampon taşmaz, süreç çökmez), ama **sessizce yanlış veri**
+demektir.
+
+> **KURAL:** Güvenilmeyen kaynaktan (telsiz linki, ağ, disk) gelen veri **daima çerçeve
+> katmanından** geçirilmelidir. `elbari_basit` ve `elbari_kanal_basit` doğrudan
+> güvenilmeyen veriye uygulanmamalıdır.
+
+Aynı uyarı [`c/src/elbari.h`](c/src/elbari.h) başında da yer alır.
+
 ### Ölçümü kendiniz çalıştırın
 
 ```bash
 c\derle.bat                      # /W4 ile derleme
 c\analiz.bat                     # MSVC statik analiz
-olcum.exe <referans_dizini>      # verim + gecikme dağılımı
 dogrulama.exe <referans_dizini>  # .NET ile ikili uyumluluk
+olcum.exe <referans_dizini>      # verim + gecikme dağılımı
+fuzz.exe [tur_sayisi]            # düşmanca girdi sağlamlık testi
 ```
 
 ## 🧪 Test ve Doğrulama
