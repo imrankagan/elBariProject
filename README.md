@@ -366,10 +366,12 @@ int32_t durum = elbari_cerceve_oku(gelen_paket, gelen_boyut, kanal,
 | .NET ile ikili uyumluluk | ✅ Gerçek veriyle doğrulandı |
 | MSVC x64 derleme | ✅ `/W4` ile 0 uyarı |
 | Verim ve gecikme dağılımı ölçümü | ✅ Ölçüldü (aşağıda) |
+| MISRA C:2012 uyum incelemesi | ✅ Elle yapıldı, belgelendi ([MISRA_UYUM.md](c/MISRA_UYUM.md)) |
+| MSVC `/Wall /analyze` statik analiz | ✅ 0 bulgu |
+| Sertifikalı MISRA aracıyla doğrulama | ⏳ Yapılmadı |
 | GCC / Clang derleme | ⏳ Henüz denenmedi |
 | ARM / big-endian üzerinde doğrulama | ⏳ Henüz yapılmadı |
 | Elle yazılmış SIMD | ⏳ Yok — saf skaler (derleyici otomatik vektörleştirmesi var) |
-| MISRA C statik analiz geçişi | ⏳ Kurallar gözetildi, araçla doğrulanmadı |
 
 ### C mi hızlı, C# mı? — ölçüldü
 
@@ -411,10 +413,61 @@ katından az sürüyor. Bu, sabit blok yapısının beklenen davranışıdır.
 > en-kötü-durum (WCET) analizi ancak bir RTOS üzerinde ve statik analizle yapılabilir;
 > bu henüz yapılmamıştır.
 
+### MISRA C:2012 uyumu
+
+Kod baştan MISRA disipliniyle yazıldı; ardından kural kural denetlendi. Tam matris ve
+sapma kaydı: **[c/MISRA_UYUM.md](c/MISRA_UYUM.md)**
+
+| Kategori | Durum |
+| --- | --- |
+| Zorunlu (Mandatory) kurallar | Bilinen ihlal yok |
+| Gerekli (Required) kurallar | Bilinen ihlal yok |
+| Tavsiye (Advisory) kurallar | 2 bilinçli sapma (gerekçeli) |
+| MSVC `/Wall /analyze` | ✅ 0 bulgu |
+| MSVC `/W4` | ✅ 0 uyarı |
+
+Öne çıkan noktalar:
+
+- **Özyineleme yok** (Kural 17.2) — yığın derinliği sabit ve öngörülebilir
+- **Dinamik bellek yok** (Dir 4.12) — tüm tamponları çağıran verir
+- **Tanımsız davranış yok** (Kural 1.3) — C'de işaretli taşma tanımsızdır; tüm fark ve
+  toplama işlemleri işaretsiz aritmetik üzerinden yapılır. Bu hem C'de tanımlıdır hem de
+  .NET'in `unchecked` davranışıyla birebir aynı sonucu verir — ikili uyumluluğun temeli
+- **Kaydırma sınırları kanıtlandı** (Kural 12.2) — en kötü durum 39 bit < 64
+- **Dış girdi doğrulanır** (Dir 4.14) — çerçeve başlığı, CRC, kanal sayısı, yük boyutları
+
+Kayıtlı sapmalar: tek çıkış noktası (koruma cümlesi tercihi) ve kayan nokta kullanımı
+(.NET ile bit-bit aynı kararı üretmek için zorunlu; yalnızca karar verir, üretilen bit
+akışına girmez).
+
+#### İnceleme sırasında bulunan ve düzeltilen zafiyet
+
+Boyut hesapları (`eleman_sayisi * 4 + pay`) 32 bit tamsayı ile yapılıyordu. Çok büyük bir
+`eleman_sayisi` değeri çarpma sırasında taşarak **negatif ya da küçük** bir "gerekli
+boyut" üretebilir, çağıran da yetersiz bir tampon ayırabilirdi — yani **tampon taşması**.
+
+Kritik nokta: bu değer çözücü tarafında **bozuk/düşmanca bir paketten** de gelebiliyordu.
+
+Düzeltme: `ELBARI_MAKS_ELEMAN` sınırı tanımlandı ve tüm giriş noktalarında doğrulanıyor;
+çarpım taşması bölme ile önceden denetleniyor:
+
+```c
+if (kayit_sayisi > (ELBARI_MAKS_ELEMAN / kanal_sayisi))
+{
+    return ELBARI_HATA_PARAMETRE;
+}
+```
+
+> **Dürüstlük notu:** [MISRA_UYUM.md](c/MISRA_UYUM.md) **elle yapılmış bir
+> öz-değerlendirmedir.** Sertifikalı bir MISRA aracıyla (Helix QAC, PC-lint Plus,
+> Polyspace) doğrulanmamıştır ve resmî bir uygunluk beyanı değildir. Ticari teslimat
+> öncesi nitelikli bir araçla doğrulanmalıdır.
+
 ### Ölçümü kendiniz çalıştırın
 
 ```bash
-c\derle.bat
+c\derle.bat                      # /W4 ile derleme
+c\analiz.bat                     # MSVC statik analiz
 olcum.exe <referans_dizini>      # verim + gecikme dağılımı
 dogrulama.exe <referans_dizini>  # .NET ile ikili uyumluluk
 ```
