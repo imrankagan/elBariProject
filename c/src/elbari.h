@@ -398,6 +398,65 @@ float elbari_float_maks_hata(const float *orijinal,
                              const float *geri,
                              int32_t      adet);
 
+/* =====================================================================
+ * KAYIPSIZ FLOAT SIKISTIRMA (XOR tabanli)
+ * =====================================================================
+ *
+ * Kuantalama KAYIPLIDIR. Tam degerin korunmasi gereken durumlar icin
+ * (ham sensor kaydi, ucus sonrasi analiz, adli inceleme) bu katman
+ * kullanilir.
+ *
+ * Ardisik float'larin bit desenleri XOR'lanir; birbirine yakin
+ * degerlerde XOR sonucunun basinda ve sonunda cok sayida sifir bulunur
+ * ve yalnizca ortadaki anlamli bitler yazilir. Deger hic degismemisse
+ * tek bit yeter. Literaturde Gorilla / Chimp olarak bilinir.
+ *
+ * DURUST UYARI:
+ * Kayipsiz float sikistirma GURULTULU sensor verisinde az kazandirir
+ * (tipik %10-40), cunku gurultu mantisin alt bitlerini surekli degistirir
+ * ve bu bitler tanimi geregi sikistirilamaz. Tam deger gerekmiyorsa
+ * KUANTALAMA kat kat iyi sonuc verir. Bu katman "mecbur kalinca" icindir.
+ * ===================================================================== */
+
+/** Tek akis icin guvenli en kotu durum cikti boyutu (bayt). */
+int32_t elbari_float_xor_en_kotu_durum_boyutu(int32_t adet);
+
+/** Float dizisini KAYIPSIZ sikistirir. Donus: yazilan bayt, ya da hata. */
+int32_t elbari_float_xor_kabid(const float *ham_veri,
+                               int32_t      adet,
+                               uint8_t     *cikti,
+                               int32_t      cikti_kapasitesi);
+
+/** elbari_float_xor_kabid ciktisini acar. */
+int32_t elbari_float_xor_basit(const uint8_t *girdi,
+                               int32_t        girdi_boyutu,
+                               float         *cikti,
+                               int32_t        adet);
+
+/** Cok kanalli surum icin en kotu durum cikti boyutu (bayt). */
+int32_t elbari_float_xor_kanal_en_kotu_durum_boyutu(int32_t eleman_sayisi,
+                                                    int32_t kanal_sayisi);
+
+/**
+ * Cok kanalli float akisini kanallara ayirip her kanali KAYIPSIZ sikistirir.
+ * @param calisma_alani en az ceil(eleman_sayisi / kanal_sayisi) float
+ */
+int32_t elbari_float_xor_kanal_kabid(const float *ham_veri,
+                                     int32_t      eleman_sayisi,
+                                     int32_t      kanal_sayisi,
+                                     float       *calisma_alani,
+                                     int32_t      calisma_kapasitesi,
+                                     uint8_t     *cikti,
+                                     int32_t      cikti_kapasitesi);
+
+/** Cok kanalli kayipsiz float ciktisini acar. */
+int32_t elbari_float_xor_kanal_basit(const uint8_t *girdi,
+                                     int32_t        girdi_boyutu,
+                                     float         *calisma_alani,
+                                     int32_t        calisma_kapasitesi,
+                                     float         *cikti,
+                                     int32_t        eleman_sayisi);
+
 #ifdef __cplusplus
 }
 #endif

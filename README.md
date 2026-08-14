@@ -563,9 +563,9 @@ Kuantalama, seçilen hassasiyetin altındaki kısmı atar. Telemetri için genel
 davranış budur: bir yönelim açısını 0.001 radyan (0.06°) hassasiyetle taşımak fazlasıyla
 yeterlidir ve tam float taşımak bant genişliği israfıdır.
 
-**Ancak** tam değerin korunması gereken veriler (ham sensör kaydı, sağlama toplamı,
-kriptografik malzeme) bu katmandan **geçirilmemelidir**. Kayıpsız float sıkıştırma
-(XOR tabanlı, Gorilla/Chimp ailesi) ayrı bir bit biçimi gerektirir ve **bu sürümde yoktur**.
+**Ancak** tam değerin korunması gereken veriler (ham sensör kaydı, uçuş sonrası analiz,
+kriptografik malzeme) bu katmandan **geçirilmemelidir**. Onlar için **kayıpsız XOR
+katmanı** vardır (aşağıya bakınız).
 
 ### Ölçülen sonuç — gerçekçi uçuş verisi
 
@@ -618,6 +618,52 @@ ElBâriFloat.CozKanalli(geriTamsayi, kanal, olcekler, geriFloat);
 > **Ölçekler biçim içinde taşınmaz.** Gönderici ve alıcı aynı ölçek dizisini kullanmak
 > zorundadır (telemetri şemasının parçası olarak, bant dışı). Bu, MAVLink gibi
 > protokollerin çalışma biçimiyle aynıdır: alan tanımları iki tarafta da bilinir.
+
+### Kayıpsız float — XOR katmanı
+
+Tam değerin korunması şartsa: [ElBâriFloatXor.cs](ElB%C3%A2riFloatXor.cs) /
+[elbari_float_xor.c](c/src/elbari_float_xor.c)
+
+Ardışık float'ların **bit desenleri XOR'lanır**. Birbirine yakın değerlerde işaret, üstel
+kısım ve mantisin üst bitleri aynıdır; XOR sonucunun başında ve sonunda çok sayıda sıfır
+bulunur ve yalnızca ortadaki anlamlı bitler yazılır. Değer hiç değişmemişse **tek bit**
+yeter. Literatürde Gorilla (Facebook, 2015) / Chimp olarak bilinir.
+
+#### ⚠️ Ölçüldü: kayıpsız float çoğu telemetride az kazandırır
+
+| Veri tipi | Kayıpsız (XOR) | Kayıplı (kuantalama) |
+| --- | ---: | ---: |
+| Gürültülü uçuş verisi (gerçekçi) | **1.21x** | **8.01x** |
+| Durağan veri (çok tekrar eden) | **15.08x** | 8.71x |
+| Düzgün sinyal (gürültüsüz) | **1.00x** | 12.71x |
+
+Bu tablo dürüst bir beklenti yönetimi sunar:
+
+- **Gürültülü sensör verisinde XOR neredeyse hiç kazandırmaz** (1.21x). Sebep: gürültü
+  mantisin alt bitlerini her örneklemde değiştirir ve bu bitler tanımı gereği
+  sıkıştırılamaz.
+- **Düzgün sinyalde 1.00x** — yani hiç sıkışmaz, ham geçişe düşer. Sürekli değişen bir
+  değerin ardışık bit desenleri çok farklıdır.
+- **XOR yalnızca değerler AYNEN tekrar ettiğinde parlar** (15.08x). Gorilla'nın tasarlandığı
+  senaryo tam olarak budur: izleme verisinde değerler çoğu zaman hiç değişmez.
+
+> **Kural:** Tam değer gerekmiyorsa **kuantalama kullanın** — çoğu telemetride kat kat
+> iyidir. XOR katmanı "mecbur kalınca" içindir: ham sensör kaydı, adli inceleme, uçuş
+> sonrası tam veri saklama.
+
+#### Kayıpsızlık doğrulandı
+
+Özel float değerleri dahil **bit bit** aynı geri geliyor:
+
+```
+gurultulu       : TAM AYNI (bit bit)
+duragan         : TAM AYNI (bit bit)
+duzgun          : TAM AYNI (bit bit)
+ozel degerler   : TAM AYNI (bit bit)   <- NaN, -0.0, ±sonsuz, epsilon, MaxValue
+```
+
+NaN karşılaştırması `==` ile yapılamadığı için doğrulama **bit deseni** üzerinden
+yapılmaktadır.
 
 ## 📐 Biçim Spesifikasyonu ve Uygunluk Vektörleri
 

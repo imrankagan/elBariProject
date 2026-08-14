@@ -247,6 +247,80 @@ Herhangi biri başarısızsa çerçeve **atılmalı**, kayıp olarak sayılmalı
 
 ---
 
+## 4b. Float katmanları
+
+Float desteği iki ayrı yoldan sağlanır. **Hiçbiri yukarıdaki üç katmanın biçimini
+değiştirmez.**
+
+### 4b.1 Kuantalama (kayıplı) — biçim dışı ön/son işleme
+
+Ondalıklı değer, ölçekle çarpılıp tamsayıya yuvarlanır ve mevcut boru hattına verilir.
+
+```
+tamsayi = yuvarla(deger * olcek)
+```
+
+**Yuvarlama:** hesap **çift duyarlıkta** yapılır ve yuvarlama **sıfırdan uzağa**
+(round half away from zero) uygulanır:
+
+```
+olcekli = (double)deger * (double)olcek
+olcekli = (olcekli >= 0) ? olcekli + 0.5 : olcekli - 0.5
+tamsayi = (int32)olcekli
+```
+
+> Bankacı yuvarlaması (round half to even) **kullanılmaz**. .NET'in `Math.Round`
+> varsayılanı bankacı yuvarlamasıdır; kullanılsaydı C sürümüyle sınır değerlerde
+> ayrışırdı. Doğrulama vektörü: `float_kuantala_yarim` (0.5→1, 1.5→2, 2.5→3).
+
+NaN, sonsuz ve int32 aralığını aşan değerler **hata döndürür**; sessizce yanlış değer
+üretilmez.
+
+**Ölçekler biçim içinde taşınmaz.** Gönderici ve alıcı aynı ölçek dizisini kullanmak
+zorundadır (telemetri şemasının parçası, bant dışı).
+
+### 4b.2 Kayıpsız XOR (Gorilla ailesi)
+
+Ardışık float'ların bit desenleri XOR'lanır ve yalnızca anlamlı bitler yazılır.
+
+**Bit akışı** (düşük bitten yükseğe):
+
+```
+İlk değer : 32 bit ham (bit deseni olduğu gibi)
+
+Sonraki her değer:
+  XOR == 0  ->  1 bit: 0
+  XOR != 0  ->  1 bit: 1, ardından:
+      önceki pencere yeterliyse (BS >= öncekiBS ve SS >= öncekiSS):
+          1 bit: 0
+          (32 - öncekiBS - öncekiSS) bit: anlamlı bitler
+      aksi hâlde:
+          1 bit: 1
+          5 bit: BS  (baştaki sıfır sayısı, 0..31)
+          5 bit: anlamlı_uzunluk - 1  (0..31 => 1..32)
+          anlamlı_uzunluk bit: anlamlı bitler
+```
+
+`BS` = baştaki sıfır sayısı, `SS` = sondaki sıfır sayısı,
+`anlamlı_uzunluk = 32 - BS - SS`.
+
+Başlangıçta `öncekiBS = öncekiSS = 32` kabul edilir ("geçerli pencere yok"); bu durumda
+ilk sıfır-olmayan XOR daima yeni pencere yolunu kullanır. Çözücü, geçerli pencere yokken
+pencere tekrarı istenirse girdiyi **bozuk** saymalıdır.
+
+**Çok kanallı sarmalayıcı biçimi:**
+
+| Bayt aralığı | İçerik |
+| --- | --- |
+| `[0]` | kanal sayısı `K` |
+| `[1]` | bayrak bayt sayısı `B = ceil(K/8)` |
+| `[2 .. 2+B)` | ham-geçiş bayrakları (kanal başına 1 bit) |
+| `[2+B .. 2+B+4K)` | kanal başına yük boyutu (int32, little-endian) |
+| sonrası | kanal yükleri, sırayla |
+
+Kanal katmanıyla aynı yapıdadır, yalnızca ikinci-derece bayrakları yoktur (XOR yolunda
+böyle bir seçim bulunmaz).
+
 ## 5. Sınırlar
 
 | Sınır | Değer | Gerekçe |
@@ -261,9 +335,20 @@ Herhangi biri başarısızsa çerçeve **atılmalı**, kayıp olarak sayılmalı
 ## 6. Uygunluk doğrulaması
 
 Bu biçime uygunluk, [`TestVectors/vektorler.txt`](TestVectors/vektorler.txt) dosyasındaki
-**dondurulmuş referans vektörleriyle** doğrulanır. Dosya 18 vektör içerir ve her bit
-genişliğini, aykırı değerleri, ikinci derece farkı, ham geçişi, kısmi blokları ve çerçeve
-başlığını kapsar.
+**dondurulmuş referans vektörleriyle** doğrulanır. Dosya **27 vektör** içerir:
+
+| Katman | Vektör | Kapsam |
+| --- | ---: | --- |
+| `cekirdek` | 10 | her bit genişliği (2/4/8/16), aykırı değer, sabit, negatif, kısmi blok, çok blok |
+| `kanal` | 5 | çok kanal, ikinci derece, ham geçiş, K=1, eksik kayıt |
+| `cerceve` | 3 | temel, sıra numarası, tek kayıt |
+| `float_kuantala` | 3 | kanal başına ölçek, negatif değerler, **tam yarım (yuvarlama yönü)** |
+| `float_xor` | 5 | tekrar eden değer, küçük değişim, **özel değerler (NaN/-0/sonsuz)**, işaret değişimi, tek eleman |
+| `float_xor_kanal` | 1 | çok kanallı kayıpsız + ham geçiş |
+
+> **Float vektörlerinde girdi, ondalık metin yerine BİT DESENİ olarak yazılır** (`GIRDIF`
+> alanı, 8 haneli hex). Ondalık gösterim ayrıştırıcı farklılıkları yüzünden belirsizdir ve
+> NaN / negatif sıfır gibi değerleri güvenilir taşımaz.
 
 Bir implementasyon uyumlu sayılır ancak ve ancak:
 
@@ -275,7 +360,7 @@ Bir implementasyon uyumlu sayılır ancak ve ancak:
 | Implementasyon | Durum |
 | --- | --- |
 | C# (.NET 10) | ✅ Referans implementasyon — vektörler bundan üretildi |
-| C (C99/C17) | ✅ 18 vektör, 36 kontrol, 0 hata |
+| C (C99/C17) | ✅ **27 vektör, 54 kontrol, 0 hata** |
 
 Ek olarak iki implementasyon, 24.642 kayıtlık gerçek GPS verisinde **83.124 bayt birebir
 aynı** çıktı üretmekte ve birbirinin çıktısını çözebilmektedir.

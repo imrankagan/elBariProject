@@ -7,10 +7,14 @@
 # Alanlar:
 #   VEKTOR <ad>        test adi
 #   ACIKLAMA <metin>   neyi sinadigi
-#   KATMAN <ad>        cekirdek | kanal | cerceve
-#   KANAL <n>          kanal sayisi (kanal/cerceve icin)
-#   SIRANO <n>         cerceve sira numarasi (cerceve icin)
+#   KATMAN <ad>        cekirdek | kanal | cerceve | float_xor | float_kuantala
+#   KANAL <n>          kanal sayisi
+#   SIRANO <n>         cerceve sira numarasi
 #   GIRDI <sayilar>    bosluk ayrilmis int32 degerler
+#   GIRDIF <hex>       float32 degerler, BIT DESENI olarak (8 hex basamak)
+#                      Metin gosterimi belirsizlik yaratacagi icin bit
+#                      deseni kullanilir; NaN/-0 gibi degerler de tasinir.
+#   OLCEKLER <hex>     kanal basina kuantalama olcegi (float bit deseni)
 #   CIKTI <hex>        beklenen bayt dizisi (kucuk harf hex)
 #   SON
 
@@ -149,5 +153,75 @@ KANAL 4
 SIRANO 7
 GIRDI 1 2 3 4
 CIKTI eb710100c86546f207000000010000000401000f0400000004000000040000000400000001000000020000000300000004000000
+SON
+
+VEKTOR float_kuantala_temel
+ACIKLAMA Kanal basina ayri olcek; sonuc int32 dizisi (little-endian)
+KATMAN float_kuantala
+KANAL 3
+OLCEKLER 447a0000 42c80000 42c80000
+GIRDIF 3dfcb924 4145851f 42f10000 3dfec56d 4145ae14 42f13333 3e0068dc 4145d70a 42f16666 3e016f00 41460000 42f1999a
+CIKTI 7b000000d3040000122f00007c000000d30400001c2f00007d000000d4040000262f00007e000000d6040000302f0000
+SON
+
+VEKTOR float_kuantala_negatif
+ACIKLAMA Negatif degerler: yuvarlama sifirdan UZAGA yapilir (bankaci degil)
+KATMAN float_kuantala
+KANAL 1
+OLCEKLER 42c80000
+GIRDIF bf80a3d7 bf81eb85 bba3d70a 3ba3d70a 3f80a3d7 3f81eb85 c0200000 40200000
+CIKTI 9cffffff9bffffff0000000000000000640000006500000006fffffffa000000
+SON
+
+VEKTOR float_kuantala_yarim
+ACIKLAMA Tam yarim degerler: yuvarlama yonunun sinandigi kritik durum
+KATMAN float_kuantala
+KANAL 1
+OLCEKLER 3f800000
+GIRDIF 3f000000 3fc00000 40200000 40600000 bf000000 bfc00000 c0200000 c0600000
+CIKTI 01000000020000000300000004000000fffffffffefffffffdfffffffcffffff
+SON
+
+VEKTOR floatxor_tekrar
+ACIKLAMA Ayni deger tekrar ediyor: XOR sifir, deger basina tek bit
+KATMAN float_xor
+GIRDIF 3fc00000 3fc00000 3fc00000 3fc00000 3fc00000 3fc00000 3fc00000 3fc00000
+CIKTI 0000c03f00
+SON
+
+VEKTOR floatxor_kucuk_degisim
+ACIKLAMA Kucuk degisimler: pencere tekrari yolu
+KATMAN float_xor
+GIRDIF 41200000 41200419 41200831 41200c4a 41201062 4120147b 41201893 41201cac
+CIKTI 000020415795c1292a7c557b7ca6c2af2a8353d4f9aa7e08
+SON
+
+VEKTOR floatxor_ozel
+ACIKLAMA Ozel degerler: sifir, negatif sifir, NaN, sonsuz, epsilon
+KATMAN float_xor
+GIRDIF 00000000 80000000 ffc00000 7f800000 ff800000 00000001 7f7fffff ff7fffff
+CIKTI 0000000003f080fe0f52800138f8010080fff9fffffd0500000008
+SON
+
+VEKTOR floatxor_isaret_degisimi
+ACIKLAMA Isaret degisimi: XOR en ust biti etkiler, yeni pencere gerekir
+KATMAN float_xor
+GIRDIF 3f800000 bf800000 3f800000 bf800000 40000000 c0000000 3f000000 bf000000
+CIKTI 0000803f03b01da0ff01cc7f0001
+SON
+
+VEKTOR floatxor_tek_eleman
+ACIKLAMA Tek eleman: yalnizca ham 32 bit yazilir
+KATMAN float_xor
+GIRDIF 40490fdb
+CIKTI db0f4940
+SON
+
+VEKTOR floatxor_kanal
+ACIKLAMA Cok kanalli kayipsiz: kanal ayrimi + ham gecis bayraklari
+KATMAN float_xor_kanal
+KANAL 3
+GIRDIF 3f800000 42c80000 c0a00000 3f800000 42c90000 c0a00000 3f800000 42ca0000 c0a00000 3f800000 42cb0000 c0a00000
+CIKTI 0301000500000008000000050000000000803f000000c8423f70172e0000a0c000
 SON
 

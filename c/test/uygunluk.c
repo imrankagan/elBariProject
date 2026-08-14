@@ -18,6 +18,9 @@
  *   uygunluk <vektor_dosyasi>
  * ===================================================================== */
 
+/* MSVC fopen uyarisi: test kodu, tasinabilirlik icin standart fopen kullanilir */
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -63,6 +66,43 @@ static int hex_coz(const char *metin, unsigned char *hedef, int hedef_kap)
 
         if (adet >= hedef_kap) { return -1; }
         hedef[adet] = (unsigned char)((yuksek * 16) + dusuk);
+        adet++;
+    }
+    return adet;
+}
+
+/**
+ * Bosluk ayrilmis 8 haneli hex bloklarini float dizisine cevirir.
+ *
+ * NEDEN BIT DESENI: Float'in metin gosterimi (ondalik) belirsizdir ve
+ * ayristirici farkliliklari yuzunden iki implementasyon ayni metinden
+ * farkli degerler uretebilir. NaN ve negatif sifir gibi degerler de
+ * metinle guvenilir tasinmaz. Bit deseni bu belirsizligi tamamen kaldirir.
+ *
+ * Donus: adet, hata: -1
+ */
+static int hexfloat_coz(const char *metin, float *hedef, int hedef_kap)
+{
+    int adet = 0;
+
+    while (*metin != '\0')
+    {
+        uint32_t deger = 0u;
+        int basamak;
+
+        while ((*metin == ' ') || (*metin == '\t')) { metin++; }
+        if ((*metin == '\0') || (*metin == '\n') || (*metin == '\r')) { break; }
+
+        for (basamak = 0; basamak < 8; basamak++)
+        {
+            int h = hex_basamak(*metin);
+            if (h < 0) { return -1; }
+            deger = (deger << 4) | (uint32_t)h;
+            metin++;
+        }
+
+        if (adet >= hedef_kap) { return -1; }
+        (void)memcpy(&hedef[adet], &deger, sizeof(float));
         adet++;
     }
     return adet;
@@ -135,6 +175,197 @@ static void sonuc(const char *ad, const char *asama, int basarili, const char *n
     printf("  [%s] %-24s %-8s %s\n",
            (basarili != 0) ? "GECTI" : "KALDI", ad, asama,
            (not_ != NULL) ? not_ : "");
+}
+
+/**
+ * Iki bayt dizisini karsilastirir; ilk farkin konumunu mesaja yazar.
+ * @return 1 ayni, 0 farkli
+ */
+static int tampon_karsilastir(const unsigned char *a, int32_t a_boy,
+                              const unsigned char *b, int32_t b_boy,
+                              char *mesaj, size_t mesaj_boyutu)
+{
+    int32_t i;
+
+    if (a_boy != b_boy)
+    {
+        (void)snprintf(mesaj, mesaj_boyutu, "boyut farkli: C=%d, beklenen=%d",
+                       (int)a_boy, (int)b_boy);
+        return 0;
+    }
+
+    for (i = 0; i < a_boy; i++)
+    {
+        if (a[i] != b[i])
+        {
+            (void)snprintf(mesaj, mesaj_boyutu, "bayt %d: C=0x%02X, beklenen=0x%02X",
+                           (int)i, (unsigned)a[i], (unsigned)b[i]);
+            return 0;
+        }
+    }
+
+    (void)snprintf(mesaj, mesaj_boyutu, "%d bayt birebir", (int)a_boy);
+    return 1;
+}
+
+/* ---------------------------------------------------------------------
+ * FLOAT VEKTORLERI
+ * ---------------------------------------------------------------------
+ * Kayan nokta iki dilde kolayca ayrisir; bu yuzden hem kodlama hem
+ * cozme birebir dogrulanir. Karsilastirmalar BIT DESENI uzerinden
+ * yapilir: NaN kendisine esit olmadigi icin '==' ile dogrulama yaniltir.
+ * ------------------------------------------------------------------- */
+static int floatlar_ayni_mi(const float *a, const float *b, int32_t adet, int32_t *ilk_fark)
+{
+    int32_t i;
+
+    for (i = 0; i < adet; i++)
+    {
+        uint32_t ba;
+        uint32_t bb;
+        (void)memcpy(&ba, &a[i], sizeof(ba));
+        (void)memcpy(&bb, &b[i], sizeof(bb));
+        if (ba != bb)
+        {
+            *ilk_fark = i;
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static void float_vektoru_dogrula(const char  *ad,
+                                  const char  *katman,
+                                  int32_t      kanal,
+                                  const float *girdif,
+                                  int32_t      girdif_adet,
+                                  const float *olcekler,
+                                  int32_t      olcek_adet,
+                                  const unsigned char *beklenen,
+                                  int32_t      beklenen_adet)
+{
+    static int32_t tam[MAKS_ELEMAN_T];
+    static float   geri[MAKS_ELEMAN_T];
+    static float   calisma[MAKS_ELEMAN_T];
+    unsigned char  uretilen[MAKS_BAYT_T];
+    char    mesaj[128];
+    int32_t n = -1;
+    int32_t durum;
+    int     esit;
+    int32_t i;
+    int32_t ilk_fark = -1;
+
+    if (strcmp(katman, "float_kuantala") == 0)
+    {
+        if (olcek_adet < kanal)
+        {
+            sonuc(ad, "kodlama", 0, "olcek dizisi eksik");
+            return;
+        }
+
+        durum = elbari_float_kuantala_kanalli(girdif, girdif_adet, kanal, olcekler, tam);
+        if (durum != ELBARI_TAMAM)
+        {
+            sonuc(ad, "kodlama", 0, "kuantalama hata dondu");
+            return;
+        }
+
+        /* Beklenen cikti: int32 dizisinin little-endian baytlari */
+        n = girdif_adet * 4;
+        if (n > (int32_t)sizeof(uretilen))
+        {
+            sonuc(ad, "kodlama", 0, "vektor cok buyuk");
+            return;
+        }
+        for (i = 0; i < girdif_adet; i++)
+        {
+            uretilen[(i * 4) + 0] = (unsigned char)((uint32_t)tam[i] & 0xFFu);
+            uretilen[(i * 4) + 1] = (unsigned char)(((uint32_t)tam[i] >> 8) & 0xFFu);
+            uretilen[(i * 4) + 2] = (unsigned char)(((uint32_t)tam[i] >> 16) & 0xFFu);
+            uretilen[(i * 4) + 3] = (unsigned char)(((uint32_t)tam[i] >> 24) & 0xFFu);
+        }
+
+        esit = tampon_karsilastir(uretilen, n, beklenen, beklenen_adet, mesaj, sizeof(mesaj));
+        sonuc(ad, "kodlama", esit, mesaj);
+
+        /* Cozme: kuantalanmis degerlerden geri don, hata sinirini kontrol et */
+        durum = elbari_float_coz_kanalli(tam, girdif_adet, kanal, olcekler, geri);
+        if (durum != ELBARI_TAMAM)
+        {
+            sonuc(ad, "cozme", 0, "coz hata dondu");
+            return;
+        }
+        {
+            float maks = elbari_float_maks_hata(girdif, geri, girdif_adet);
+            float en_kaba = 0.0f;
+
+            for (i = 0; i < kanal; i++)
+            {
+                float adim = 1.0f / olcekler[i];
+                if (adim > en_kaba) { en_kaba = adim; }
+            }
+            (void)snprintf(mesaj, sizeof(mesaj), "maks hata %.3e <= %.3e",
+                           (double)maks, (double)(en_kaba * 0.5f * 1.001f));
+            sonuc(ad, "cozme", (maks <= (en_kaba * 0.5f * 1.001f)) ? 1 : 0, mesaj);
+        }
+        return;
+    }
+
+    /* ---- float_xor ve float_xor_kanal ---- */
+    if (strcmp(katman, "float_xor") == 0)
+    {
+        n = elbari_float_xor_kabid(girdif, girdif_adet, uretilen, (int32_t)sizeof(uretilen));
+    }
+    else if (strcmp(katman, "float_xor_kanal") == 0)
+    {
+        n = elbari_float_xor_kanal_kabid(girdif, girdif_adet, kanal,
+                                         calisma, (int32_t)MAKS_ELEMAN_T,
+                                         uretilen, (int32_t)sizeof(uretilen));
+    }
+    else
+    {
+        sonuc(ad, "kodlama", 0, "bilinmeyen float katmani");
+        return;
+    }
+
+    if (n < 0)
+    {
+        sonuc(ad, "kodlama", 0, "kodlama hata dondu");
+        return;
+    }
+
+    esit = tampon_karsilastir(uretilen, n, beklenen, beklenen_adet, mesaj, sizeof(mesaj));
+    sonuc(ad, "kodlama", esit, mesaj);
+
+    /* Cozme: referans baytlardan geri don, BIT BIT ayni olmali (kayipsiz) */
+    if (strcmp(katman, "float_xor") == 0)
+    {
+        durum = elbari_float_xor_basit(beklenen, beklenen_adet, geri, girdif_adet);
+    }
+    else
+    {
+        durum = elbari_float_xor_kanal_basit(beklenen, beklenen_adet,
+                                             calisma, (int32_t)MAKS_ELEMAN_T,
+                                             geri, girdif_adet);
+    }
+
+    if (durum != ELBARI_TAMAM)
+    {
+        (void)snprintf(mesaj, sizeof(mesaj), "cozme hata kodu: %d", (int)durum);
+        sonuc(ad, "cozme", 0, mesaj);
+        return;
+    }
+
+    if (floatlar_ayni_mi(girdif, geri, girdif_adet, &ilk_fark) != 0)
+    {
+        (void)snprintf(mesaj, sizeof(mesaj), "%d deger BIT BIT ayni", (int)girdif_adet);
+        sonuc(ad, "cozme", 1, mesaj);
+    }
+    else
+    {
+        (void)snprintf(mesaj, sizeof(mesaj), "eleman %d bit deseni farkli", (int)ilk_fark);
+        sonuc(ad, "cozme", 0, mesaj);
+    }
 }
 
 /* ---------------------------------------------------------------------
@@ -278,6 +509,10 @@ int main(int argc, char **argv)
     uint32_t sirano = 0u;
     int32_t girdi[MAKS_ELEMAN_T];
     int32_t girdi_adet = 0;
+    static float girdif[MAKS_ELEMAN_T];
+    int32_t girdif_adet = 0;
+    static float olcekler[ELBARI_MAKS_KANAL];
+    int32_t olcek_adet = 0;
     unsigned char beklenen[MAKS_BAYT_T];
     int32_t beklenen_adet = 0;
     int vektor_sayisi = 0;
@@ -317,6 +552,8 @@ int main(int argc, char **argv)
             kanal = 1;
             sirano = 0u;
             girdi_adet = 0;
+            girdif_adet = 0;
+            olcek_adet = 0;
             beklenen_adet = 0;
             continue;
         }
@@ -337,6 +574,20 @@ int main(int argc, char **argv)
             continue;
         }
 
+        deger = alan(satir, "GIRDIF");
+        if (deger != NULL)
+        {
+            girdif_adet = (int32_t)hexfloat_coz(deger, girdif, MAKS_ELEMAN_T);
+            continue;
+        }
+
+        deger = alan(satir, "OLCEKLER");
+        if (deger != NULL)
+        {
+            olcek_adet = (int32_t)hexfloat_coz(deger, olcekler, ELBARI_MAKS_KANAL);
+            continue;
+        }
+
         deger = alan(satir, "CIKTI");
         if (deger != NULL)
         {
@@ -346,11 +597,23 @@ int main(int argc, char **argv)
 
         if (strcmp(satir, "SON") == 0)
         {
-            if ((girdi_adet > 0) && (beklenen_adet > 0))
+            if ((girdif_adet > 0) && (beklenen_adet > 0))
+            {
+                vektor_sayisi++;
+                float_vektoru_dogrula(ad, katman, kanal,
+                                      girdif, girdif_adet,
+                                      olcekler, olcek_adet,
+                                      beklenen, beklenen_adet);
+            }
+            else if ((girdi_adet > 0) && (beklenen_adet > 0))
             {
                 vektor_sayisi++;
                 vektoru_dogrula(ad, katman, kanal, sirano,
                                 girdi, girdi_adet, beklenen, beklenen_adet);
+            }
+            else
+            {
+                /* eksik vektor: yok sayilir */
             }
             continue;
         }

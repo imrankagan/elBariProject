@@ -26,6 +26,9 @@
  *   tohum (seed) degeri yazdirilir ve durum birebir yeniden uretilebilir.
  * ===================================================================== */
 
+/* MSVC fopen uyarisi: test kodu, tasinabilirlik icin standart fopen kullanilir */
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -112,8 +115,8 @@ static long long g_tasma = 0;      /* KANARYA BOZULDU - kritik hata */
  * anlamsiz veri uretmeleri beklenen davranistir. Butunluk garantisi
  * CERCEVE katmaninin isidir (CRC32). Asagidaki tablo bu tasarim
  * ayrimini sayisal olarak gosterir. */
-static long long g_kat_kabul[3] = { 0, 0, 0 };  /* 0=cekirdek 1=kanal 2=cerceve */
-static long long g_kat_red[3]   = { 0, 0, 0 };
+static long long g_kat_kabul[4] = { 0, 0, 0, 0 };  /* 0=cekirdek 1=kanal 2=cerceve 3=float_xor */
+static long long g_kat_red[4]   = { 0, 0, 0, 0 };
 
 /* ---------------------------------------------------------------------
  * 1) CEKIRDEK COZUCU - saf rastgele girdi
@@ -291,7 +294,77 @@ static void fuzz_cerceve(int32_t *kaynak_veri)
 }
 
 /* ---------------------------------------------------------------------
- * 4) ASIRI PARAMETRELER
+ * 4) KAYIPSIZ FLOAT (XOR) COZUCU
+ * ---------------------------------------------------------------------
+ * XOR cozucu, bit akisindan pencere tanimlari (bastaki/sondaki sifir
+ * sayilari) okur ve bunlarla KAYDIRMA yapar. Bozuk bir akis gecersiz
+ * kaydirma miktari uretebilir; bu yuzden ayrica fuzz edilir.
+ * ------------------------------------------------------------------- */
+static void fuzz_float_xor(const float *kaynak_veri)
+{
+    int32_t adet = (int32_t)rastgele_aralik(200u) + 1;
+    int32_t kap = elbari_float_xor_en_kotu_durum_boyutu(adet);
+    korumali_tampon paket;
+    korumali_tampon cikti;
+    int32_t r;
+    int32_t i;
+
+    if (kap <= 0) { return; }
+    if (korumali_kur(&paket, (size_t)kap) == 0) { return; }
+    if (korumali_kur(&cikti, (size_t)adet * sizeof(float)) == 0)
+    {
+        korumali_birak(&paket);
+        return;
+    }
+
+    if (rastgele_aralik(2u) == 0u)
+    {
+        /* Saf rastgele bayt dizisi */
+        for (i = 0; i < kap; i++)
+        {
+            paket.kullanim[i] = (unsigned char)rastgele_aralik(256u);
+        }
+        r = elbari_float_xor_basit(paket.kullanim, kap,
+                                   (float *)(void *)cikti.kullanim, adet);
+    }
+    else
+    {
+        /* Gecerli akis uretip BOZ - cozucuyu derin yollara sokar */
+        int32_t n = elbari_float_xor_kabid(kaynak_veri, adet, paket.kullanim, kap);
+
+        if (n > 0)
+        {
+            int32_t bozma = (int32_t)rastgele_aralik(6u) + 1;
+            for (i = 0; i < bozma; i++)
+            {
+                int32_t poz = (int32_t)rastgele_aralik((unsigned int)n);
+                paket.kullanim[poz] ^= (unsigned char)(rastgele_aralik(255u) + 1u);
+            }
+            if (rastgele_aralik(3u) == 0u)
+            {
+                n = (int32_t)rastgele_aralik((unsigned int)n) + 1;   /* kirp */
+            }
+            r = elbari_float_xor_basit(paket.kullanim, n,
+                                       (float *)(void *)cikti.kullanim, adet);
+        }
+        else
+        {
+            r = ELBARI_HATA_TAMPON_KUCUK;
+        }
+    }
+
+    if ((korumali_bozuk_mu(&cikti) != 0) || (korumali_bozuk_mu(&paket) != 0))
+    {
+        g_tasma++;
+    }
+    if (r == ELBARI_TAMAM) { g_kabul++; g_kat_kabul[3]++; } else { g_red++; g_kat_red[3]++; }
+
+    korumali_birak(&paket);
+    korumali_birak(&cikti);
+}
+
+/* ---------------------------------------------------------------------
+ * 5) ASIRI PARAMETRELER
  * ------------------------------------------------------------------- */
 static void fuzz_asiri_parametreler(void)
 {
@@ -330,6 +403,7 @@ int main(int argc, char **argv)
 {
     long long hedef_tur = 200000;
     int32_t kaynak_veri[512];
+    static float float_kaynak[512];
     int32_t i;
 
     if (argc > 1)
@@ -344,6 +418,11 @@ int main(int argc, char **argv)
     {
         kaynak_veri[i] = 400000000 + (i * 137);
     }
+    /* Float testleri icin: yavas degisen, ara sira tekrar eden degerler */
+    for (i = 0; i < 512; i++)
+    {
+        float_kaynak[i] = 10.0f + ((float)(i / 4) * 0.01f);
+    }
 
     printf("=====================================================================\n");
     printf("  ELBARI - Cozucu saglamlik (fuzz) testi\n");
@@ -356,14 +435,15 @@ int main(int argc, char **argv)
 
     for (g_tur = 0; g_tur < hedef_tur; g_tur++)
     {
-        unsigned int secim = rastgele_aralik(4u);
+        unsigned int secim = rastgele_aralik(5u);
 
         switch (secim)
         {
-            case 0:  fuzz_cekirdek();          break;
-            case 1:  fuzz_kanal(0);            break;
-            case 2:  fuzz_kanal(1);            break;
-            default: fuzz_cerceve(kaynak_veri); break;
+            case 0:  fuzz_cekirdek();             break;
+            case 1:  fuzz_kanal(0);               break;
+            case 2:  fuzz_kanal(1);               break;
+            case 3:  fuzz_float_xor(float_kaynak); break;
+            default: fuzz_cerceve(kaynak_veri);   break;
         }
 
         if ((g_tur % 25000) == 0)
@@ -394,6 +474,8 @@ int main(int argc, char **argv)
            "kanal", g_kat_kabul[1], g_kat_red[1]);
     printf("    %-22s kabul %8lld   red %8lld   <- CRC32 KORUMALI\n",
            "cerceve (bozulmus)", g_kat_kabul[2], g_kat_red[2]);
+    printf("    %-22s kabul %8lld   red %8lld   <- saglama toplami YOK\n",
+           "float XOR", g_kat_kabul[3], g_kat_red[3]);
     if ((g_kat_kabul[2] + g_kat_red[2]) > 0)
     {
         printf("\n    Bozulmus cerceveleri reddetme orani: %%%.2f\n",

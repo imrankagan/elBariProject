@@ -124,6 +124,26 @@ Ikili uyumluluk: 72.000 degerin tamami C ve .NET'te ayni yuvarlandi.
 Yuvarlama cift duyarlikta ve acikca "sifirdan uzaga" yapilir; C#'in
 varsayilan bankaci yuvarlamasi kullanilmaz.
 
+## Kayipsiz float (XOR)
+
+src/elbari_float_xor.c - ardisik float'larin bit desenleri XOR'lanir;
+yalnizca anlamli bitler yazilir. Deger degismemisse tek bit yeter.
+Literaturde Gorilla / Chimp.
+
+OLCULEN - durust beklenti yonetimi:
+  gurultulu ucus verisi : XOR  1.21x  vs  kuantalama  8.01x
+  duragan veri          : XOR 15.08x  vs  kuantalama  8.71x
+  duzgun sinyal         : XOR  1.00x  vs  kuantalama 12.71x
+
+Kayipsiz float GURULTULU veride az kazandirir; gurultu mantisin alt
+bitlerini surekli degistirir ve bu bitler sikistirilamaz. XOR yalnizca
+degerler AYNEN tekrar ettiginde parlar.
+
+KURAL: Tam deger gerekmiyorsa kuantalama kullanin.
+
+Kayipsizlik dogrulandi: NaN, -0.0, sonsuz, epsilon dahil tum degerler
+BIT BIT ayni geri geliyor.
+
 ## Uygunluk (conformance) testi
 
 Bicim spesifikasyonu: ../BICIM_SPESIFIKASYONU.md
