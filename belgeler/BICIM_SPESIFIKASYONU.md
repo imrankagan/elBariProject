@@ -1,7 +1,7 @@
 # ElBâri Biçim Spesifikasyonu
 
 **Belge türü:** Arayüz Kontrol Dokümanı (ICD)
-**Biçim sürümü:** 1
+**Biçim sürümü:** 2
 **Durum:** Dondurulmuş — bu sürümde geriye dönük uyumsuz değişiklik yapılmaz
 
 ---
@@ -60,14 +60,18 @@ Her blok için bit akışına sırasıyla şunlar yazılır:
 | 3 | normal farklar | n × w | aykırı olmayan farklar, `w` bit genişliğiyle |
 | 4 | aykırı farklar | m × 32 | aykırı farklar, tam genişlikte |
 
-**Etiket kodlaması:**
+**Etiket kodlaması:** `mod` alanı 3 bittir, sekiz genişlik tanımlar.
 
-| `mod` | Bit genişliği `w` |
-| ---: | ---: |
-| 0 | 2 |
-| 1 | 4 |
-| 2 | 8 |
-| 3 | 16 |
+| `mod` | Bit genişliği `w` | Kapsadığı `M` |
+| ---: | ---: | ---: |
+| 0 | 1 | M ≤ 0 |
+| 1 | 2 | M ≤ 1 |
+| 2 | 3 | M ≤ 3 |
+| 3 | 4 | M ≤ 7 |
+| 4 | 5 | M ≤ 15 |
+| 5 | 8 | M ≤ 127 |
+| 6 | 10 | M ≤ 511 |
+| 7 | 16 | M ≤ 32767 |
 
 `aykırı_var` biti, blokta en az bir aykırı değer olup olmadığını gösterir.
 
@@ -76,14 +80,17 @@ fark aykırıdır ve adım 3'te atlanıp adım 4'te 32 bit olarak yazılır.
 
 ### 2.3 Bit genişliği seçimi
 
-Blok içindeki **aykırı olmayan** farkların en büyük mutlak değeri `M` olsun:
+Blok içindeki **aykırı olmayan** farkların en büyük mutlak değeri `M` olsun; tablodaki
+`M`'yi kapsayan **en küçük** genişlik seçilir (yukarıdaki etiket tablosu).
 
-| Koşul | `w` |
-| --- | ---: |
-| `M ≤ 1` | 2 |
-| `M ≤ 7` | 4 |
-| `M ≤ 127` | 8 |
-| aksi hâlde | 16 |
+> **Genişlik kümesi nasıl seçildi:** 16 zorunludur (aykırı eşiği 32767 tam olarak 16 bit
+> gerektirir). Kalan 7 yuva için 1..15 arasındaki **tüm kombinasyonlar** gerçek veri
+> üzerinde denendi ve iki farklı veri setinde (gerçek GPS izleri ve kuantalanmış İHA
+> telemetrisi) birden en iyi sonucu veren küme alındı. Ölçülen kazanç: GPS %25.6,
+> İHA %24.0.
+>
+> Bu seçim önemlidir: yalnızca tek veri setine göre en iyilenen bir küme
+> (`[1,2,7,8,9,10,11,16]`) diğer veri setinde **%60 kötüleşme** üretiyordu.
 
 ### 2.4 Aykırı değer tanımı
 
@@ -206,7 +213,7 @@ Akışı bağımsız çözülebilir, sıra numaralı, CRC korumalı parçalara b
 | Bayt aralığı | İçerik |
 | --- | --- |
 | `[0..1]` | sihirli sayı: `0xEB 0x71` |
-| `[2]` | sürüm: `1` |
+| `[2]` | sürüm: `2` |
 | `[3]` | ayrılmış: `0` olmalıdır |
 | `[4..7]` | CRC32 (uint32, little-endian) |
 | `[8..11]` | çerçeve sıra numarası (uint32, little-endian) |
@@ -231,7 +238,7 @@ başlangıç `0xFFFFFFFF`, sonuç `0xFFFFFFFF` ile XOR'lanır.
 
 1. Uzunluk ≥ 16
 2. Sihirli sayı `0xEB 0x71`
-3. Sürüm `1`
+3. Sürüm `2`
 4. Ayrılmış bayt `0`
 5. CRC32 eşleşmesi
 6. Kayıt sayısı makul aralıkta (çarpım taşması dahil)
@@ -374,7 +381,36 @@ uygunluk.exe ..\TestVectors\vektorler.txt
 
 ---
 
-## 7. Sürüm politikası
+## 7. Sürüm geçmişi
+
+### Sürüm 2 (güncel)
+
+**Değişiklik:** Bit genişliği tablosu 4 girdiden 8'e çıkarıldı.
+
+Sürüm 1'de etiketin `mod` alanı 3 bit olmasına rağmen yalnızca 4 değer kullanılıyordu
+(2/4/8/16); kalan 4 yuva boştu. Bu, 5 bit gereken bir farkın 8 bitle, 10 bit gerekenin
+16 bitle yazılması demekti.
+
+**Etiket alanı büyümedi** — yalnızca zaten var olan bitler değerlendirildi.
+
+| Ölçüm | Sürüm 1 | Sürüm 2 |
+| --- | ---: | ---: |
+| Gerçek GPS (24.642 kayıt) | 3.56x | **4.69x** |
+| İHA telemetrisi (kuantalanmış) | 8.01x | **10.14x** |
+| Test paketi ortalaması | 5.45x | **6.46x** |
+
+**Uyumluluk:** Sürüm 1 ile ikili uyumlu **değildir**. Çerçeve başlığındaki `[2]` sürüm
+baytı `2` olur; sürüm 1 çözücüsü böyle bir çerçeveyi reddeder.
+
+> ⚠️ **Çekirdek ve kanal katmanlarında sürüm baytı yoktur.** Bu katmanlar doğrudan
+> kullanılıyorsa sürüm bilgisi **bant dışı** bilinmelidir. Sürüm işaretlemesi yalnızca
+> çerçeve katmanında vardır.
+
+### Sürüm 1
+
+İlk dondurulmuş biçim. Bit genişlikleri: 2/4/8/16.
+
+## 8. Sürüm politikası
 
 - Biçim sürümü çerçeve başlığında `[2]` baytında taşınır.
 - Sürüm 1 **dondurulmuştur**: geriye dönük uyumsuz değişiklik yapılmaz.

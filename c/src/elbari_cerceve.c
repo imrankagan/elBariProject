@@ -28,7 +28,7 @@
 
 #define ELBARI_SIHIR_0   (0xEBu)
 #define ELBARI_SIHIR_1   (0x71u)
-#define ELBARI_SURUM     (1u)
+#define ELBARI_SURUM     (2u)
 
 /* ---------------------------------------------------------------------
  * CRC-32 (IEEE 802.3)

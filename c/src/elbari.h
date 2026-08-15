@@ -254,7 +254,7 @@ int32_t elbari_kanal_gerekli_calisma_alani(int32_t eleman_sayisi,
  *
  * CERCEVE BICIMI (baslik 16 bayt):
  *   [0..1]   : sihirli sayi 0xEB 0x71
- *   [2]      : surum (1)
+ *   [2]      : surum (2)
  *   [3]      : ayrilmis (0 olmali)
  *   [4..7]   : CRC32  ([8..son] araligi uzerinden)
  *   [8..11]  : cerceve sira numarasi (uint32)

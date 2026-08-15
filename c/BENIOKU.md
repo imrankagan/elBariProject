@@ -54,10 +54,10 @@ ciktilari .NET tarafinda uretilir, sonra:
 
 Gercek GPS verisiyle (24.642 kayit) alinan sonuc:
 
-    kanal: C ciktisi == .NET ciktisi        83124 bayt birebir ayni
+    kanal: C ciktisi == .NET ciktisi        63075 bayt birebir ayni
     kanal: C round-trip kayipsiz            tum elemanlar birebir geri geldi
     kanal: C, .NET ciktisini cozebiliyor    capraz uyumluluk dogrulandi
-    cerceve: yaz/oku bagimsiz ve kayipsiz   247 cerceve, 3.37x
+    cerceve: yaz/oku bagimsiz ve kayipsiz   247 cerceve, 4.11x
     cerceve: tek-bit bozulma CRC ile        247/247 yakalandi
 
 ## MISRA C uyumu
@@ -116,9 +116,9 @@ sikistirma (XOR tabanli) bu surumde yoktur.
 
 Olculen (12.000 kayit x 6 kanal, gercekci ucus verisi):
   ham float32                 : 288.000 bayt
-  kuantalama + kanal katmani  :  35.935 bayt  (8.01x)
+  kuantalama + kanal katmani  :  28.401 bayt  (10.14x)
   float bit desenini dogrudan : 195.039 bayt  (1.48x)
-  -> kuantalama 5.4 kat daha iyi
+  -> kuantalama 6.9 kat daha iyi
 
 Ikili uyumluluk: 72.000 degerin tamami C ve .NET'te ayni yuvarlandi.
 Yuvarlama cift duyarlikta ve acikca "sifirdan uzaga" yapilir; C#'in
@@ -131,9 +131,9 @@ yalnizca anlamli bitler yazilir. Deger degismemisse tek bit yeter.
 Literaturde Gorilla / Chimp.
 
 OLCULEN - durust beklenti yonetimi:
-  gurultulu ucus verisi : XOR  1.21x  vs  kuantalama  8.01x
-  duragan veri          : XOR 15.08x  vs  kuantalama  8.71x
-  duzgun sinyal         : XOR  1.00x  vs  kuantalama 12.71x
+  gurultulu ucus verisi : XOR  1.21x  vs  kuantalama 10.14x
+  duragan veri          : XOR 15.08x  vs  kuantalama 10.86x
+  duzgun sinyal         : XOR  1.00x  vs  kuantalama 15.83x
 
 Kayipsiz float GURULTULU veride az kazandirir; gurultu mantisin alt
 bitlerini surekli degistirir ve bu bitler sikistirilamaz. XOR yalnizca
@@ -163,7 +163,7 @@ iki implementasyon bicim acisindan denktir.
     analiz.bat                       MSVC statik analiz
 
 Olculen (gercek GPS verisi, 24.642 kayit):
-  encode 1055 MB/sn, decode 1447 MB/sn (saf skaler C)
+  encode 1102 MB/sn, decode 1450 MB/sn (saf skaler C)
   cerceve basina gecikme: medyan 1.80us, p99 2.70us, p99.9 4.00us
   oynama orani (p99/medyan): 1.50x
 

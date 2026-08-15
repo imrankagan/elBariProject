@@ -82,7 +82,7 @@ zıplar (`lat → lon` farkı milyonlarca birim olur), aykırı oranı %100'e ç
 kanal kendi içinde düzgün delta üretir.
 
 > Ölçülmüş etki (gerçek GPS verisi): kanal ayrımı **olmadan REDDEDİLİYOR** → kanal
-> ayrımı **ile 3.56x**. Yani birincil hedef veri tipi ancak bu katmanla çalışıyor.
+> ayrımı **ile 4.69x**. Yani birincil hedef veri tipi ancak bu katmanla çalışıyor.
 
 ## ✨ Özellikler
 
@@ -114,17 +114,17 @@ kanal kendi içinde düzgün delta üretir.
 
 | İşlem | Verim | Hız | Oran |
 | --- | --- | --- | --- |
-| encode | ~76M kayıt/sn | **871 MB/sn** | 3.56x |
-| decode | ~92M kayıt/sn | **1.049 MB/sn** | — |
+| encode | ~96M kayıt/sn | **863 MB/sn** | 4.69x |
+| decode | ~127M kayıt/sn | **846 MB/sn** | — |
 
 ### Çerçeve Katmanı (100 kayıt/çerçeve, paket kaybına dayanıklı)
 
 | İşlem | Verim | Hız | Çerçeve başına |
 | --- | --- | --- | --- |
-| encode | ~22M kayıt/sn | 253 MB/sn | 4.5 µs |
-| decode | ~53M kayıt/sn | 606 MB/sn | 1.9 µs (CRC dahil) |
+| encode | ~22M kayıt/sn | 224 MB/sn | 4.5 µs |
+| decode | ~53M kayıt/sn | 245 MB/sn | 1.9 µs (CRC dahil) |
 
-Çerçeveleme, dayanıklılık karşılığında oranı hafifçe (3.56x → 3.37x) ve encode hızını
+Çerçeveleme, dayanıklılık karşılığında oranı hafifçe (4.69x → 4.11x) ve encode hızını
 düşürür (küçük bloklar + kanal başına heuristik + CRC). Buna karşılık kayıplı linkte
 çalışabilirlik kazanılır.
 
@@ -176,8 +176,8 @@ Optimizasyon çabası hıza değil, orana ve dayanıklılığa harcanmalıdır. 
 
 | Yöntem | Boyut | Oran | Encode | Decode |
 | --- | ---: | ---: | ---: | ---: |
-| **ElBâri — kanal ayrımı** | **83.124 B** | **3.56x** | **873 MB/sn** | **1.109 MB/sn** |
-| **ElBâri — çerçeveli (100)** | 87.853 B | 3.37x | 222 MB/sn | 251 MB/sn |
+| **ElBâri — kanal ayrımı** | **63.075 B** | **4.69x** | **863 MB/sn** | **846 MB/sn** |
+| **ElBâri — çerçeveli (100)** | 71.950 B | 4.11x | 224 MB/sn | 245 MB/sn |
 | Zstd (seviye 1) | 184.181 B | 1.61x | 210 MB/sn | 313 MB/sn |
 | Zstd (seviye 3) | 175.535 B | 1.68x | 156 MB/sn | 323 MB/sn |
 | Zstd (seviye 9) | 172.483 B | 1.71x | 81 MB/sn | 804 MB/sn |
@@ -203,8 +203,8 @@ Optimizasyon çabası hıza değil, orana ve dayanıklılığa harcanmalıdır. 
 
 **1. "Sıkıştırıcı yapıştırmak" telemetride yetersiz kalıyor.**
 Yaygın yaklaşım telemetriyi olduğu gibi Zstd/LZ4'e vermektir. Ölçüm bunun zayıf kaldığını
-gösteriyor: Zstd-1 yalnızca **1.61x**, LZ4 **1.29x** veriyor. ElBâri **3.56x** ile bunların
-**iki katından fazla** sıkıştırıyor ve aynı zamanda daha hızlı. Sebep basit — genel
+gösteriyor: Zstd-1 yalnızca **1.61x**, LZ4 **1.29x** veriyor. ElBâri **4.69x** ile bunların
+**üç katından fazla** sıkıştırıyor ve aynı zamanda daha hızlı. Sebep basit — genel
 sıkıştırıcılar veriyi anlamsız bir bayt yığını olarak görür; kanalların iç içe geçmesi
 onların örüntü aramasını köreltir. ElBâri verinin **kayıt yapısını bilir**.
 
@@ -213,11 +213,14 @@ Rakipler iki uçtan birinde: ya hızlı ama zayıf oran (LZ4 1.29x, Zstd-1 1.61x
 ama çok yavaş (Brotli-q11 3.59x @ 1 MB/sn, Zstd-19 3.03x @ 8 MB/sn). **Hem 3x üzeri oran
 hem 800+ MB/sn hızı** aynı anda veren tek yöntem ElBâri'dir.
 
-**3. Dürüst zayıflık: en yüksek oran bizde değil.**
-Kanal-ayrılmış veride **Brotli-q11 3.88x** ile ElBâri'yi (3.56x) geçiyor. Ancak bunu
-**~870 kat daha yavaş** encode hızıyla (1 MB/sn) yapıyor; ayrıca bellek ayırır,
-deterministik değildir ve paket kaybına dayanıklı değildir. Sadece en yüksek oran
-gerekiyorsa ve hız/determinizm önemsizse Brotli daha uygundur.
+**3. Biçim sürümü 2 ile oran liderliği de alındı.**
+Sürüm 1'de en yüksek oran bizde değildi: Brotli-q11 kanal-ayrılmış veride **3.88x** ile
+ElBâri'yi (3.56x) geçiyordu. Sürüm 2'deki bit genişliği tablosu genişletmesinden sonra
+ElBâri **4.69x** ile bu değeri de aştı — üstelik Brotli'den **~800 kat hızlı** encode
+ederek.
+
+Yani bu veri setinde ElBâri hem **en yüksek orana** hem de (LZ4 dışında) **en yüksek
+hıza** sahip. LZ4 açmada daha hızlı ama oranı 1.29x — üç buçuk kat geride.
 
 **4. Tabloda görünmeyen farklar.**
 Bu ölçüm yalnızca oran ve hızı kapsar. Listedeki rakiplerin **hiçbirinde** şunlar yoktur:
@@ -359,7 +362,7 @@ doğrulandı:
 
 ```
 --- Kanal katmanı ---
-  [GEÇTİ] C çıktısı == .NET çıktısı            83124 bayt BİREBİR AYNI
+  [GEÇTİ] C çıktısı == .NET çıktısı            63075 bayt BİREBİR AYNI
   [GEÇTİ] C round-trip kayıpsız                tüm elemanlar birebir geri geldi
   [GEÇTİ] C, .NET çıktısını çözebiliyor        çapraz uyumluluk doğrulandı
 
@@ -437,8 +440,8 @@ Sezgiye aykırı bir sonuç: **saf skaler C, SIMD'li C#'tan hızlı çıktı.**
 
 | İşlem | C (skaler) | C# (AVX2) | Fark |
 | --- | ---: | ---: | --- |
-| encode | **1.055 MB/sn** | 873 MB/sn | C %21 hızlı |
-| decode | **1.447 MB/sn** | 1.109 MB/sn | C %30 hızlı |
+| encode | **1.102 MB/sn** | 863 MB/sn | C %28 hızlı |
+| decode | **1.450 MB/sn** | 846 MB/sn | C %71 hızlı |
 
 Sebebi: C# tarafındaki AVX2 yalnızca **fark hesabını ve aykırı maskeyi** hızlandırır.
 İşin asıl yükü olan **bit paketleme döngüsü** her iki sürümde de skalerdir — yani SIMD
@@ -680,10 +683,10 @@ katmanı** vardır (aşağıya bakınız).
 | Yöntem | Boyut | Oran |
 | --- | ---: | ---: |
 | Ham float32 | 288.000 B | — |
-| **Kuantalama + kanal katmanı** | **35.935 B** | **8.01x** |
+| **Kuantalama + kanal katmanı** | **28.401 B** | **10.14x** |
 | Float bit desenini doğrudan vermek | 195.039 B | 1.48x |
 
-> Kuantalama, float bit desenini doğrudan sıkıştırmaktan **5.4 kat** daha iyi. Sebebi:
+> Kuantalama, float bit desenini doğrudan sıkıştırmaktan **6.9 kat** daha iyi. Sebebi:
 > float bit desenlerinin ardışık farkları büyük ve düzensizdir; kuantalanmış tamsayılar
 > ise düzgün delta üretir.
 
@@ -739,9 +742,9 @@ yeter. Literatürde Gorilla (Facebook, 2015) / Chimp olarak bilinir.
 
 | Veri tipi | Kayıpsız (XOR) | Kayıplı (kuantalama) |
 | --- | ---: | ---: |
-| Gürültülü uçuş verisi (gerçekçi) | **1.21x** | **8.01x** |
-| Durağan veri (çok tekrar eden) | **15.08x** | 8.71x |
-| Düzgün sinyal (gürültüsüz) | **1.00x** | 12.71x |
+| Gürültülü uçuş verisi (gerçekçi) | **1.21x** | **10.14x** |
+| Durağan veri (çok tekrar eden) | **15.08x** | 10.86x |
+| Düzgün sinyal (gürültüsüz) | **1.00x** | 15.83x |
 
 Bu tablo dürüst bir beklenti yönetimi sunar:
 
@@ -840,12 +843,12 @@ Success Rate: 100.0%
 | Senaryo | Sonuç |
 | --- | --- |
 | GERÇEK GPS — kanal ayrımsız | ⊘ REDDEDİLDİ (beklenen) |
-| GERÇEK GPS — kanal ayrımı | **3.56x** |
-| GERÇEK GPS — çerçeveli (100) | **3.37x** (CRC dahil) |
-| GERÇEK GPS — çerçeveli (500) | **3.68x** |
+| GERÇEK GPS — kanal ayrımı | **4.69x** |
+| GERÇEK GPS — çerçeveli (100) | **4.11x** (CRC dahil) |
+| GERÇEK GPS — çerçeveli (500) | **4.48x** |
 | İHA 6 kanal — kanal ayrımsız | ⊘ REDDEDİLDİ (beklenen) |
-| İHA 6 kanal — kanal ayrımı | **6.36x** |
-| İHA 6 kanal — çerçeveli (250) | **5.91x** |
+| İHA 6 kanal — kanal ayrımı | **7.09x** |
+| İHA 6 kanal — çerçeveli (250) | **6.55x** |
 
 ### Kayıpsızlık doğrulaması
 

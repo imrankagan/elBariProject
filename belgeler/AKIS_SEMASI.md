@@ -106,11 +106,11 @@ zaman: [1700000000, 1700000001, 1700000002, ...] farklar:   1  ✓
                               ↓
                     her kanal kendi içinde düzgün
                               ↓
-                         3.56x  ✓
+                         4.69x  ✓
 ```
 
 > Gerçek GPS verisiyle ölçüldü (24.642 kayıt): kanal ayrımı **olmadan reddediliyor**,
-> **ile 3.56x**. Yani birincil hedef veri tipi ancak bu katmanla çalışıyor.
+> **ile 4.69x**. Yani birincil hedef veri tipi ancak bu katmanla çalışıyor.
 
 ---
 
@@ -124,14 +124,14 @@ blok (8 fark):   +2   -1   +3   +1  +45000   -2   +1   0
                               aykırı (|d| > 32767)
 
   1. adım — aykırı olmayanların en büyüğü:  3
-  2. adım — bit genişliği seç:              3 ≤ 7  →  4 bit
+  2. adım — bit genişliği seç:              3 ≤ 3  →  3 bit
   3. adım — bit akışına yaz:
 
      ┌────────┬──────────────┬───────────────────────┬──────────────┐
      │ etiket │ aykırı maske │  aykırı OLMAYAN       │  aykırı      │
-     │ 4 bit  │    8 bit     │  farklar (7 × 4 bit)  │  (1 × 32 bit)│
+     │ 4 bit  │    8 bit     │  farklar (7 × 3 bit)  │  (1 × 32 bit)│
      └────────┴──────────────┴───────────────────────┴──────────────┘
-       mod=1     00010000        +2 -1 +3 +1 -2 +1 0     +45000
+       mod=2     00010000        +2 -1 +3 +1 -2 +1 0     +45000
        aykırı=1
 ```
 
@@ -139,13 +139,21 @@ blok (8 fark):   +2   -1   +3   +1  +45000   -2   +1   0
 
 ```mermaid
 flowchart LR
-    A["M"] --> B{"M ≤ 1?"}
-    B -->|Evet| C["2 bit"]
-    B -->|Hayır| D{"M ≤ 7?"}
-    D -->|Evet| E["4 bit"]
-    D -->|Hayır| F{"M ≤ 127?"}
-    F -->|Evet| G["8 bit"]
-    F -->|Hayır| H["16 bit"]
+    A["M"] --> B{"≤ 0?"}
+    B -->|E| C["1 bit"]
+    B -->|H| D{"≤ 1?"}
+    D -->|E| E["2 bit"]
+    D -->|H| F{"≤ 3?"}
+    F -->|E| G["3 bit"]
+    F -->|H| H{"≤ 7?"}
+    H -->|E| I["4 bit"]
+    H -->|H| J{"≤ 15?"}
+    J -->|E| K["5 bit"]
+    J -->|H| L{"≤ 127?"}
+    L -->|E| M["8 bit"]
+    L -->|H| N{"≤ 511?"}
+    N -->|E| O["10 bit"]
+    N -->|H| P["16 bit"]
 ```
 
 Mutlak değeri **32767**'yi aşan farklar *aykırı* sayılır: bit genişliği hesabına
@@ -200,7 +208,7 @@ Motorun en ayırt edici özelliği. Sorun ve çözüm:
 flowchart TD
     A["Telsizden paket geldi"] --> B{"Sihirli sayı<br/>0xEB 0x71?"}
     B -->|Hayır| X["ATİL — kayıp say"]
-    B -->|Evet| C{"Sürüm = 1?"}
+    B -->|Evet| C{"Sürüm = 2?"}
     C -->|Hayır| X
     C -->|Evet| D{"Ayrılmış bayt = 0?"}
     D -->|Hayır| X
@@ -241,7 +249,7 @@ flowchart TD
     B -->|"Evet"| D["XOR<br/>ardışık bit desenleri"]
 
     C --> E["Mevcut boru hattı<br/>kanal + çerçeve"]
-    E --> F["8.01x<br/>(gürültülü uçuş verisi)"]
+    E --> F["10.14x<br/>(gürültülü uçuş verisi)"]
 
     D --> G["Anlamlı bitler"]
     G --> H["1.21x<br/>(gürültülü uçuş verisi)"]
@@ -295,7 +303,7 @@ sıkıştırılamaz. Kuantalama gürültüyü baştan atar.
     C   →  yukarıdakilerin tümü + RTOS + bare-metal MCU + DSP
 ```
 
-Gerçek GPS verisiyle (24.642 kayıt) iki sürüm **83.124 bayt birebir aynı** çıktı üretir
+Gerçek GPS verisiyle (24.642 kayıt) iki sürüm **63.075 bayt birebir aynı** çıktı üretir
 ve birbirinin çıktısını çözebilir.
 
 ---

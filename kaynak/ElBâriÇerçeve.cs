@@ -52,7 +52,7 @@ namespace ElBâri
 
         private const byte SIHIR_0 = 0xEB;
         private const byte SIHIR_1 = 0x71;
-        private const byte SURUM = 1;
+        private const byte SURUM = 2;
 
         /// <summary>
         /// Bir çerçeve için güvenli en kötü durum çıktı boyutu.
