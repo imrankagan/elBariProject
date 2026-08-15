@@ -225,7 +225,21 @@ ederek.
 Yani bu veri setinde ElBâri hem **en yüksek orana** hem de (LZ4 dışında) **en yüksek
 hıza** sahip. LZ4 açmada daha hızlı ama oranı 1.29x — üç buçuk kat geride.
 
-**4. Tabloda görünmeyen farklar.**
+**4. "Ön işlemeyi biz de yaparız" itirazı ölçüldü.**
+Kuantalama ve kanal ayrımı, herkesin yapabileceği ön işlemlerdir. Bu yüzden ikisi de
+rakiplere **bedava verildi** ve aynı veriyle ölçüldü:
+
+| Yöntem | Oran | Encode |
+| --- | ---: | ---: |
+| **ElBâri (kuantalanmış float)** | **10.51x** | **981 MB/sn** |
+| Brotli q11 + kanal ayrımı | 7.84x | 1 MB/sn |
+| Zstd sev.19 + kanal ayrımı | 7.34x | 4 MB/sn |
+| Zstd sev.1 + kanal ayrımı | 4.80x | 392 MB/sn |
+
+Her iki ön işlem de verildikten sonra bile ElBâri **%34 önde** ve **~1.000 kat hızlı**.
+Ayrıntı: [ölçüm raporu §8b](belgeler/OLCUM_SONUCLARI.md).
+
+**5. Tabloda görünmeyen farklar.**
 Bu ölçüm yalnızca oran ve hızı kapsar. Listedeki rakiplerin **hiçbirinde** şunlar yoktur:
 
 | Özellik | ElBâri | Zstd / LZ4 / Brotli |

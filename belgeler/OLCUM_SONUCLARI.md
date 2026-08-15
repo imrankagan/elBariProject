@@ -191,6 +191,47 @@ sahip. LZ4 açmada daha hızlı ama oranı 1.29x — dört kat geride.
 Ayrıca tabloda **görünmeyen** farklar: paket kaybı dayanıklılığı, sıfır tahsisat,
 deterministik gecikme, bağımlılıksızlık. Rakiplerin hiçbirinde yok.
 
+
+### 8b. Adil soru: oranın ne kadarı bizden geliyor?
+
+Skeptik bir müşteri haklı olarak şunu sorar:
+
+> *"Float'ta 10.51x diyorsunuz. Ama kuantalama zaten herkesin yapabileceği bir ön
+> işlem. Ben de kuantalayıp zstd kullansam ne olur?"*
+
+Ölçüldü. **Aynı kuantalanmış veri hem bize hem rakiplere verildi:**
+
+| Yöntem | Boyut | Oran | Encode |
+| --- | ---: | ---: | ---: |
+| **ElBâri (kuantalama + kanal)** | **27.403 B** | **10.51x** | **981 MB/sn** |
+| Brotli q11 | 54.817 B | 5.25x | 1 MB/sn |
+| Zstd seviye 19 | 55.713 B | 5.17x | 5 MB/sn |
+| Deflate | 89.068 B | 3.23x | 65 MB/sn |
+| Zstd seviye 1 | 94.968 B | 3.03x | 322 MB/sn |
+| LZ4 hızlı | 146.414 B | 1.97x | 537 MB/sn |
+
+**Rakiplere kanal ayrımı da bedava verildi** (yani iki ön işlemi de biz yaptık):
+
+| Yöntem | Boyut | Oran | Encode |
+| --- | ---: | ---: | ---: |
+| **ElBâri** | **27.403 B** | **10.51x** | **981 MB/sn** |
+| Brotli q11 + kanal ayrımı | 36.730 B | 7.84x | 1 MB/sn |
+| Zstd sev.19 + kanal ayrımı | 39.244 B | 7.34x | 4 MB/sn |
+| Zstd sev.1 + kanal ayrımı | 60.027 B | 4.80x | 392 MB/sn |
+
+**Sonuçların dürüst okunması:**
+
+1. **Kuantalama tek başına açıklamıyor.** Rakipler aynı kuantalanmış veriyi aldı ve en
+   iyileri 5.25x'te kaldı; biz 10.51x'teyiz.
+2. **Kanal ayrımı rakiplere de yarıyor** — Zstd-1 3.03x'ten 4.80x'e çıktı. Bu, kanal
+   ayrımının genel olarak doğru bir fikir olduğunu gösteriyor; bizim özel bir hilemiz
+   değil.
+3. **Her iki ön işlemi de bedava verdikten sonra bile öndeyiz:** 10.51x vs en iyi
+   rakip 7.84x — %34 daha iyi, üstelik **~1.000 kat hızlı** encode ederek.
+
+> Yani oranın kaynağı yalnızca ön işleme değil; **bit paketleme, kanal başına adaptif
+> fark derecesi ve sıfır blok** birlikte fark yaratıyor.
+
 ---
 
 ## 9. Teorik alt sınır — ne kadar yer kaldı?
