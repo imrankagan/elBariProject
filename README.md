@@ -136,6 +136,34 @@ düşürür (küçük bloklar + kanal başına heuristik + CRC). Buna karşılı
   ✓ SIFIR tahsisat — heap'e hiç dokunulmadı, GC baskısı yok.
 ```
 
+### İşlemci payı — hız neden öncelik değil
+
+Yukarıdaki hız rakamları soyut kalabiliyor; gerçek bir kullanım senaryosuna oturtalım.
+
+Zorlayıcı bir telemetri hızı varsayalım: **saniyede 400 kayıt** (tipik İHA telemetrisi
+1-50 Hz bandındadır).
+
+```
+Çerçeve başına 100 kayıt  →  saniyede 4 çerçeve
+Çerçeve başına encode     →  1.8 µs (ölçüldü, C sürümü medyan)
+────────────────────────────────────────────────────────
+Saniyede harcanan süre    :  4 × 1.8 = 7.2 µs
+Bir saniye                :  1.000.000 µs
+İşlemci kullanımı         :  ~%0,0007
+```
+
+Yani **işlemcinin her saniyesinin 7 mikrosaniyesi** bu işe gidiyor. Verim olarak
+bakılırsa ihtiyacın **~138.000 katı** kapasite var.
+
+> **Dürüstlük notu:** Bu ölçüm masaüstü x64 üzerinde yapılmıştır. Gerçek hedef olan
+> ARM kartlar (Raspberry Pi, Jetson) daha yavaştır ve **henüz ölçülmedi**. En kötü
+> ihtimalle 10 kat yavaş olsa bile ~14.000 kat pay kalır; işlemci kullanımı yine
+> %0,01'in altındadır.
+
+**Sonucu şu:** Bu projede tıkanan yer **işlemci değil, telsizin bant genişliğidir.**
+Optimizasyon çabası hıza değil, orana ve dayanıklılığa harcanmalıdır. Elle SIMD eklemek
+%0,0007'yi %0,0004 yapar — ölçülebilir ama anlamsız bir kazanç.
+
 ## ⚖️ Karşılaştırma — Zstd / LZ4 / Brotli / Deflate
 
 > **Metodoloji:** Aynı makinede, aynı gerçek GPS verisiyle (295.704 B ham), 20 tur ısınma
@@ -401,7 +429,7 @@ int32_t durum = elbari_cerceve_oku(gelen_paket, gelen_boyut, kanal,
 | GCC / Clang derleme | ✅ CI'da her push'ta (Linux) |
 | ASan + UBSan (çalışma zamanı) | ✅ CI'da temiz |
 | ARM / big-endian üzerinde doğrulama | ⏳ Henüz yapılmadı |
-| Elle yazılmış SIMD | ⏳ Yok — saf skaler (derleyici otomatik vektörleştirmesi var) |
+| Elle yazılmış SIMD | ⏳ Yok — saf skaler. **Öncelik değil:** ölçümde C zaten C#'ın SIMD'li sürümünden hızlı çıktı ve işlemci payı %0,0007 |
 
 ### C mi hızlı, C# mı? — ölçüldü
 
