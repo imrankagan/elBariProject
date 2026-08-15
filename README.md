@@ -45,7 +45,7 @@ testverisi/      gerçek GPS verisi + dondurulmuş uygunluk vektörleri
 | [kaynak/](kaynak/) | `ElBâri.cs` (çekirdek), `ElBâriKanal.cs`, `ElBâriÇerçeve.cs`, `ElBâriFloat.cs`, `ElBâriFloatXor.cs` |
 | [c/](c/) | Aynı üç katmanın C sürümü — RTOS ve bare-metal hedefleri için ([BENIOKU](c/BENIOKU.md)) |
 | [benchmark/](benchmark/) | Test senaryoları, veri üreticileri, ölçüm koşucusu |
-| [belgeler/](belgeler/) | [Biçim spesifikasyonu](belgeler/BICIM_SPESIFIKASYONU.md) (ICD), [MISRA uyum matrisi](belgeler/MISRA_UYUM.md), [akış şemaları](belgeler/AKIS_SEMASI.md) |
+| [belgeler/](belgeler/) | [Biçim spesifikasyonu](belgeler/BICIM_SPESIFIKASYONU.md) (ICD), [ölçüm sonuçları](belgeler/OLCUM_SONUCLARI.md), [MISRA uyum matrisi](belgeler/MISRA_UYUM.md), [akış şemaları](belgeler/AKIS_SEMASI.md) |
 | [testverisi/](testverisi/) | `gercek_gps.bin` (24.642 gerçek kayıt), `vektorler.txt` (27 uygunluk vektörü) |
 
 ## 🧱 Mimari — Üç Katman
@@ -104,6 +104,9 @@ kanal kendi içinde düzgün delta üretir.
 - **Gömülü Sistem Modu** — `EMBEDDED_MODE` ile exception-free çalışma
 
 ## 📊 Ölçülen Performans
+
+> 📈 **Tam ölçüm raporu: [belgeler/OLCUM_SONUCLARI.md](belgeler/OLCUM_SONUCLARI.md)** —
+> 7 veri seti, üç katman, C# ve C yan yana, gecikme dağılımı, teorik alt sınır analizi.
 
 > **Metodoloji:** Aşağıdaki sayılar **gerçek** veri üzerinde ölçülmüştür — sentetik
 > değil. Veri: OpenStreetMap halka açık GPS iz arşivinden 24.642 kayıt (lat/lon/zaman).

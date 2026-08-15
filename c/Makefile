@@ -29,7 +29,7 @@ SAN_BAYRAK = -std=c17 -O1 -g -fno-omit-frame-pointer \
 KAYNAK = src/elbari.c src/elbari_kanal.c src/elbari_cerceve.c \
          src/elbari_float.c src/elbari_float_xor.c
 
-PROGRAMLAR = dogrulama olcum fuzz uygunluk
+PROGRAMLAR = dogrulama olcum fuzz uygunluk kapsamli
 
 .PHONY: all sanitize test temizle
 
@@ -45,6 +45,9 @@ fuzz: test/fuzz.c $(KAYNAK)
 	$(CC) $(CFLAGS) -o $@ $^
 
 uygunluk: test/uygunluk.c $(KAYNAK)
+	$(CC) $(CFLAGS) -o $@ $^
+
+kapsamli: test/kapsamli.c $(KAYNAK)
 	$(CC) $(CFLAGS) -o $@ $^
 
 # Denetleyicili surumler ayri isimle uretilir; normal surumlerin
