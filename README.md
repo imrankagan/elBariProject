@@ -3,6 +3,7 @@
 [![License: Proprietary](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE.txt)
 [![.NET 10](https://img.shields.io/badge/.NET-10-purple.svg)](https://dotnet.microsoft.com/)
 [![AOT Ready](https://img.shields.io/badge/AOT-Native-green.svg)](https://learn.microsoft.com/dotnet/core/deploying/native-aot)
+[![Derleme ve Test](https://github.com/imrankagan/elBariProject/actions/workflows/derleme-ve-test.yml/badge.svg)](https://github.com/imrankagan/elBariProject/actions/workflows/derleme-ve-test.yml)
 
 ## 🎯 Genel Bakış
 
@@ -370,7 +371,8 @@ int32_t durum = elbari_cerceve_oku(gelen_paket, gelen_boyut, kanal,
 | MSVC `/Wall /analyze` statik analiz | ✅ 0 bulgu |
 | Sağlamlık (fuzz) testi | ✅ 400.000 tur, 0 tampon taşması |
 | Sertifikalı MISRA aracıyla doğrulama | ⏳ Yapılmadı |
-| GCC / Clang derleme | ⏳ Henüz denenmedi |
+| GCC / Clang derleme | ✅ CI'da her push'ta (Linux) |
+| ASan + UBSan (çalışma zamanı) | ✅ CI'da temiz |
 | ARM / big-endian üzerinde doğrulama | ⏳ Henüz yapılmadı |
 | Elle yazılmış SIMD | ⏳ Yok — saf skaler (derleyici otomatik vektörleştirmesi var) |
 
@@ -537,6 +539,55 @@ demektir.
 > güvenilmeyen veriye uygulanmamalıdır.
 
 Aynı uyarı [`c/src/elbari.h`](c/src/elbari.h) başında da yer alır.
+
+### Sürekli tümleştirme (CI)
+
+Geliştirme Windows/MSVC üzerinde yapılıyor; ancak C sürümünün **varlık sebebi** Linux'lu
+yardımcı bilgisayarlar, ARM kartlar ve RTOS'lardır — bunların derleyicisi neredeyse
+istisnasız GCC ya da Clang'dır. Yani kod, hedef kitlenin hiç kullanmayacağı derleyiciyle
+test ediliyordu.
+
+[GitHub Actions](.github/workflows/derleme-ve-test.yml) her `push`'ta:
+
+| İş | Ne yapar |
+| --- | --- |
+| **C (gcc)** | Gerçek Linux'ta sıkı uyarılarla derler, uygunluk + fuzz koşar |
+| **C (clang)** | Aynısı Clang ile — farklı derleyici farklı hata yakalar |
+| **C denetleyicileri** | **ASan + UBSan** altında koşar |
+| **.NET** | Derler ve 32 senaryoluk test paketini çalıştırır |
+
+> **Denetleyiciler bu işin en değerli parçası.** MISRA belgesinde *"Kural 1.3 — tanımsız
+> davranış yok"* diye iddia ediyoruz; bunu daha önce yalnızca **elle inceleyerek**
+> doğrulamıştık. UBSan bunu **çalıştırarak** kanıtlar. `-fno-sanitize-recover=all` ile
+> herhangi bir ihlalde süreç sıfır dışı kodla biter.
+
+#### CI kurulur kurulmaz gerçek bir hata yakaladı
+
+İlk koşuda GCC ve Clang şu hatayı verdi:
+
+```
+error: 'CLOCK_MONOTONIC' undeclared
+error: call to undeclared function 'clock_gettime'
+```
+
+`clock_gettime` bir POSIX işlevidir, ISO C'nin parçası değildir. `-std=c17` (katı ISO C)
+ile derlenince glibc onu gizler; `_POSIX_C_SOURCE` tanımlanmalıydı.
+
+**Bu hata Windows'ta asla görülemezdi** — orada `QueryPerformanceCounter` dalı derleniyor,
+POSIX dalı hiç ziyaret edilmiyordu. Tam olarak CI'ın var olma sebebi olan türden bir hata.
+
+> Önemli not: **kütüphanenin kendisi ilk denemede temiz derlendi.** Sorun yalnızca ölçüm
+> test dosyasındaydı; `c/src/` altındaki kod taşınabilir çıktı.
+
+### Linux / macOS derleme
+
+```bash
+cd c
+make                 # tüm test programları
+make CC=clang        # clang ile
+make sanitize        # ASan + UBSan sürümleri
+make test            # derle + uygunluk + fuzz
+```
 
 ### Ölçümü kendiniz çalıştırın
 

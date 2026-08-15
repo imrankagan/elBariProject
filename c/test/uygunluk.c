@@ -548,7 +548,9 @@ int main(int argc, char **argv)
         deger = alan(satir, "VEKTOR");
         if (deger != NULL)
         {
-            (void)snprintf(ad, sizeof(ad), "%s", deger);
+            /* Kirpma kasitlidir: kaynak satir cok uzun olabilir. Genislik
+             * belirteci ile bunu derleyiciye acikca bildiriyoruz. */
+            (void)snprintf(ad, sizeof(ad), "%.*s", (int)sizeof(ad) - 1, deger);
             kanal = 1;
             sirano = 0u;
             girdi_adet = 0;
@@ -559,7 +561,9 @@ int main(int argc, char **argv)
         }
 
         deger = alan(satir, "KATMAN");
-        if (deger != NULL) { (void)snprintf(katman, sizeof(katman), "%s", deger); continue; }
+        if (deger != NULL) { (void)snprintf(katman, sizeof(katman), "%.*s",
+                                       (int)sizeof(katman) - 1, deger);
+            continue; }
 
         deger = alan(satir, "KANAL");
         if (deger != NULL) { kanal = (int32_t)atoi(deger); continue; }
