@@ -106,11 +106,11 @@ zaman: [1700000000, 1700000001, 1700000002, ...] farklar:   1  ✓
                               ↓
                     her kanal kendi içinde düzgün
                               ↓
-                         4.69x  ✓
+                         4.95x  ✓
 ```
 
 > Gerçek GPS verisiyle ölçüldü (24.642 kayıt): kanal ayrımı **olmadan reddediliyor**,
-> **ile 4.69x**. Yani birincil hedef veri tipi ancak bu katmanla çalışıyor.
+> **ile 4.95x**. Yani birincil hedef veri tipi ancak bu katmanla çalışıyor.
 
 ---
 
@@ -249,7 +249,7 @@ flowchart TD
     B -->|"Evet"| D["XOR<br/>ardışık bit desenleri"]
 
     C --> E["Mevcut boru hattı<br/>kanal + çerçeve"]
-    E --> F["10.14x<br/>(gürültülü uçuş verisi)"]
+    E --> F["10.51x<br/>(gürültülü uçuş verisi)"]
 
     D --> G["Anlamlı bitler"]
     G --> H["1.21x<br/>(gürültülü uçuş verisi)"]
@@ -303,7 +303,7 @@ sıkıştırılamaz. Kuantalama gürültüyü baştan atar.
     C   →  yukarıdakilerin tümü + RTOS + bare-metal MCU + DSP
 ```
 
-Gerçek GPS verisiyle (24.642 kayıt) iki sürüm **63.075 bayt birebir aynı** çıktı üretir
+Gerçek GPS verisiyle (24.642 kayıt) iki sürüm **59.695 bayt birebir aynı** çıktı üretir
 ve birbirinin çıktısını çözebilir.
 
 ---

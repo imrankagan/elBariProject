@@ -82,7 +82,7 @@ zıplar (`lat → lon` farkı milyonlarca birim olur), aykırı oranı %100'e ç
 kanal kendi içinde düzgün delta üretir.
 
 > Ölçülmüş etki (gerçek GPS verisi): kanal ayrımı **olmadan REDDEDİLİYOR** → kanal
-> ayrımı **ile 4.69x**. Yani birincil hedef veri tipi ancak bu katmanla çalışıyor.
+> ayrımı **ile 4.95x**. Yani birincil hedef veri tipi ancak bu katmanla çalışıyor.
 
 ## ✨ Özellikler
 
@@ -114,7 +114,7 @@ kanal kendi içinde düzgün delta üretir.
 
 | İşlem | Verim | Hız | Oran |
 | --- | --- | --- | --- |
-| encode | ~96M kayıt/sn | **863 MB/sn** | 4.69x |
+| encode | ~96M kayıt/sn | **863 MB/sn** | 4.95x |
 | decode | ~127M kayıt/sn | **846 MB/sn** | — |
 
 ### Çerçeve Katmanı (100 kayıt/çerçeve, paket kaybına dayanıklı)
@@ -124,7 +124,7 @@ kanal kendi içinde düzgün delta üretir.
 | encode | ~22M kayıt/sn | 224 MB/sn | 4.5 µs |
 | decode | ~53M kayıt/sn | 245 MB/sn | 1.9 µs (CRC dahil) |
 
-Çerçeveleme, dayanıklılık karşılığında oranı hafifçe (4.69x → 4.11x) ve encode hızını
+Çerçeveleme, dayanıklılık karşılığında oranı hafifçe (4.95x → 4.30x) ve encode hızını
 düşürür (küçük bloklar + kanal başına heuristik + CRC). Buna karşılık kayıplı linkte
 çalışabilirlik kazanılır.
 
@@ -176,8 +176,8 @@ Optimizasyon çabası hıza değil, orana ve dayanıklılığa harcanmalıdır. 
 
 | Yöntem | Boyut | Oran | Encode | Decode |
 | --- | ---: | ---: | ---: | ---: |
-| **ElBâri — kanal ayrımı** | **63.075 B** | **4.69x** | **863 MB/sn** | **846 MB/sn** |
-| **ElBâri — çerçeveli (100)** | 71.950 B | 4.11x | 224 MB/sn | 245 MB/sn |
+| **ElBâri — kanal ayrımı** | **59.695 B** | **4.95x** | **863 MB/sn** | **846 MB/sn** |
+| **ElBâri — çerçeveli (100)** | 68.844 B | 4.30x | 224 MB/sn | 245 MB/sn |
 | Zstd (seviye 1) | 184.181 B | 1.61x | 210 MB/sn | 313 MB/sn |
 | Zstd (seviye 3) | 175.535 B | 1.68x | 156 MB/sn | 323 MB/sn |
 | Zstd (seviye 9) | 172.483 B | 1.71x | 81 MB/sn | 804 MB/sn |
@@ -203,7 +203,7 @@ Optimizasyon çabası hıza değil, orana ve dayanıklılığa harcanmalıdır. 
 
 **1. "Sıkıştırıcı yapıştırmak" telemetride yetersiz kalıyor.**
 Yaygın yaklaşım telemetriyi olduğu gibi Zstd/LZ4'e vermektir. Ölçüm bunun zayıf kaldığını
-gösteriyor: Zstd-1 yalnızca **1.61x**, LZ4 **1.29x** veriyor. ElBâri **4.69x** ile bunların
+gösteriyor: Zstd-1 yalnızca **1.61x**, LZ4 **1.29x** veriyor. ElBâri **4.95x** ile bunların
 **üç katından fazla** sıkıştırıyor ve aynı zamanda daha hızlı. Sebep basit — genel
 sıkıştırıcılar veriyi anlamsız bir bayt yığını olarak görür; kanalların iç içe geçmesi
 onların örüntü aramasını köreltir. ElBâri verinin **kayıt yapısını bilir**.
@@ -216,7 +216,7 @@ hem 800+ MB/sn hızı** aynı anda veren tek yöntem ElBâri'dir.
 **3. Biçim sürümü 2 ile oran liderliği de alındı.**
 Sürüm 1'de en yüksek oran bizde değildi: Brotli-q11 kanal-ayrılmış veride **3.88x** ile
 ElBâri'yi (3.56x) geçiyordu. Sürüm 2'deki bit genişliği tablosu genişletmesinden sonra
-ElBâri **4.69x** ile bu değeri de aştı — üstelik Brotli'den **~800 kat hızlı** encode
+ElBâri **4.95x** ile bu değeri de aştı — üstelik Brotli'den **~800 kat hızlı** encode
 ederek.
 
 Yani bu veri setinde ElBâri hem **en yüksek orana** hem de (LZ4 dışında) **en yüksek
@@ -362,7 +362,7 @@ doğrulandı:
 
 ```
 --- Kanal katmanı ---
-  [GEÇTİ] C çıktısı == .NET çıktısı            63075 bayt BİREBİR AYNI
+  [GEÇTİ] C çıktısı == .NET çıktısı            59695 bayt BİREBİR AYNI
   [GEÇTİ] C round-trip kayıpsız                tüm elemanlar birebir geri geldi
   [GEÇTİ] C, .NET çıktısını çözebiliyor        çapraz uyumluluk doğrulandı
 
@@ -683,7 +683,7 @@ katmanı** vardır (aşağıya bakınız).
 | Yöntem | Boyut | Oran |
 | --- | ---: | ---: |
 | Ham float32 | 288.000 B | — |
-| **Kuantalama + kanal katmanı** | **28.401 B** | **10.14x** |
+| **Kuantalama + kanal katmanı** | **27.403 B** | **10.51x** |
 | Float bit desenini doğrudan vermek | 195.039 B | 1.48x |
 
 > Kuantalama, float bit desenini doğrudan sıkıştırmaktan **6.9 kat** daha iyi. Sebebi:
@@ -742,7 +742,7 @@ yeter. Literatürde Gorilla (Facebook, 2015) / Chimp olarak bilinir.
 
 | Veri tipi | Kayıpsız (XOR) | Kayıplı (kuantalama) |
 | --- | ---: | ---: |
-| Gürültülü uçuş verisi (gerçekçi) | **1.21x** | **10.14x** |
+| Gürültülü uçuş verisi (gerçekçi) | **1.21x** | **10.51x** |
 | Durağan veri (çok tekrar eden) | **15.08x** | 10.86x |
 | Düzgün sinyal (gürültüsüz) | **1.00x** | 15.83x |
 
@@ -843,12 +843,12 @@ Success Rate: 100.0%
 | Senaryo | Sonuç |
 | --- | --- |
 | GERÇEK GPS — kanal ayrımsız | ⊘ REDDEDİLDİ (beklenen) |
-| GERÇEK GPS — kanal ayrımı | **4.69x** |
-| GERÇEK GPS — çerçeveli (100) | **4.11x** (CRC dahil) |
-| GERÇEK GPS — çerçeveli (500) | **4.48x** |
+| GERÇEK GPS — kanal ayrımı | **4.95x** |
+| GERÇEK GPS — çerçeveli (100) | **4.30x** (CRC dahil) |
+| GERÇEK GPS — çerçeveli (500) | **4.83x** |
 | İHA 6 kanal — kanal ayrımsız | ⊘ REDDEDİLDİ (beklenen) |
 | İHA 6 kanal — kanal ayrımı | **7.09x** |
-| İHA 6 kanal — çerçeveli (250) | **6.55x** |
+| İHA 6 kanal — çerçeveli (250) | **6.54x** |
 
 ### Kayıpsızlık doğrulaması
 

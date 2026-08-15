@@ -54,10 +54,10 @@ ciktilari .NET tarafinda uretilir, sonra:
 
 Gercek GPS verisiyle (24.642 kayit) alinan sonuc:
 
-    kanal: C ciktisi == .NET ciktisi        63075 bayt birebir ayni
+    kanal: C ciktisi == .NET ciktisi        59695 bayt birebir ayni
     kanal: C round-trip kayipsiz            tum elemanlar birebir geri geldi
     kanal: C, .NET ciktisini cozebiliyor    capraz uyumluluk dogrulandi
-    cerceve: yaz/oku bagimsiz ve kayipsiz   247 cerceve, 4.11x
+    cerceve: yaz/oku bagimsiz ve kayipsiz   247 cerceve, 4.30x
     cerceve: tek-bit bozulma CRC ile        247/247 yakalandi
 
 ## MISRA C uyumu
@@ -116,7 +116,7 @@ sikistirma (XOR tabanli) bu surumde yoktur.
 
 Olculen (12.000 kayit x 6 kanal, gercekci ucus verisi):
   ham float32                 : 288.000 bayt
-  kuantalama + kanal katmani  :  28.401 bayt  (10.14x)
+  kuantalama + kanal katmani  :  27.403 bayt  (10.51x)
   float bit desenini dogrudan : 195.039 bayt  (1.48x)
   -> kuantalama 6.9 kat daha iyi
 
@@ -131,7 +131,7 @@ yalnizca anlamli bitler yazilir. Deger degismemisse tek bit yeter.
 Literaturde Gorilla / Chimp.
 
 OLCULEN - durust beklenti yonetimi:
-  gurultulu ucus verisi : XOR  1.21x  vs  kuantalama 10.14x
+  gurultulu ucus verisi : XOR  1.21x  vs  kuantalama 10.51x
   duragan veri          : XOR 15.08x  vs  kuantalama 10.86x
   duzgun sinyal         : XOR  1.00x  vs  kuantalama 15.83x
 

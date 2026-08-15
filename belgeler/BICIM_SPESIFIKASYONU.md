@@ -64,7 +64,7 @@ Her blok için bit akışına sırasıyla şunlar yazılır:
 
 | `mod` | Bit genişliği `w` | Kapsadığı `M` |
 | ---: | ---: | ---: |
-| 0 | 1 | M ≤ 0 |
+| 0 | — | M ≤ 0 → **sıfır blok**, veri biti yazılmaz |
 | 1 | 2 | M ≤ 1 |
 | 2 | 3 | M ≤ 3 |
 | 3 | 4 | M ≤ 7 |
@@ -82,6 +82,15 @@ fark aykırıdır ve adım 3'te atlanıp adım 4'te 32 bit olarak yazılır.
 
 Blok içindeki **aykırı olmayan** farkların en büyük mutlak değeri `M` olsun; tablodaki
 `M`'yi kapsayan **en küçük** genişlik seçilir (yukarıdaki etiket tablosu).
+
+**Sıfır blok (`mod = 0`):** Bu değer yalnızca `M ≤ 0` iken seçilir; yani aykırı olmayan
+farkların **tamamı sıfırdır**. Bu durumda aykırı olmayan pozisyonlar için **hiçbir veri
+biti yazılmaz** — çözücü hepsini sıfır kabul eder. Aykırı değerler her zamanki gibi 32 bit
+olarak yazılmaya devam eder.
+
+> Bu bir en iyileme değil, **bilgi taşımayan bitlerin kaldırılmasıdır.** Önceki tasarımda
+> bu bloklar için değer başına garantili sıfır olan 1 bit yazılıyordu. Ölçülen kazanç:
+> gerçek GPS %5.4 (zaman kanalında blokların %89'u sıfır blok), İHA telemetrisi %3.5.
 
 > **Genişlik kümesi nasıl seçildi:** 16 zorunludur (aykırı eşiği 32767 tam olarak 16 bit
 > gerektirir). Kalan 7 yuva için 1..15 arasındaki **tüm kombinasyonlar** gerçek veri
@@ -385,7 +394,10 @@ uygunluk.exe ..\TestVectors\vektorler.txt
 
 ### Sürüm 2 (güncel)
 
-**Değişiklik:** Bit genişliği tablosu 4 girdiden 8'e çıkarıldı.
+**İki değişiklik:**
+
+1. **Bit genişliği tablosu 4 girdiden 8'e çıkarıldı.**
+2. **Sıfır blok:** `mod = 0` artık veri biti yazmaz (bkz. bölüm 2.2/2.3).
 
 Sürüm 1'de etiketin `mod` alanı 3 bit olmasına rağmen yalnızca 4 değer kullanılıyordu
 (2/4/8/16); kalan 4 yuva boştu. Bu, 5 bit gereken bir farkın 8 bitle, 10 bit gerekenin
@@ -395,9 +407,9 @@ Sürüm 1'de etiketin `mod` alanı 3 bit olmasına rağmen yalnızca 4 değer ku
 
 | Ölçüm | Sürüm 1 | Sürüm 2 |
 | --- | ---: | ---: |
-| Gerçek GPS (24.642 kayıt) | 3.56x | **4.69x** |
-| İHA telemetrisi (kuantalanmış) | 8.01x | **10.14x** |
-| Test paketi ortalaması | 5.45x | **6.46x** |
+| Gerçek GPS (24.642 kayıt) | 3.56x | **4.95x** |
+| İHA telemetrisi (kuantalanmış) | 8.01x | **10.51x** |
+| Test paketi ortalaması | 5.45x | **8.83x** |
 
 **Uyumluluk:** Sürüm 1 ile ikili uyumlu **değildir**. Çerçeve başlığındaki `[2]` sürüm
 baytı `2` olur; sürüm 1 çözücüsü böyle bir çerçeveyi reddeder.

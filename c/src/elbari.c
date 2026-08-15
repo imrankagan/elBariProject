@@ -47,7 +47,13 @@
  * (aykiri esigi 32767), kalan 7 yuva icin 1..15 arasindaki tum kombinasyonlar
  * denendi ve iki veri setinde birden en iyi sonucu veren kume alindi.
  * Olculen kazanc: gercek GPS %25.6, IHA telemetrisi %24.0. */
-#define ELBARI_GENISLIK_0               (1)    /* M <= 0   */
+/* mod = 0 -> SIFIR BLOK: aykiri olmayan tum farklar sifirdir ve HIC veri
+ * biti yazilmaz. Bu bir eniyileme degil, bilgi tasimayan bitlerin
+ * kaldirilmasidir: mod 0 yalnizca M <= 0 iken secilir, yani aykiri olmayan
+ * farklarin hepsi tam olarak sifirdir. Eskiden her biri icin garantili sifir
+ * olan 1 bit yaziliyordu - sifir bilgi, sekiz bit.
+ * Olculen kazanc: gercek GPS %5.4, IHA telemetrisi %3.5. */
+#define ELBARI_GENISLIK_0               (0)    /* M <= 0, veri biti YOK */
 #define ELBARI_GENISLIK_1               (2)    /* M <= 1   */
 #define ELBARI_GENISLIK_2               (3)    /* M <= 3   */
 #define ELBARI_GENISLIK_3               (4)    /* M <= 7   */
@@ -388,31 +394,37 @@ int32_t elbari_kabid(const int32_t *ham_veri,
             }
         }
 
-        maske = (bit_genisligi >= 32) ? 0xFFFFFFFFu
-                                      : ((1u << (unsigned int)bit_genisligi) - 1u);
+        maske = (bit_genisligi <= 0) ? 0u
+              : ((bit_genisligi >= 32) ? 0xFFFFFFFFu
+                                       : ((1u << (unsigned int)bit_genisligi) - 1u));
 
-        /* 5) Aykiri OLMAYAN farklar, blok bit genisligi ile */
-        for (j = 0; j < blok_boyu; j++)
+        /* 5) Aykiri OLMAYAN farklar, blok bit genisligi ile.
+         *    SIFIR BLOK (bit_genisligi == 0) durumunda hic veri biti
+         *    yazilmaz; farklarin hepsi zaten sifirdir. */
+        if (bit_genisligi > 0)
         {
-            int32_t fark;
-            uint32_t paketli;
-
-            if ((aykiri_var != 0) && ((aykiri_maske & (uint8_t)(1u << (unsigned int)j)) != 0u))
+            for (j = 0; j < blok_boyu; j++)
             {
-                continue;
-            }
+                int32_t fark;
+                uint32_t paketli;
 
-            fark = elbari_ic_fark(ham_veri[veri_indeksi + j],
-                                  ham_veri[veri_indeksi + j - 1]);
-            paketli = elbari_ic_isaretsize_cevir(fark) & maske;
+                if ((aykiri_var != 0) && ((aykiri_maske & (uint8_t)(1u << (unsigned int)j)) != 0u))
+                {
+                    continue;
+                }
 
-            bit_tamponu |= ((uint64_t)paketli) << (unsigned int)bit_sayisi;
-            bit_sayisi += bit_genisligi;
+                fark = elbari_ic_fark(ham_veri[veri_indeksi + j],
+                                      ham_veri[veri_indeksi + j - 1]);
+                paketli = elbari_ic_isaretsize_cevir(fark) & maske;
 
-            if (elbari_ic_bit_bosalt(&bit_tamponu, &bit_sayisi,
-                                     cikti, cikti_kapasitesi, &bayt_indeksi) == 0)
-            {
-                return ELBARI_HATA_TAMPON_KUCUK;
+                bit_tamponu |= ((uint64_t)paketli) << (unsigned int)bit_sayisi;
+                bit_sayisi += bit_genisligi;
+
+                if (elbari_ic_bit_bosalt(&bit_tamponu, &bit_sayisi,
+                                         cikti, cikti_kapasitesi, &bayt_indeksi) == 0)
+                {
+                    return ELBARI_HATA_TAMPON_KUCUK;
+                }
             }
         }
 
@@ -547,7 +559,8 @@ int32_t elbari_basit(const uint8_t *girdi,
 
         kalan = eleman_sayisi - cikti_indeksi;
         blok_boyu = (kalan < ELBARI_BLOK_BOYUTU) ? kalan : ELBARI_BLOK_BOYUTU;
-        maske = (1u << (unsigned int)bit_genisligi) - 1u;
+        maske = (bit_genisligi <= 0) ? 0u
+                                     : ((1u << (unsigned int)bit_genisligi) - 1u);
 
         /* 2) Aykiri maske */
         if (aykiri_var != 0)
@@ -570,6 +583,13 @@ int32_t elbari_basit(const uint8_t *girdi,
 
             if ((aykiri_var != 0) && ((aykiri_maske & (1u << (unsigned int)j)) != 0u))
             {
+                continue;
+            }
+
+            /* SIFIR BLOK: veri biti yazilmamisti, fark sifirdir. */
+            if (bit_genisligi <= 0)
+            {
+                gecici[j] = 0;
                 continue;
             }
 

@@ -63,7 +63,13 @@ namespace ElBâri
         // (aykırı eşiği 32767), kalan 7 yuva için 1..15 arasındaki tüm
         // kombinasyonlar denendi ve iki veri setinde birden en iyi sonucu veren
         // küme alındı. Ölçülen kazanç: gerçek GPS %25.6, İHA telemetrisi %24.0.
-        private const int BIT_GENISLIGI_0 = 1;    // M <= 0
+        // mod = 0 -> SIFIR BLOK: aykırı olmayan tüm farklar sıfırdır ve
+        // HİÇBİR veri biti yazılmaz. Bu bir en iyileme değil, bilgi taşımayan
+        // bitlerin kaldırılmasıdır: mod 0 yalnızca M <= 0 iken seçilir, yani
+        // aykırı olmayan farkların hepsi tam olarak sıfırdır. Eskiden her biri
+        // için garantili sıfır olan 1 bit yazılıyordu — sıfır bilgi, sekiz bit.
+        // Ölçülen kazanç: gerçek GPS %5.4, İHA telemetrisi %3.5.
+        private const int BIT_GENISLIGI_0 = 0;    // M <= 0  (veri biti yok)
         private const int BIT_GENISLIGI_1 = 2;    // M <= 1
         private const int BIT_GENISLIGI_2 = 3;    // M <= 3
         private const int BIT_GENISLIGI_3 = 4;    // M <= 7
@@ -462,22 +468,27 @@ namespace ElBâri
                     BitTamponuBosalt(ref bitTamponu, ref bitSayisi, cikti, ref baytIndeksi);
                 }
 
-                long maske = (1L << bitGenisligi) - 1;
-
-                for (int j = 0; j < blokBoyu; j++)
+                // SIFIR BLOK: mod 0 ise aykırı olmayan farkların hepsi sıfırdır;
+                // veri biti yazılmaz (bkz. BIT_GENISLIGI_0 açıklaması).
+                if (bitGenisligi > 0)
                 {
-                    if (aykiriVar && (aykiriMaske & (1 << j)) != 0)
+                    long maske = (1L << bitGenisligi) - 1;
+
+                    for (int j = 0; j < blokBoyu; j++)
                     {
-                        continue;
+                        if (aykiriVar && (aykiriMaske & (1 << j)) != 0)
+                        {
+                            continue;
+                        }
+
+                        int delta = hamVeri[veriIndeksi + j] - hamVeri[veriIndeksi + j - 1];
+                        long d = delta & maske;
+
+                        bitTamponu |= (d << bitSayisi);
+                        bitSayisi += bitGenisligi;
+
+                        BitTamponuBosalt(ref bitTamponu, ref bitSayisi, cikti, ref baytIndeksi);
                     }
-
-                    int delta = hamVeri[veriIndeksi + j] - hamVeri[veriIndeksi + j - 1];
-                    long d = delta & maske;
-
-                    bitTamponu |= (d << bitSayisi);
-                    bitSayisi += bitGenisligi;
-
-                    BitTamponuBosalt(ref bitTamponu, ref bitSayisi, cikti, ref baytIndeksi);
                 }
 
                 if (aykiriVar)
@@ -586,7 +597,7 @@ namespace ElBâri
 
                 int kalan = cikti.Length - ciktiIndeksi;
                 int blokBoyu = kalan < BLOK_BOYUTU ? kalan : BLOK_BOYUTU;
-                long maske = (1L << bitGenisligi) - 1;
+                long maske = bitGenisligi > 0 ? (1L << bitGenisligi) - 1 : 0;
 
                 int aykiriMaske = 0;
                 if (aykiriVar)
@@ -601,6 +612,13 @@ namespace ElBâri
                 {
                     if (aykiriVar && (aykiriMaske & (1 << j)) != 0)
                     {
+                        continue;
+                    }
+
+                    // SIFIR BLOK: veri biti yazılmamıştı, fark sıfırdır.
+                    if (bitGenisligi == 0)
+                    {
+                        gecici[j] = 0;
                         continue;
                     }
 
