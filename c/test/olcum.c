@@ -25,6 +25,19 @@
 /* MSVC fopen uyarisi: test kodu, tasinabilirlik icin standart fopen kullanilir */
 #define _CRT_SECURE_NO_WARNINGS
 
+/* POSIX ozellik makrosu - HERHANGI BIR #include'dan ONCE tanimlanmali.
+ *
+ * clock_gettime ve CLOCK_MONOTONIC POSIX islevleridir, ISO C'nin parcasi
+ * degildir. -std=c17 (kati ISO C) ile derlenince glibc bunlari gizler ve
+ * "undeclared identifier" hatasi alinir. Bu makro, POSIX.1-2008 arayuzunu
+ * acikca ister.
+ *
+ * NOT: Bu sorun Windows'ta hic gorulmez, cunku orada QueryPerformanceCounter
+ * dali derlenir. Linux/GCC/Clang derlemesi olmadan fark edilemezdi. */
+#if !defined(_WIN32)
+#  define _POSIX_C_SOURCE 200809L
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

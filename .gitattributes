@@ -1,0 +1,30 @@
+# =====================================================================
+# Satir sonu (line ending) kurallari
+# ---------------------------------------------------------------------
+# Gelistirme Windows'ta, CI ve hedef platformlar Linux'ta. Bazi dosyalar
+# Windows satir sonuyla (CRLF) checkout edilirse BOZULUR:
+#   - Makefile : make CRLF'i komutun parcasi sayar, derleme kirilir
+#   - .sh      : kabuk "\r" karakterini komut adina ekler
+#   - .yml     : bazi araclarda ayristirma sorunu cikarir
+# Bu yuzden asagidaki dosyalar her platformda LF ile tutulur.
+# =====================================================================
+
+# Varsayilan: metin dosyalarini normalize et
+* text=auto
+
+# Linux araclarinin okudugu dosyalar DAIMA LF
+Makefile        text eol=lf
+*.mk            text eol=lf
+*.sh            text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+
+# Windows toplu is dosyalari DAIMA CRLF
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+
+# Ikili dosyalar: dokunma
+*.bin           binary
+*.png           binary
+*.jpg           binary
+*.exe           binary
