@@ -60,7 +60,7 @@ fuzz-san: test/fuzz.c $(KAYNAK)
 # Uygunluk vektorleri depoda oldugu icin bu test bagimsiz calisir.
 # Fuzz de dis veri istemez.
 test: uygunluk fuzz
-	./uygunluk ../TestVectors/vektorler.txt
+	./uygunluk ../testverisi/vektorler.txt
 	./fuzz 200000
 
 temizle:

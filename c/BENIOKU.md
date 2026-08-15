@@ -63,7 +63,7 @@ Gercek GPS verisiyle (24.642 kayit) alinan sonuc:
 ## MISRA C uyumu
 
 Kod MISRA C:2012 disipliniyle yazilmistir. Uyum matrisi ve sapma kaydi:
-MISRA_UYUM.md
+../belgeler/MISRA_UYUM.md
 
 Ozet:
   - Zorunlu ve Gerekli kurallarda bilinen ihlal yok
@@ -146,10 +146,10 @@ BIT BIT ayni geri geliyor.
 
 ## Uygunluk (conformance) testi
 
-Bicim spesifikasyonu: ../BICIM_SPESIFIKASYONU.md
-Dondurulmus vektorler: ../TestVectors/vektorler.txt
+Bicim spesifikasyonu: ../belgeler/BICIM_SPESIFIKASYONU.md
+Dondurulmus vektorler: ../testverisi/vektorler.txt
 
-    uygunluk.exe ../TestVectors/vektorler.txt
+    uygunluk.exe ../testverisi/vektorler.txt
 
 C surumu 18 vektorun tamamini gecer (36 kontrol: 18 kodlama + 18 cozme).
 Vektorler C# referansindan uretilmistir; C bunlari birebir tutturuyorsa

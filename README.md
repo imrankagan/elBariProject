@@ -25,6 +25,29 @@ sunmasıdır:
 Kodun görüntülenmesi, değiştirilmesi veya kullanılması için geçerli bir lisans gereklidir.
 GitHub'daki görünürlük **sadece tanıtım amaçlıdır**.
 
+## 📁 Proje Yapısı
+
+```
+kaynak/          C# kaynak kodu (5 dosya, üç katman + float)
+c/               C sürümü — bağımsız, bağımlılıksız
+  src/             kütüphane kaynağı
+  test/            doğrulama, ölçüm, fuzz, uygunluk
+  Makefile         Linux/macOS derleme
+  derle.bat        Windows derleme (MSVC)
+benchmark/       .NET test ve ölçüm paketi (32 senaryo)
+belgeler/        BICIM_SPESIFIKASYONU.md (ICD), MISRA_UYUM.md, AKIS_SEMASI.md
+testverisi/      gerçek GPS verisi + dondurulmuş uygunluk vektörleri
+.github/         sürekli tümleştirme iş akışı
+```
+
+| Klasör | İçerik |
+| --- | --- |
+| [kaynak/](kaynak/) | `ElBâri.cs` (çekirdek), `ElBâriKanal.cs`, `ElBâriÇerçeve.cs`, `ElBâriFloat.cs`, `ElBâriFloatXor.cs` |
+| [c/](c/) | Aynı üç katmanın C sürümü — RTOS ve bare-metal hedefleri için ([BENIOKU](c/BENIOKU.md)) |
+| [benchmark/](benchmark/) | Test senaryoları, veri üreticileri, ölçüm koşucusu |
+| [belgeler/](belgeler/) | Biçim spesifikasyonu, MISRA uyum matrisi, akış şeması |
+| [testverisi/](testverisi/) | `gercek_gps.bin` (24.642 gerçek kayıt), `vektorler.txt` (27 uygunluk vektörü) |
+
 ## 🧱 Mimari — Üç Katman
 
 ElBâri üç bağımsız katmandan oluşur. Her katman bir öncekinin üzerine oturur; ihtiyacına
@@ -32,9 +55,9 @@ göre yalnızca gerekeni kullanırsın.
 
 | Katman | C# | C | Ne işe yarar |
 | --- | --- | --- | --- |
-| **Çekirdek** | [ElBâri.cs](ElB%C3%A2ri.cs) | [elbari.c](c/src/elbari.c) | `ElKâbıd` (kodlayıcı) / `ElBâsıt` (çözücü). Tek bir tamsayı akışını delta + adaptif bit-packing ile sıkıştırır. |
-| **Kanal** | [ElBâriKanal.cs](ElB%C3%A2riKanal.cs) | [elbari_kanal.c](c/src/elbari_kanal.c) | Çok kanallı telemetriyi (kayıt akışı) kanallara ayırıp her kanalı kendi içinde sıkıştırır. Kanal başına adaptif fark derecesi seçer. |
-| **Çerçeve** | [ElBâriÇerçeve.cs](ElB%C3%A2ri%C3%87er%C3%A7eve.cs) | [elbari_cerceve.c](c/src/elbari_cerceve.c) | Akışı bağımsız çözülebilir, sıra numaralı, CRC32 korumalı çerçevelere böler. Paket kaybına dayanıklılık buradan gelir. |
+| **Çekirdek** | [ElBâri.cs](kaynak/ElB%C3%A2ri.cs) | [elbari.c](c/src/elbari.c) | `ElKâbıd` (kodlayıcı) / `ElBâsıt` (çözücü). Tek bir tamsayı akışını delta + adaptif bit-packing ile sıkıştırır. |
+| **Kanal** | [ElBâriKanal.cs](kaynak/ElB%C3%A2riKanal.cs) | [elbari_kanal.c](c/src/elbari_kanal.c) | Çok kanallı telemetriyi (kayıt akışı) kanallara ayırıp her kanalı kendi içinde sıkıştırır. Kanal başına adaptif fark derecesi seçer. |
+| **Çerçeve** | [ElBâriÇerçeve.cs](kaynak/ElB%C3%A2ri%C3%87er%C3%A7eve.cs) | [elbari_cerceve.c](c/src/elbari_cerceve.c) | Akışı bağımsız çözülebilir, sıra numaralı, CRC32 korumalı çerçevelere böler. Paket kaybına dayanıklılık buradan gelir. |
 
 **İki implementasyon, tek biçim.** C# sürümü SIMD hızlandırmalıdır ve sunucu/yardımcı
 bilgisayar tarafını hedefler; C sürümü bağımlılıksızdır ve gömülü/RTOS hedeflerine girer.
@@ -81,7 +104,7 @@ kanal kendi içinde düzgün delta üretir.
 > **Metodoloji:** Aşağıdaki sayılar **gerçek** veri üzerinde ölçülmüştür — sentetik
 > değil. Veri: OpenStreetMap halka açık GPS iz arşivinden 24.642 kayıt (lat/lon/zaman).
 > Ortam: .NET 10, 24 çekirdekli x64, AVX2 aktif, Release + Native AOT, tek iş parçacığı.
-> Kaynak/lisans: [TestData/KAYNAK.md](TestData/KAYNAK.md).
+> Kaynak/lisans: [TestData/KAYNAK.md](testverisi/KAYNAK.md).
 
 ### Çekirdek + Kanal Katmanı (tek blok)
 
@@ -367,7 +390,7 @@ int32_t durum = elbari_cerceve_oku(gelen_paket, gelen_boyut, kanal,
 | .NET ile ikili uyumluluk | ✅ Gerçek veriyle doğrulandı |
 | MSVC x64 derleme | ✅ `/W4` ile 0 uyarı |
 | Verim ve gecikme dağılımı ölçümü | ✅ Ölçüldü (aşağıda) |
-| MISRA C:2012 uyum incelemesi | ✅ Elle yapıldı, belgelendi ([MISRA_UYUM.md](c/MISRA_UYUM.md)) |
+| MISRA C:2012 uyum incelemesi | ✅ Elle yapıldı, belgelendi ([MISRA_UYUM.md](belgeler/MISRA_UYUM.md)) |
 | MSVC `/Wall /analyze` statik analiz | ✅ 0 bulgu |
 | Sağlamlık (fuzz) testi | ✅ 400.000 tur, 0 tampon taşması |
 | Sertifikalı MISRA aracıyla doğrulama | ⏳ Yapılmadı |
@@ -419,7 +442,7 @@ katından az sürüyor. Bu, sabit blok yapısının beklenen davranışıdır.
 ### MISRA C:2012 uyumu
 
 Kod baştan MISRA disipliniyle yazıldı; ardından kural kural denetlendi. Tam matris ve
-sapma kaydı: **[c/MISRA_UYUM.md](c/MISRA_UYUM.md)**
+sapma kaydı: **[c/MISRA_UYUM.md](belgeler/MISRA_UYUM.md)**
 
 | Kategori | Durum |
 | --- | --- |
@@ -461,7 +484,7 @@ if (kayit_sayisi > (ELBARI_MAKS_ELEMAN / kanal_sayisi))
 }
 ```
 
-> **Dürüstlük notu:** [MISRA_UYUM.md](c/MISRA_UYUM.md) **elle yapılmış bir
+> **Dürüstlük notu:** [MISRA_UYUM.md](belgeler/MISRA_UYUM.md) **elle yapılmış bir
 > öz-değerlendirmedir.** Sertifikalı bir MISRA aracıyla (Helix QAC, PC-lint Plus,
 > Polyspace) doğrulanmamıştır ve resmî bir uygunluk beyanı değildir. Ticari teslimat
 > öncesi nitelikli bir araçla doğrulanmalıdır.
@@ -604,7 +627,7 @@ fuzz.exe [tur_sayisi]            # düşmanca girdi sağlamlık testi
 Çekirdek motor tamsayı üzerinde çalışır. Gerçek telemetrinin önemli bir kısmı ise
 ondalıklı taşınır: yönelim açıları, hız, ivme, batarya gerilimi, quaternion bileşenleri.
 
-**Kuantalama katmanı** ([ElBâriFloat.cs](ElB%C3%A2riFloat.cs) / [elbari_float.c](c/src/elbari_float.c))
+**Kuantalama katmanı** ([ElBâriFloat.cs](kaynak/ElB%C3%A2riFloat.cs) / [elbari_float.c](c/src/elbari_float.c))
 ondalıklı değerleri istenen **hassasiyete** göre ölçekleyip tamsayıya çevirir. Sonuç mevcut
 kanal ve çerçeve katmanlarına olduğu gibi verilir — **biçim değişmez**.
 
@@ -672,7 +695,7 @@ ElBâriFloat.CozKanalli(geriTamsayi, kanal, olcekler, geriFloat);
 
 ### Kayıpsız float — XOR katmanı
 
-Tam değerin korunması şartsa: [ElBâriFloatXor.cs](ElB%C3%A2riFloatXor.cs) /
+Tam değerin korunması şartsa: [ElBâriFloatXor.cs](kaynak/ElB%C3%A2riFloatXor.cs) /
 [elbari_float_xor.c](c/src/elbari_float_xor.c)
 
 Ardışık float'ların **bit desenleri XOR'lanır**. Birbirine yakın değerlerde işaret, üstel
@@ -719,7 +742,7 @@ yapılmaktadır.
 ## 📐 Biçim Spesifikasyonu ve Uygunluk Vektörleri
 
 Bayt düzeyindeki veri biçimi tam olarak belgelenmiştir:
-**[BICIM_SPESIFIKASYONU.md](BICIM_SPESIFIKASYONU.md)** (Arayüz Kontrol Dokümanı / ICD)
+**[BICIM_SPESIFIKASYONU.md](belgeler/BICIM_SPESIFIKASYONU.md)** (Arayüz Kontrol Dokümanı / ICD)
 
 Belge, bağımsız bir tarafın sıfırdan uyumlu bir kodlayıcı/çözücü yazabilmesi için
 gereken her şeyi içerir: üç katmanın bayt düzeni, blok/etiket kodlaması, bit genişliği
@@ -728,7 +751,7 @@ ve doğrulama sırası.
 
 ### Dondurulmuş uygunluk vektörleri
 
-[`TestVectors/vektorler.txt`](TestVectors/vektorler.txt) — 18 referans vektör. Her bit
+[`testverisi/vektorler.txt`](testverisi/vektorler.txt) — 18 referans vektör. Her bit
 genişliğini (2/4/8/16), aykırı değerleri, kısmi blokları, ikinci derece farkı, ham
 geçişi ve çerçeve başlığını kapsar.
 
@@ -744,7 +767,7 @@ Bir implementasyon uyumlu sayılır **ancak ve ancak**:
 
 ```bash
 c\derle.bat
-uygunluk.exe ../TestVectors/vektorler.txt
+uygunluk.exe ../testverisi/vektorler.txt
 ```
 
 > **Neden bu önemli:** Savunma ve havacılık tedarikinde satın alınan şey koddan çok

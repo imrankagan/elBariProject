@@ -2,7 +2,7 @@
  * ELBARI - Uygunluk (conformance) testi
  * ---------------------------------------------------------------------
  * AMAC:
- *   TestVectors/vektorler.txt icindeki DONMUS referans vektorlerini
+ *   testverisi/vektorler.txt icindeki DONMUS referans vektorlerini
  *   okuyup her biri icin iki yonu de dogrular:
  *
  *     1) KODLAMA : verilen girdiden beklenen bayt dizisi uretiliyor mu?

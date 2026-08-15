@@ -255,7 +255,7 @@ public static class TestScenarios
             },
 
             // ===== GERÇEK VERİ (OpenStreetMap GPS izleri) =====
-            // Kaynak/lisans: TestData/KAYNAK.md
+            // Kaynak/lisans: testverisi/KAYNAK.md
             new TestScenario
             {
                 Name = "GERÇEK GPS - tek akış (kanal ayrımsız)",

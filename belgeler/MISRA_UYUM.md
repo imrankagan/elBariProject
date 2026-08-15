@@ -1,7 +1,7 @@
 # MISRA C:2012 Uyum Matrisi ve Sapma Kaydı
 
-**Kapsam:** `c/src/elbari.c`, `c/src/elbari_kanal.c`, `c/src/elbari_cerceve.c`,
-`c/src/elbari.h`, `c/src/elbari_ic.h`
+**Kapsam:** `../c/src/elbari.c`, `../c/src/elbari_kanal.c`, `../c/src/elbari_cerceve.c`,
+`../c/src/elbari.h`, `../c/src/elbari_ic.h`
 
 **Kapsam dışı:** `c/test/` altındaki dosyalar. Test kodu üründe dağıtılmaz;
 `malloc`, `printf`, `qsort` gibi kütüphane çağrılarını serbestçe kullanır.
@@ -229,7 +229,7 @@ karşılanabilir — davranış değişmez, yalnızca küçük bir performans ma
 Çalıştırmak için:
 
 ```bash
-c\derle.bat        # /W4 ile derleme
+../c/derle.bat        # /W4 ile derleme
 c\analiz.bat       # /Wall /analyze statik analiz
 dogrulama.exe <referans_dizini>
 ```

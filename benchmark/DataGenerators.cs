@@ -220,10 +220,10 @@ public static class DataGenerators
     // =================================================================
 
     /// <summary>
-    /// Gerçek GPS telemetrisi (TestData/gercek_gps.bin).
+    /// Gerçek GPS telemetrisi (testverisi/gercek_gps.bin).
     /// 3 kanal: enlem, boylam, unix zaman damgası — iç içe.
     /// Dosya bulunamazsa GercekciUAVTelemetry ile sentetik yedek döner.
-    /// Kaynak ve lisans bilgisi için TestData/KAYNAK.md dosyasına bakın.
+    /// Kaynak ve lisans bilgisi için testverisi/KAYNAK.md dosyasına bakın.
     /// </summary>
     public static int[] GercekGpsVerisi(int enFazlaKayit = int.MaxValue)
     {
@@ -261,7 +261,7 @@ public static class DataGenerators
     public static bool GercekVeriMevcutMu() => TestVeriDosyasiBul("gercek_gps.bin") != null;
 
     /// <summary>
-    /// Çalıştırma dizininden yukarı doğru arayarak TestData klasörünü bulur.
+    /// Çalıştırma dizininden yukarı doğru arayarak testverisi klasörünü bulur.
     /// (bin/Debug/net10.0 gibi derin çıktı dizinlerinden çalışmayı destekler.)
     /// </summary>
     private static string? TestVeriDosyasiBul(string dosyaAdi)
@@ -269,7 +269,7 @@ public static class DataGenerators
         string dizin = AppContext.BaseDirectory;
         for (int i = 0; i < 8 && !string.IsNullOrEmpty(dizin); i++)
         {
-            string aday = System.IO.Path.Combine(dizin, "TestData", dosyaAdi);
+            string aday = System.IO.Path.Combine(dizin, "testverisi", dosyaAdi);
             if (System.IO.File.Exists(aday)) return aday;
 
             System.IO.DirectoryInfo? ust = System.IO.Directory.GetParent(dizin);

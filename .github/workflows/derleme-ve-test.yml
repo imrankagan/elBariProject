@@ -50,7 +50,7 @@ jobs:
 
       - name: Uygunluk vektorleri
         working-directory: c
-        run: ./uygunluk ../TestVectors/vektorler.txt
+        run: ./uygunluk ../testverisi/vektorler.txt
 
       - name: Fuzz (saglamlik)
         working-directory: c
@@ -76,7 +76,7 @@ jobs:
       # (-fno-sanitize-recover=all).
       - name: Uygunluk vektorleri (denetleyici altinda)
         working-directory: c
-        run: ./uygunluk-san ../TestVectors/vektorler.txt
+        run: ./uygunluk-san ../testverisi/vektorler.txt
 
       - name: Fuzz (denetleyici altinda)
         working-directory: c

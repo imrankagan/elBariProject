@@ -334,7 +334,7 @@ böyle bir seçim bulunmaz).
 
 ## 6. Uygunluk doğrulaması
 
-Bu biçime uygunluk, [`TestVectors/vektorler.txt`](TestVectors/vektorler.txt) dosyasındaki
+Bu biçime uygunluk, [`testverisi/vektorler.txt`](../testverisi/vektorler.txt) dosyasındaki
 **dondurulmuş referans vektörleriyle** doğrulanır. Dosya **27 vektör** içerir:
 
 | Katman | Vektör | Kapsam |
