@@ -45,10 +45,14 @@ testverisi/      gerçek GPS verisi + dondurulmuş uygunluk vektörleri
 | [kaynak/](kaynak/) | `ElBâri.cs` (çekirdek), `ElBâriKanal.cs`, `ElBâriÇerçeve.cs`, `ElBâriFloat.cs`, `ElBâriFloatXor.cs` |
 | [c/](c/) | Aynı üç katmanın C sürümü — RTOS ve bare-metal hedefleri için ([BENIOKU](c/BENIOKU.md)) |
 | [benchmark/](benchmark/) | Test senaryoları, veri üreticileri, ölçüm koşucusu |
-| [belgeler/](belgeler/) | Biçim spesifikasyonu, MISRA uyum matrisi, akış şeması |
+| [belgeler/](belgeler/) | [Biçim spesifikasyonu](belgeler/BICIM_SPESIFIKASYONU.md) (ICD), [MISRA uyum matrisi](belgeler/MISRA_UYUM.md), [akış şemaları](belgeler/AKIS_SEMASI.md) |
 | [testverisi/](testverisi/) | `gercek_gps.bin` (24.642 gerçek kayıt), `vektorler.txt` (27 uygunluk vektörü) |
 
 ## 🧱 Mimari — Üç Katman
+
+> 📊 Görsel anlatım: **[belgeler/AKIS_SEMASI.md](belgeler/AKIS_SEMASI.md)** — hangi katmanı
+> ne zaman kullanacağın, kodlama/çözme akışı, blok yapısı ve paket kaybı senaryosu
+> şemalarla anlatılıyor.
 
 ElBâri üç bağımsız katmandan oluşur. Her katman bir öncekinin üzerine oturur; ihtiyacına
 göre yalnızca gerekeni kullanırsın.
