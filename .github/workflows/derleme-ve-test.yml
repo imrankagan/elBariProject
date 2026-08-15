@@ -1,0 +1,112 @@
+# =====================================================================
+# ElBari - Surekli tumlestirme (CI)
+# ---------------------------------------------------------------------
+# NEDEN VAR:
+# Gelistirme Windows/MSVC uzerinde yapiliyor, ancak C surumunun VARLIK
+# SEBEBI Linux'lu yardimci bilgisayarlar, ARM kartlar ve RTOS'lardir —
+# bunlarin derleyicisi neredeyse istisnasiz GCC ya da Clang'dir.
+#
+# Bu is akisi her degisiklikte:
+#   - Kodu GERCEK Linux'ta, hem GCC hem Clang ile derler
+#   - Adres/tanimsiz-davranis denetleyicileri (ASan/UBSan) altinda calistirir
+#   - Dondurulmus uygunluk vektorlerini dogrular
+#   - Fuzz testini kosturur
+#   - .NET tarafini derleyip test paketini calistirir
+#
+# Boylece "C99 uyumlu, her yere tasinabilir" iddiasi bir IDDIA olmaktan
+# cikip her push'ta yeniden kanitlanan bir OLGU haline gelir.
+# =====================================================================
+
+name: Derleme ve Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  # -------------------------------------------------------------------
+  # C surumu: GCC ve Clang ile, gercek Linux uzerinde
+  # -------------------------------------------------------------------
+  c-linux:
+    name: C (${{ matrix.derleyici }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        derleyici: [gcc, clang]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derleyici surumu
+        run: ${{ matrix.derleyici }} --version
+
+      - name: Derle (siki uyarilarla)
+        working-directory: c
+        run: make CC=${{ matrix.derleyici }} all
+
+      - name: Uygunluk vektorleri
+        working-directory: c
+        run: ./uygunluk ../TestVectors/vektorler.txt
+
+      - name: Fuzz (saglamlik)
+        working-directory: c
+        run: ./fuzz 300000
+
+  # -------------------------------------------------------------------
+  # Denetleyiciler: tanimsiz davranis ve bellek hatalarini CALISIRKEN yakalar
+  # -------------------------------------------------------------------
+  c-denetleyici:
+    name: C denetleyicileri (ASan + UBSan)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Denetleyicili derle
+        working-directory: c
+        run: make CC=clang sanitize
+
+      # MISRA belgesinde "Kural 1.3 - tanimsiz davranis yok" diye iddia
+      # ediliyor. Bu adim o iddiayi ELLE INCELEME ile degil, CALISTIRARAK
+      # dogrular. Herhangi bir ihlalde surec sifir disi kodla biter
+      # (-fno-sanitize-recover=all).
+      - name: Uygunluk vektorleri (denetleyici altinda)
+        working-directory: c
+        run: ./uygunluk-san ../TestVectors/vektorler.txt
+
+      - name: Fuzz (denetleyici altinda)
+        working-directory: c
+        env:
+          # Denetleyiciler yavaslattigi icin tur sayisi dusuk tutulur;
+          # yakalama gucu tur sayisindan cok denetleyicilerden gelir.
+          ASAN_OPTIONS: detect_leaks=1
+          UBSAN_OPTIONS: print_stacktrace=1
+        run: ./fuzz-san 50000
+
+  # -------------------------------------------------------------------
+  # .NET surumu
+  # -------------------------------------------------------------------
+  dotnet:
+    name: .NET (test paketi)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Derle
+        # PublishAot yalnizca yayinlama (publish) icin gereklidir; CI'da
+        # yerel araç zinciri kurmamak icin kapatilir.
+        run: dotnet build -c Debug --nologo -p:PublishAot=false
+
+      # Program.cs, basarisiz senaryo varsa sifir disi kod dondurur;
+      # aksi halde testler kirilsa bile CI yesil gorunurdu.
+      - name: Test paketi
+        run: dotnet run -c Debug --nologo -p:PublishAot=false < /dev/null

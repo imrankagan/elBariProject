@@ -37,7 +37,12 @@ public static class BenchmarkRunner
     /// <summary>
     /// Tüm benchmark senaryolarını çalıştır.
     /// </summary>
-    public static void RunAll(bool verbose = true)
+    /// <returns>
+    /// Başarısız olan senaryo sayısı. Sürekli tümleştirme (CI) bu değeri
+    /// çıkış koduna çevirir; aksi hâlde testler kırıldığında bile derleme
+    /// yeşil görünürdü.
+    /// </returns>
+    public static int RunAll(bool verbose = true)
     {
         Console.WriteLine("╔════════════════════════════════════════════════════════════════════════╗");
         Console.WriteLine("║         ElBâri Compression Engine - Benchmark Suite                   ║");
@@ -104,6 +109,8 @@ public static class BenchmarkRunner
         PrintSummary(results, passCount, failCount, rejectedCount);
         PrintCategoryBreakdown(results);
         PrintTopPerformers(results);
+
+        return failCount;
     }
 
     /// <summary>

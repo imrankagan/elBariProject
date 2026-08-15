@@ -7,7 +7,7 @@ using ElBâri.Benchmarks;
 
 internal class Program
 {
-    private static void Main(string[] args)
+    private static int Main(string[] args)
     {
         Console.WriteLine("═══════════════════════════════════════════════");
         Console.WriteLine("  QUICK FIX VALIDATION");
@@ -101,7 +101,7 @@ internal class Program
         // Ana benchmark'ı çalıştır
         Console.WriteLine("Running full benchmark suite...");
         Console.WriteLine();
-        BenchmarkRunner.RunAll(verbose: true);
+        int basarisiz = BenchmarkRunner.RunAll(verbose: true);
 
         // Sadece etkileşimli konsolda bekle. Çıktı/girdi yönlendirildiğinde (CI, dosyaya
         // log alma) ReadKey InvalidOperationException atardı; bu kontrol onu önler.
@@ -111,5 +111,14 @@ internal class Program
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
         }
+
+        // Çıkış kodu: 0 = tüm testler geçti, 1 = en az bir test başarısız.
+        // Sürekli tümleştirme bu kodu okur.
+        if (basarisiz > 0)
+        {
+            Console.Error.WriteLine($"HATA: {basarisiz} senaryo başarısız.");
+            return 1;
+        }
+        return 0;
     }
 }
