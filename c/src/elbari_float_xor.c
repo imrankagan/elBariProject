@@ -85,15 +85,16 @@ static int32_t elbari_ic_basta_sifir(uint32_t deger)
 static int32_t elbari_ic_sonda_sifir(uint32_t deger)
 {
     int32_t n = 0;
+    uint32_t gecici = deger;   /* MISRA 17.8: parametre degistirilmez */
 
-    if (deger == 0u)
+    if (gecici == 0u)
     {
         return 32;
     }
-    while ((deger & 1u) == 0u)
+    while ((gecici & 1u) == 0u)
     {
         n++;
-        deger >>= 1;
+        gecici >>= 1;
     }
     return n;
 }
@@ -142,6 +143,8 @@ static void elbari_ic_yazici_bosalt(elbari_bit_yazici *y)
 static void elbari_ic_bit_yaz(elbari_bit_yazici *y, uint32_t deger, int32_t adet)
 {
     uint32_t maske;
+    uint32_t maskeli;
+    unsigned int kaydirma;
 
     if (y->tasti != 0)
     {
@@ -152,8 +155,10 @@ static void elbari_ic_bit_yaz(elbari_bit_yazici *y, uint32_t deger, int32_t adet
         return;
     }
 
-    maske = (adet >= 32) ? 0xFFFFFFFFu : ((1u << (unsigned int)adet) - 1u);
-    y->bit_tamponu |= ((uint64_t)(deger & maske)) << (unsigned int)y->bit_sayisi;
+    maske = elbari_ic_alt_maske(adet);
+    maskeli = deger & maske;
+    kaydirma = (unsigned int)y->bit_sayisi & 63u;
+    y->bit_tamponu |= ((uint64_t)maskeli) << kaydirma;
     y->bit_sayisi += adet;
 
     elbari_ic_yazici_bosalt(y);
@@ -225,7 +230,7 @@ static uint32_t elbari_ic_bit_oku(elbari_bit_okuyucu *o, int32_t adet)
         o->bit_sayisi += 8;
     }
 
-    maske = (adet >= 32) ? 0xFFFFFFFFu : ((1u << (unsigned int)adet) - 1u);
+    maske = elbari_ic_alt_maske(adet);
     sonuc = (uint32_t)(o->bit_tamponu & (uint64_t)maske);
     o->bit_tamponu >>= (unsigned int)adet;
     o->bit_sayisi -= adet;
@@ -317,10 +322,12 @@ int32_t elbari_float_xor_kabid(const float *ham_veri,
             else
             {
                 int32_t uzunluk = 32 - bs - ss;
+                uint32_t uzunluk_eksi_bir;
 
                 elbari_ic_bit_yaz(&y, 1u, 1);
                 elbari_ic_bit_yaz(&y, (uint32_t)bs, 5);
-                elbari_ic_bit_yaz(&y, (uint32_t)(uzunluk - 1), 5);
+                uzunluk_eksi_bir = (uint32_t)uzunluk - 1u;
+                elbari_ic_bit_yaz(&y, uzunluk_eksi_bir, 5);
                 elbari_ic_bit_yaz(&y, fark >> (unsigned int)ss, uzunluk);
 
                 onceki_bs = bs;
@@ -590,7 +597,7 @@ int32_t elbari_float_xor_kanal_kabid(const float *ham_veri,
                 elbari_ic_u32_yaz(&cikti[yazma_konumu + (i * 4)], bit_deseni);
             }
             elbari_ic_i32_yaz(&boyut_alani[c * 4], ham_bayt);
-            ham_bayraklari[c >> 3] |= (uint8_t)(1u << (unsigned int)(c & 7));
+            elbari_ic_bayrak_kur(ham_bayraklari, c);
             yazma_konumu += ham_bayt;
         }
     }
@@ -668,8 +675,7 @@ int32_t elbari_float_xor_kanal_basit(const uint8_t *girdi,
             return ELBARI_HATA_BOZUK_GIRDI;
         }
 
-        ham_gecis = ((ham_bayraklari[c >> 3] &
-                      (uint8_t)(1u << (unsigned int)(c & 7))) != 0u) ? 1 : 0;
+        ham_gecis = elbari_ic_bayrak_var_mi(ham_bayraklari, c);
 
         if (ham_gecis != 0)
         {

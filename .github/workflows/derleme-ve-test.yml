@@ -88,6 +88,82 @@ jobs:
         run: ./fuzz-san 50000
 
   # -------------------------------------------------------------------
+  # MISRA C:2012 kural taramasi
+  # ---------------------------------------------------------------------
+  # belgeler/MISRA_UYUM.md'de kayitli sapmalar disinda ihlal OLMAMALIDIR.
+  # Yalnizca rapor uretmek yeterli degil; kural bazinda esik denetlenir ki
+  # yeni bir ihlal sessizce iceri sizmasin.
+  #
+  # NOT: cppcheck'in --addon= secenegi bazi ortamlarda Python'u sessizce
+  # baslatamaz ve HIC CIKTI URETMEZ. Bu "0 ihlal" sanilabilecek bir tuzaktir.
+  # Bu yuzden iki adimli (--dump + misra.py) yol kullanilir.
+  # -------------------------------------------------------------------
+  misra:
+    name: MISRA C:2012 (Cppcheck)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cppcheck kur
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cppcheck
+          cppcheck --version
+
+      - name: Cozumleme dokumu uret
+        working-directory: c
+        run: |
+          for f in src/elbari*.c; do
+            cppcheck --dump --std=c11 --quiet "$f"
+          done
+          ls src/*.dump
+
+      - name: MISRA eklentisini calistir
+        working-directory: c
+        run: |
+          MISRA_PY=$(dpkg -L cppcheck 2>/dev/null | grep -m1 'misra\.py$')
+          if [ -z "$MISRA_PY" ]; then
+            MISRA_PY=$(find /usr -name misra.py -path '*addons*' 2>/dev/null | head -1)
+          fi
+          if [ -z "$MISRA_PY" ]; then
+            echo "HATA: misra.py bulunamadi."
+            exit 1
+          fi
+          echo "misra.py: $MISRA_PY"
+          python3 "$MISRA_PY" src/*.dump > misra_rapor.txt 2>&1 || true
+          # Eklenti hic calismadiysa rapor bos kalir; bunu basari sayma.
+          if [ ! -s misra_rapor.txt ]; then
+            echo "HATA: MISRA eklentisi cikti uretmedi (sessiz basarisizlik)."
+            exit 1
+          fi
+          cat misra_rapor.txt
+
+      - name: Kayitli sapmalar disinda ihlal var mi
+        working-directory: c
+        run: |
+          # D-1 (15.5, tek cikis) ve D-4 (21.15, memcpy tip yorumlamasi)
+          # belgeler/MISRA_UYUM.md'de gerekcelendirilmistir.
+          BEKLENMEYEN=$(grep -o 'misra-c2012-[0-9.]*' misra_rapor.txt \
+                        | grep -v -e 'misra-c2012-15\.5$' -e 'misra-c2012-21\.15$' \
+                        | sort | uniq -c || true)
+          if [ -n "$BEKLENMEYEN" ]; then
+            echo "KAYITSIZ MISRA IHLALI BULUNDU:"
+            echo "$BEKLENMEYEN"
+            echo ""
+            echo "Ya ihlali duzeltin ya da belgeler/MISRA_UYUM.md'ye sapma kaydi ekleyin."
+            exit 1
+          fi
+          echo "Kayitli sapmalar disinda MISRA ihlali yok."
+
+      - name: Raporu sakla
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: misra-raporu
+          path: c/misra_rapor.txt
+
+  # -------------------------------------------------------------------
   # .NET surumu
   # -------------------------------------------------------------------
   dotnet:

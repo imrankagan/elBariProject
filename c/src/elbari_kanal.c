@@ -238,7 +238,7 @@ int32_t elbari_kanal_kabid(const int32_t *ham_veri,
                 calisma_alani[i] = elbari_ic_fark(calisma_alani[i + 1], calisma_alani[i]);
             }
             yuk_uzunlugu = uzunluk - 1;
-            ikinci_derece_bayraklari[c >> 3] |= (uint8_t)(1u << (unsigned int)(c & 7));
+            elbari_ic_bayrak_kur(ikinci_derece_bayraklari, c);
         }
         else
         {
@@ -291,7 +291,7 @@ int32_t elbari_kanal_kabid(const int32_t *ham_veri,
 
             kayitli_boyut = on_ek_boyu + ham_bayt;
             elbari_ic_i32_yaz(&boyut_alani[c * 4], kayitli_boyut);
-            ham_gecis_bayraklari[c >> 3] |= (uint8_t)(1u << (unsigned int)(c & 7));
+            elbari_ic_bayrak_kur(ham_gecis_bayraklari, c);
             yazma_konumu = yuk_konumu + ham_bayt;
         }
     }
@@ -384,10 +384,8 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
             return ELBARI_HATA_BOZUK_GIRDI;
         }
 
-        ham_gecis     = ((ham_gecis_bayraklari[c >> 3] &
-                          (uint8_t)(1u << (unsigned int)(c & 7))) != 0u) ? 1 : 0;
-        ikinci_derece = ((ikinci_derece_bayraklari[c >> 3] &
-                          (uint8_t)(1u << (unsigned int)(c & 7))) != 0u) ? 1 : 0;
+        ham_gecis     = elbari_ic_bayrak_var_mi(ham_gecis_bayraklari, c);
+        ikinci_derece = elbari_ic_bayrak_var_mi(ikinci_derece_bayraklari, c);
 
         /* Ikinci derece kanallarda yukun basinda mutlak ilk deger bulunur. */
         on_ek_boyu = (ikinci_derece != 0) ? 4 : 0;

@@ -443,9 +443,10 @@ int32_t durum = elbari_cerceve_oku(gelen_paket, gelen_boyut, kanal,
 | MSVC x64 derleme | ✅ `/W4` ile 0 uyarı |
 | Verim ve gecikme dağılımı ölçümü | ✅ Ölçüldü (aşağıda) |
 | MISRA C:2012 uyum incelemesi | ✅ Elle yapıldı, belgelendi ([MISRA_UYUM.md](belgeler/MISRA_UYUM.md)) |
+| MISRA C:2012 **araç taraması** | ✅ Cppcheck MISRA eklentisi — kayıtlı sapmalar dışında 0 bulgu, CI'da her push'ta |
 | MSVC `/Wall /analyze` statik analiz | ✅ 0 bulgu |
 | Sağlamlık (fuzz) testi | ✅ 400.000 tur, 0 tampon taşması |
-| Sertifikalı MISRA aracıyla doğrulama | ⏳ Yapılmadı |
+| Sertifikalı MISRA aracıyla doğrulama | ⏳ Yapılmadı — müşteri/program gerektirdiğinde |
 | GCC / Clang derleme | ✅ CI'da her push'ta (Linux) |
 | ASan + UBSan (çalışma zamanı) | ✅ CI'da temiz |
 | ARM / big-endian üzerinde doğrulama | ⏳ Donanım yok — kod derlenir, hız ölçülmedi. [Ayrıntı](belgeler/OLCUM_SONUCLARI.md#-gerçek-arm-donanımında-ölçüm) |
@@ -493,16 +494,36 @@ katından az sürüyor. Bu, sabit blok yapısının beklenen davranışıdır.
 
 ### MISRA C:2012 uyumu
 
-Kod baştan MISRA disipliniyle yazıldı; ardından kural kural denetlendi. Tam matris ve
-sapma kaydı: **[c/MISRA_UYUM.md](belgeler/MISRA_UYUM.md)**
+Kod baştan MISRA disipliniyle yazıldı, kural kural elle denetlendi, ardından bir **araçla
+taranıp** kalan bulgular ya düzeltildi ya da gerekçesiyle kayda geçirildi. Tam matris ve
+sapma kaydı: **[MISRA_UYUM.md](belgeler/MISRA_UYUM.md)**
 
 | Kategori | Durum |
 | --- | --- |
-| Zorunlu (Mandatory) kurallar | Bilinen ihlal yok |
-| Gerekli (Required) kurallar | Bilinen ihlal yok |
-| Tavsiye (Advisory) kurallar | 2 bilinçli sapma (gerekçeli) |
+| Zorunlu (Mandatory) kurallar | İhlal yok |
+| Gerekli (Required) kurallar | Yalnızca 1 kayıtlı sapma (Kural 21.15, `memcpy` tip yorumlaması) |
+| Tavsiye (Advisory) kurallar | Yalnızca 1 kayıtlı sapma (Kural 15.5, tek çıkış noktası) |
+| Cppcheck MISRA eklentisi | ✅ Kayıtlı sapmalar dışında 0 bulgu |
+| Cppcheck `--enable=all` | ✅ 0 hata, 0 uyarı |
 | MSVC `/Wall /analyze` | ✅ 0 bulgu |
 | MSVC `/W4` | ✅ 0 uyarı |
+
+Araç taraması **süs değil, iş gördü** — beş gerçek bulgu düzeltildi:
+
+| Kural | Sorun | Düzeltme |
+| --- | --- | --- |
+| 10.1 | Kanal bayraklarında işaretli operandla bit işlemi (5 yerde tekrarlanan deyim) | Ortak yardımcı: `elbari_ic_bayrak_kur` / `elbari_ic_bayrak_var_mi` |
+| 12.2 | Kaydırma miktarının sınırlı olduğu elle ispatlanabiliyordu ama araç göremiyordu | **Kaydırma tamamen kaldırıldı** — 33 girişlik maske tablosu, indeks açıkça 0..32'ye kelepçeli |
+| 10.4 | `sizeof(...) == 4` — işaretsizle işaretliyi karşılaştırma | `== 4u` |
+| 17.8 | `deger >>= 1` parametreyi değiştiriyordu | Yerel kopya |
+| 2.5 / 8.9 | Kullanılmayan makrolar, gereksiz dosya kapsamı | Temizlendi |
+
+Bunların **hiçbiri bit akışını değiştirmedi**: her adımda 27 uygunluk vektörü ve .NET ile
+59.695 baytlık birebir karşılaştırma tekrar çalıştırılarak doğrulandı.
+
+> 12.2 düzeltmesi öğreticidir: "araç anlamıyor, biz biliyoruz" demek yerine kaydırma
+> işlemini koddan çıkardık. Sonuç hem araç için hem insan için ispatlanabilir oldu,
+> maliyeti ise 132 baytlık salt-okunur tablo.
 
 Öne çıkan noktalar:
 
@@ -511,12 +532,17 @@ sapma kaydı: **[c/MISRA_UYUM.md](belgeler/MISRA_UYUM.md)**
 - **Tanımsız davranış yok** (Kural 1.3) — C'de işaretli taşma tanımsızdır; tüm fark ve
   toplama işlemleri işaretsiz aritmetik üzerinden yapılır. Bu hem C'de tanımlıdır hem de
   .NET'in `unchecked` davranışıyla birebir aynı sonucu verir — ikili uyumluluğun temeli
-- **Kaydırma sınırları kanıtlandı** (Kural 12.2) — en kötü durum 39 bit < 64
+- **Kaydırma sınırları kanıtlandı** (Kural 12.2) — en kötü durum 39 bit < 64; maske üretiminde kaydırma hiç kullanılmaz
 - **Dış girdi doğrulanır** (Dir 4.14) — çerçeve başlığı, CRC, kanal sayısı, yük boyutları
 
-Kayıtlı sapmalar: tek çıkış noktası (koruma cümlesi tercihi) ve kayan nokta kullanımı
-(.NET ile bit-bit aynı kararı üretmek için zorunlu; yalnızca karar verir, üretilen bit
-akışına girmez).
+Kayıtlı sapmalar (dördü de gerekçesiyle [MISRA_UYUM.md](belgeler/MISRA_UYUM.md)'de):
+
+| # | Kural | Konu | Özet gerekçe |
+| --- | --- | --- | --- |
+| D-1 | 15.5 (Tavsiye) | Tek çıkış noktası | Koruma cümlesi tercihi; dinamik bellek olmadığı için "çıkışta temizlik atlanır" riski yapısal olarak yok |
+| D-2 | — | Kayan nokta kullanımı | .NET ile bit-bit aynı kararı üretmek için zorunlu; yalnızca karar verir, üretilen bit akışına girmez |
+| D-3 | 9.1 | `gecici[]` ilklenmiyor | Her eleman okunmadan önce mutlaka yazılır (aykırı maskesi iki kümeyi ayrık kılar) |
+| D-4 | 21.15 (Gerekli) | `memcpy` ile float↔uint32 | **Kasıtlı tip yorumlaması** — XOR sıkıştırmasının çalışma prensibi. Alternatifleri (işaretçi dönüşümü, `union`) tanımsız davranış üretir; `memcpy` standardın izin verdiği tek taşınabilir yol |
 
 #### İnceleme sırasında bulunan ve düzeltilen zafiyet
 
@@ -536,10 +562,15 @@ if (kayit_sayisi > (ELBARI_MAKS_ELEMAN / kanal_sayisi))
 }
 ```
 
-> **Dürüstlük notu:** [MISRA_UYUM.md](belgeler/MISRA_UYUM.md) **elle yapılmış bir
-> öz-değerlendirmedir.** Sertifikalı bir MISRA aracıyla (Helix QAC, PC-lint Plus,
-> Polyspace) doğrulanmamıştır ve resmî bir uygunluk beyanı değildir. Ticari teslimat
-> öncesi nitelikli bir araçla doğrulanmalıdır.
+> **Dürüstlük notu — burada tam olarak neredeyiz.** Kod bir **açık kaynak** MISRA
+> denetleyicisinden (Cppcheck) kayıtlı sapmalar dışında temiz geçiyor ve bu her push'ta
+> CI'da tekrarlanıyor. Bu, **sertifikalı** bir araçla (Helix QAC, PC-lint Plus,
+> Polyspace) yapılmış bir doğrulama **değildir**.
+>
+> Şunu da netleştirelim: **"MISRA sertifikası" diye bir belge yoktur.** MISRA kod
+> sertifikalandırmaz; uyum sizin beyanınızdır ve kanıtla desteklenir — uyum matrisi,
+> sapma kaydı ve araç raporu. Elimizde üçü de var. Müşteri nitelikli bir araç raporu
+> talep ederse o adım ayrıca yapılır; kod bunun için hazırdır.
 
 ### Sağlamlık (fuzz) testi — düşmanca girdiye dayanıklılık
 

@@ -84,3 +84,8 @@ $RECYCLE.BIN/
 
 ## Benchmark Results
 BenchmarkDotNet.Artifacts/
+
+# Cppcheck ara ciktilari
+*.dump
+*.ctu-info
+c/misra_rapor.txt

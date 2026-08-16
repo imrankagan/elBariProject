@@ -1,17 +1,21 @@
 # MISRA C:2012 Uyum Matrisi ve Sapma Kaydı
 
-**Kapsam:** `../c/src/elbari.c`, `../c/src/elbari_kanal.c`, `../c/src/elbari_cerceve.c`,
-`../c/src/elbari.h`, `../c/src/elbari_ic.h`
+**Kapsam:** `c/src/` altındaki kütüphane kaynaklarının tamamı — `elbari.c`,
+`elbari_kanal.c`, `elbari_cerceve.c`, `elbari_float.c`, `elbari_float_xor.c`,
+`elbari.h`, `elbari_ic.h`
 
 **Kapsam dışı:** `c/test/` altındaki dosyalar. Test kodu üründe dağıtılmaz;
 `malloc`, `printf`, `qsort` gibi kütüphane çağrılarını serbestçe kullanır.
 
-**Yöntem:** Elle inceleme + MSVC `/Wall /analyze` statik analizi.
+**Yöntem:** Elle inceleme + MSVC `/Wall /analyze` + GCC/Clang uyarıları + ASan/UBSan +
+**Cppcheck 2.21.0 MISRA eklentisi** ile otomatik kural taraması.
 
-> ⚠️ **Dürüstlük notu:** Bu belge **elle yapılmış** bir incelemedir. Sertifikalı bir
-> MISRA aracı (Helix QAC, PC-lint Plus, Polyspace) ile **doğrulanmamıştır**. Resmî bir
-> uygunluk beyanı değildir; iyi niyetli bir öz-değerlendirmedir. Ticari teslimat öncesi
-> nitelikli bir araçla doğrulanmalıdır.
+> ⚠️ **Dürüstlük notu:** Kod bir **açık kaynak** MISRA denetleyicisinden (Cppcheck)
+> temiz geçmektedir. Bu, **sertifikalı** bir MISRA aracı (Helix QAC, PC-lint Plus,
+> Polyspace) ile yapılmış bir doğrulama **değildir**. "MISRA sertifikası" diye bir belge
+> zaten yoktur; uyum kendi beyanınızdır ve kanıtla desteklenir. Bu belge o kanıt
+> zincirinin bugünkü halidir. Ticari teslimatta müşteri nitelikli bir araç talep ederse
+> o adım ayrıca yapılmalıdır.
 
 ---
 
@@ -19,11 +23,24 @@
 
 | Kategori | Durum |
 | --- | --- |
-| Zorunlu (Mandatory) kurallar | Bilinen ihlal yok |
-| Gerekli (Required) kurallar | Bilinen ihlal yok |
-| Tavsiye (Advisory) kurallar | 2 bilinçli sapma (aşağıda) |
+| Zorunlu (Mandatory) kurallar | İhlal yok |
+| Gerekli (Required) kurallar | Yalnızca **1 kayıtlı sapma** (D-4, Kural 21.15) |
+| Tavsiye (Advisory) kurallar | Yalnızca **1 kayıtlı sapma** (D-1, Kural 15.5) |
+| Kayıtlı sapma sayısı | 4 (D-1 … D-4) |
 | MSVC `/Wall /analyze` | ✅ 0 bulgu |
 | MSVC `/W4` derleme | ✅ 0 uyarı |
+| Cppcheck MISRA eklentisi | ✅ Kayıtlı sapmalar dışında 0 bulgu |
+
+**Cppcheck MISRA taraması — nihai sonuç:**
+
+| Kural | Sınıf | Adet | Durum |
+| --- | --- | --- | --- |
+| 15.5 — tek çıkış noktası | Tavsiye | 133 | Sapma **D-1** (kayıtlı) |
+| 21.15 — `memcpy` tip uyumu | Gerekli | 6 | Sapma **D-4** (kayıtlı) |
+| *Diğer tüm kurallar* | — | **0** | — |
+
+Zorunlu ve Gerekli sınıfındaki tek bulgu 21.15'tir ve gerekçesi D-4'te kayıtlıdır.
+Taramanın nasıl tekrarlanacağı Bölüm 5'tedir.
 
 ---
 
@@ -130,8 +147,67 @@ Bit tamponu `uint64_t`'dir. En kötü durum analizi:
 | Okuma (yükleme) | ≤ 31 | +8 | 39 | 64 ✅ |
 
 Her yazma sonrası tampon boşaltıldığı için `bit_sayisi` asla 8'i aşmaz.
-`1u << bit_genisligi` ifadesinde `bit_genisligi ≤ 16` olduğu kod yoluyla garantidir;
-kodlayıcıda ayrıca `>= 32` durumu açıkça korunmuştur.
+
+**Cppcheck taraması sırasında yapılan iyileştirme.** Yukarıdaki analiz elle
+ispatlanabilir olsa da statik çözümleyici `bit_genisligi ≤ 16` bilgisini fonksiyon
+sınırları arasında taşıyamadığı için 12.2 bulgusu üretiyordu. "Araç anlamıyor, biz
+biliyoruz" demek yerine **kaydırma işlemi koddan tamamen kaldırıldı**:
+
+```c
+static ELBARI_SATIRICI uint32_t elbari_ic_alt_maske(int32_t adet)
+{
+    static const uint32_t elbari_ic_alt_maskeler[33] = { 0x00000000u, ... };
+    int32_t k = adet;
+
+    if (k < 0)  { k = 0;  }
+    if (k > 32) { k = 32; }
+    return elbari_ic_alt_maskeler[(uint32_t)k];   /* indeks kesin 0..32 */
+}
+```
+
+Aynı yaklaşım kanal bayrakları için de uygulandı (`elbari_ic_bit_maskesi[8]`).
+Kazanç üç yönlü:
+
+1. **Kural 12.2 ihlali imkânsız** — kaydırma operatörü yok.
+2. **Elle ispat gerekmez** — indeksin sınırlandığı üç satırda görülüyor.
+3. **Çalışma zamanı maliyeti aynı ya da daha az** — kaydırma yerine 132 baytlık
+   salt-okunur tablodan tek okuma. Gömülü hedefte 132 bayt flash ihmal edilebilir.
+
+Değişiklik sonrası **çıktı biçimi birebir korundu** (27 uygunluk vektörü + 59.695
+baytlık .NET karşılaştırması).
+
+### 3.5 Kural 10.1 / 10.8 — Bit işlemlerinde işaretli operand
+
+**Bulgu (Cppcheck).** Kanal bayrakları şu deyimle işleniyordu:
+
+```c
+bayraklar[c >> 3] |= (uint8_t)(1u << (unsigned int)(c & 7));
+```
+
+`c` işaretli (`int32_t`) olduğu için hem kaydırma hem `&` işaretli operand alıyordu
+(10.1); ayrıca bileşik ifade doğrudan `uint8_t`'ye dönüştürülüyordu (10.8). Deyim beş
+ayrı yerde tekrarlanıyordu.
+
+**Düzeltme.** İki ortak yardımcı eklendi (`elbari_ic.h`); tüm indeks ve maske hesabı
+işaretsiz tip üzerinde yapılıyor, çağrı yerleri okunur hale geldi:
+
+```c
+elbari_ic_bayrak_kur(ikinci_derece_bayraklari, c);
+ham_gecis = elbari_ic_bayrak_var_mi(ham_gecis_bayraklari, c);
+```
+
+Aynı taramada bulunan diğer gerçek bulgular da düzeltildi:
+
+| Kural | Yer | Sorun | Düzeltme |
+| --- | --- | --- | --- |
+| 10.4 | `elbari_ic.h` | `sizeof(...) == 4` — işaretsiz ile işaretli karşılaştırma | `== 4u` |
+| 10.8 | `elbari.c`, `elbari_float_xor.c` | bileşik ifadenin doğrudan dönüşümü | ara değişkene alındı |
+| 17.8 | `elbari_float_xor.c` | `deger >>= 1` parametreyi değiştiriyordu | yerel kopya |
+| 2.5 | `elbari.c` | kullanılmayan iki makro | kaldırıldı |
+| 8.9 | `elbari_ic.h` | maske tablosu dosya kapsamındaydı | blok kapsamına alındı |
+
+Bu düzeltmelerin **hiçbiri bit akışını değiştirmedi**; her adımda uygunluk vektörleri ve
+.NET karşılaştırması tekrar çalıştırılarak doğrulandı.
 
 ### 3.3 Tamsayı taşma koruması (bu inceleme sırasında eklendi)
 
@@ -169,7 +245,8 @@ tüm fonksiyonlar yeniden girişlidir (reentrant).
 
 ### D-1 — Kural 15.5 (Tavsiye): Tek çıkış noktası
 
-**Sapma:** Fonksiyonlarda birden fazla `return` vardır.
+**Sapma:** Fonksiyonlarda birden fazla `return` vardır. Cppcheck taramasında ölçülen
+adet: **133** (kütüphanenin tamamı).
 
 **Gerekçe:** Parametre doğrulamaları "koruma cümlesi" (guard clause) biçiminde erken
 dönüş yapar. Alternatif olan tek çıkışlı yapı, iç içe geçmiş `if` blokları ve bayrak
@@ -178,7 +255,8 @@ Tavsiye (Advisory) niteliğindedir ve bu sapma endüstride yaygın kabul görür
 
 **Risk yönetimi:** Tüm çıkış noktaları ya bir hata kodu ya da geçerli bir sonuç döndürür;
 kaynak sızıntısı riski yoktur (dinamik bellek kullanılmadığı için serbest bırakılacak
-kaynak yoktur).
+kaynak yoktur). 15.5'in asıl koruduğu risk — "bir çıkış yolunda temizlik atlanır" — bu
+kütüphanede yapısal olarak mevcut değildir.
 
 ### D-2 — Kayan nokta kullanımı
 
@@ -212,6 +290,35 @@ sıcak yolda bu ölçülebilir. Statik analiz aracı bu diziyi işaretlerse, yuk
 gerekçe sapma kaydı olarak sunulmalıdır. Alternatif olarak `= {0}` eklenerek kural
 karşılanabilir — davranış değişmez, yalnızca küçük bir performans maliyeti oluşur.
 
+### D-4 — Kural 21.15 (Gerekli): `memcpy` işaretçilerinin tipleri uyumlu değil
+
+**Sapma:** `elbari_float_xor.c` içinde 6 yerde `memcpy` bir `float` ile bir `uint32_t`
+arasında kopyalama yapar:
+
+```c
+uint32_t bit_deseni;
+(void)memcpy(&bit_deseni, &deger, sizeof(bit_deseni));   /* float -> uint32_t */
+```
+
+**Gerekçe:** Bu **kasıtlı tip yorumlamasıdır** (type punning). XOR tabanlı kayıpsız float
+sıkıştırması, tanımı gereği float'ın IEEE-754 bit desenini tamsayı olarak işlemek
+zorundadır — algoritmanın çalışma prensibi budur.
+
+**Neden alternatifler daha kötü:**
+
+| Yöntem | Sorun |
+| --- | --- |
+| İşaretçi dönüşümü `*(uint32_t*)&f` | **Katı takma ad (strict aliasing) ihlali** — tanımsız davranış; optimizasyon açıkken derleyici yanlış kod üretebilir. MISRA 11.3 de yasaklar. |
+| `union` | C'de tanımlı, C++'ta tanımsız. MISRA 19.2 birleşimleri (Tavsiye) zaten kısıtlar. |
+| `memcpy` (**seçilen**) | Standardın açıkça izin verdiği tek taşınabilir yol. Tanımsız davranış yok; her derleyici tek komuta indirger. |
+
+**Risk yönetimi:** Kopya boyutu her çağrıda `sizeof(hedef)` ile verilir ve
+`_Static_assert` ile `sizeof(uint32_t) == 4u` derleme anında doğrulanır; boyut uyuşmazlığı
+mümkün değildir. Kural 21.15'in koruduğu risk (yanlış boyutta kopya) bu yolla kapatılmıştır.
+
+**Kapsam:** Yalnızca `elbari_float_xor.c`. Kayıpsız float katmanı kullanılmayan bir
+yapılandırmada bu sapma tamamen ortadan kalkar.
+
 ---
 
 ## 5. Doğrulama kanıtı
@@ -220,19 +327,42 @@ karşılanabilir — davranış değişmez, yalnızca küçük bir performans ma
 | --- | --- |
 | MSVC `/W4` derleme | 0 uyarı |
 | MSVC `/Wall /analyze` statik analiz | 0 bulgu |
-| .NET ile ikili uyumluluk (gerçek GPS verisi) | 83.124 bayt birebir aynı |
+| GCC + Clang `-Wall -Wextra -Wpedantic -Wshadow -Wcast-qual` | 0 uyarı (CI) |
+| ASan + UBSan çalışma zamanı | 0 bulgu (CI) |
+| **Cppcheck MISRA eklentisi** | **Kayıtlı sapmalar (D-1, D-4) dışında 0 bulgu** |
+| Cppcheck `--enable=all` genel analiz | 0 hata, 0 uyarı (yalnızca 3 `style` ipucu) |
+| .NET ile ikili uyumluluk — kanal katmanı | 59.695 bayt birebir aynı |
+| .NET ile ikili uyumluluk — float katmanı | 27.403 bayt birebir aynı |
+| .NET ile ikili uyumluluk — kuantalama | 72.000 değerin tamamı aynı yuvarlandı |
+| Uygunluk vektörleri (biçim sözleşmesi) | 27 vektör, 54/54 geçti |
 | Round-trip kayıpsızlık | ✅ |
 | Çapraz uyumluluk (C, .NET çıktısını çözüyor) | ✅ |
 | Tek-bit bozulma tespiti | 247/247 |
+| Bozulmuş çerçeveleri reddetme oranı (fuzz) | %100,00 |
+| Fuzz — tampon taşması | 300.000 turda 0 |
 | Kenar durumlar (NULL, yetersiz tampon, rastgele bayt) | Çökme yok |
 
 Çalıştırmak için:
 
-```bash
-../c/derle.bat        # /W4 ile derleme
-c\analiz.bat       # /Wall /analyze statik analiz
-dogrulama.exe <referans_dizini>
+```bat
+c\derle.bat                        REM /W4 ile derleme + tüm test ikilileri
+c\analiz.bat                       REM /Wall /analyze statik analiz
+c\dogrulama.exe <referans_dizini>  REM .NET ile ikili uyumluluk
+c\uygunluk.exe testverisi\vektorler.txt
+c\fuzz.exe 300000
 ```
+
+**MISRA taramasının tekrarlanması.** Cppcheck'in `--addon=` seçeneği bazı Windows
+kurulumlarında Python'u sessizce başlatamaz ve **hiç çıktı üretmez** — bu, "0 ihlal"
+sanılabilecek bir tuzaktır. Güvenilir yol iki adımlıdır:
+
+```bat
+for %f in (c\src\elbari*.c) do cppcheck --dump --std=c11 --platform=win64 --quiet %f
+python <cppcheck_dizini>\addons\misra.py c\src\*.dump
+```
+
+`--std=c11` verilmelidir: kod C17 olarak derlenir ve daha düşük bir standart
+`_Static_assert` üzerinde sahte bulgular üretir.
 
 ---
 
@@ -245,7 +375,7 @@ dogrulama.exe <referans_dizini>
 | GCC + Clang `-Wall -Wextra -Wpedantic -Wshadow -Wcast-qual -Wstrict-prototypes` | ✅ CI'da her push'ta, 0 uyarı |
 | **ASan + UBSan (çalışma zamanı)** | ✅ CI'da temiz — *Kural 1.3 "tanımsız davranış yok" iddiasının deneysel kanıtı* |
 | Fuzz (600.000 tur, kanarya korumalı) | ✅ 0 tampon taşması |
-| Statik MISRA aracı (Cppcheck) | ⏳ Sıradaki adım |
+| Statik MISRA aracı (Cppcheck 2.21.0 MISRA eklentisi) | ✅ Kayıtlı sapmalar dışında temiz |
 | Ticari MISRA aracı (Helix QAC / PC-lint / Polyspace) | ⏳ Müşteri/program gerektirdiğinde |
 | ARM ve big-endian doğrulama | ⏳ Donanım yok |
 | RTOS üzerinde WCET analizi | ⏳ Ortam yok — tipik olarak entegratör tarafında yapılır |

@@ -38,9 +38,9 @@
 /* C11 ve sonrasinda derleme aninda varsayim denetimi yapilir.
  * Daha eski araç zincirlerinde bu blok sessizce atlanir; kod yine derlenir. */
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
-_Static_assert(sizeof(int32_t) == 4, "int32_t 4 bayt olmali");
-_Static_assert(sizeof(uint32_t) == 4, "uint32_t 4 bayt olmali");
-_Static_assert(sizeof(uint64_t) == 8, "uint64_t 8 bayt olmali");
+_Static_assert(sizeof(int32_t) == 4u, "int32_t 4 bayt olmali");
+_Static_assert(sizeof(uint32_t) == 4u, "uint32_t 4 bayt olmali");
+_Static_assert(sizeof(uint64_t) == 8u, "uint64_t 8 bayt olmali");
 #endif
 
 /* ---------------------------------------------------------------------
@@ -128,6 +128,86 @@ static ELBARI_SATIRICI int64_t elbari_ic_mutlak64(int32_t deger)
 {
     int64_t g = (int64_t)deger;
     return (g < 0) ? -g : g;
+}
+
+/**
+ * Dusuk 'adet' biti secen maske (adet: 0..32; aralik disi degerler kelepcelenir).
+ *
+ * Kaydirma operatoru YERINE sabit tablo kullanilir. Sebep: kaydirma
+ * miktarinin sinirli oldugu elle ispatlanabilir olsa da statik cozumleyici
+ * bu bilgiyi fonksiyonlar arasinda tasiyamaz. Tabloda indeks ucuncu satirda
+ * acikca 0..32'ye kelepcelenir; tanimsiz kaydirma davranisi hem gercekte
+ * hem de arac acisindan imkansiz hale gelir (MISRA 12.2).
+ *
+ * Maliyet: 132 bayt salt-okunur veri. Kazanc: kaydirma yerine tek okuma.
+ */
+static ELBARI_SATIRICI uint32_t elbari_ic_alt_maske(int32_t adet)
+{
+    /* MISRA 8.9: tek islevde kullanildigi icin blok kapsaminda tanimlanir. */
+    static const uint32_t elbari_ic_alt_maskeler[33] =
+    {
+        0x00000000u, 0x00000001u, 0x00000003u, 0x00000007u,
+        0x0000000Fu, 0x0000001Fu, 0x0000003Fu, 0x0000007Fu,
+        0x000000FFu, 0x000001FFu, 0x000003FFu, 0x000007FFu,
+        0x00000FFFu, 0x00001FFFu, 0x00003FFFu, 0x00007FFFu,
+        0x0000FFFFu, 0x0001FFFFu, 0x0003FFFFu, 0x0007FFFFu,
+        0x000FFFFFu, 0x001FFFFFu, 0x003FFFFFu, 0x007FFFFFu,
+        0x00FFFFFFu, 0x01FFFFFFu, 0x03FFFFFFu, 0x07FFFFFFu,
+        0x0FFFFFFFu, 0x1FFFFFFFu, 0x3FFFFFFFu, 0x7FFFFFFFu,
+        0xFFFFFFFFu
+    };
+
+    int32_t k = adet;
+
+    if (k < 0)
+    {
+        k = 0;
+    }
+    if (k > 32)
+    {
+        k = 32;
+    }
+    return elbari_ic_alt_maskeler[(uint32_t)k];
+}
+
+/* ---------------------------------------------------------------------
+ * BAYRAK BITLERI
+ * ---------------------------------------------------------------------
+ * Kanal basina 1 bitlik bayraklar bayt dizisinde tutulur. Indeks
+ * hesabi ve maskeleme ISARETSIZ tip uzerinde yapilir; boylece bit
+ * islemlerinde isaretli operand kullanilmaz (MISRA 10.1) ve bilesik
+ * ifade donusumu olusmaz (MISRA 10.8).
+ *
+ * Maske kaydirma ile degil sabit tablodan alinir: indeks & 7u ile
+ * 0..7 araligina sinirli oldugundan hem gercekte hem statik cozumleme
+ * acisindan sinir disi erisim imkansizdir (MISRA 12.2).
+ * ------------------------------------------------------------------- */
+
+static const uint8_t elbari_ic_bit_maskesi[8] =
+{
+    0x01u, 0x02u, 0x04u, 0x08u, 0x10u, 0x20u, 0x40u, 0x80u
+};
+
+/** indeks numarali bayragi kurar. */
+static ELBARI_SATIRICI void elbari_ic_bayrak_kur(uint8_t *bayraklar, int32_t indeks)
+{
+    uint32_t i = (uint32_t)indeks;
+    uint32_t bayt = i >> 3;
+    uint32_t bit = i & 7u;
+    uint8_t  maske = elbari_ic_bit_maskesi[bit];
+
+    bayraklar[bayt] |= maske;
+}
+
+/** indeks numarali bayrak kurulu mu? 1 evet, 0 hayir. */
+static ELBARI_SATIRICI int32_t elbari_ic_bayrak_var_mi(const uint8_t *bayraklar, int32_t indeks)
+{
+    uint32_t i = (uint32_t)indeks;
+    uint32_t bayt = i >> 3;
+    uint32_t bit = i & 7u;
+    uint8_t  maske = elbari_ic_bit_maskesi[bit];
+
+    return ((bayraklar[bayt] & maske) != 0u) ? 1 : 0;
 }
 
 /* ---------------------------------------------------------------------

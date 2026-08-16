@@ -31,9 +31,6 @@
  * IC SABITLER
  * ------------------------------------------------------------------- */
 
-#define ELBARI_MAKS_BIT_GENISLIGI       (16)
-#define ELBARI_MIN_BIT_GENISLIGI        (1)
-
 /* BIT GENISLIGI TABLOSU (bicim surumu 2)
  *
  * Etiketteki 'mod' alani 3 bittir, yani 8 deger tutabilir. Surum 1'de bunun
@@ -79,6 +76,9 @@
 
 /** Hizli tarama icin en fazla incelenecek eleman sayisi. */
 #define ELBARI_HIZLI_TARAMA_ORNEKLEM    (1000)
+
+/** Ortalama fark bu degeri asarsa veri rastgele kabul edilir (INT32_MAX / 4). */
+#define ELBARI_ORTALAMA_FARK_SINIRI     ((int64_t)536870911)
 
 /**
  * Cozucunun tuketmeden birakabilecegi en fazla bayt sayisi.
@@ -135,6 +135,7 @@ static int32_t elbari_ic_sikistirilabilir_mi(const int32_t *ham_veri,
     float    aykiri_orani;
     int64_t  ortalama_fark;
     int32_t  bolen;
+    int32_t  ornek_eksi_bir;
 
     if (eleman_sayisi < 2)
     {
@@ -177,7 +178,9 @@ static int32_t elbari_ic_sikistirilabilir_mi(const int32_t *ham_veri,
     }
 
     /* Olcut 1: aykiri oran cok yuksekse veri uygun degil */
-    aykiri_orani = (float)aykiri_sayisi / (float)(orneklem_boyutu - 1);
+    /* MISRA 10.8: bilesik ifade dogrudan donusturulmez; once degiskene alinir. */
+    ornek_eksi_bir = orneklem_boyutu - 1;
+    aykiri_orani = (float)aykiri_sayisi / (float)ornek_eksi_bir;
     if (aykiri_orani > ELBARI_MAKS_AYKIRI_ORANI)
     {
         return 0;
@@ -185,7 +188,7 @@ static int32_t elbari_ic_sikistirilabilir_mi(const int32_t *ham_veri,
 
     /* Olcut 2: ortalama fark cok buyukse veri rastgeledir */
     ortalama_fark = fark_mutlak_toplam / (int64_t)bolen;
-    if (ortalama_fark > (int64_t)(INT32_MAX / 4))
+    if (ortalama_fark > ELBARI_ORTALAMA_FARK_SINIRI)
     {
         return 0;
     }
@@ -266,6 +269,8 @@ int32_t elbari_kabid(const int32_t *ham_veri,
     int32_t  bit_sayisi = 0;
     int32_t  veri_indeksi = 1;
     int32_t  erken_iptal_bakildi = 0;
+    int32_t  islenen_bayt;
+    uint32_t etiket_bitleri;
     int32_t  en_az_gereken;
 
     if ((ham_veri == NULL) || (cikti == NULL) || (eleman_sayisi < 0))
@@ -371,7 +376,9 @@ int32_t elbari_kabid(const int32_t *ham_veri,
         }
 
         /* 3) Etiket (4 bit) */
-        etiket = (mod << 1) | aykiri_var;
+        /* MISRA 10.1: bit islemleri isaretsiz tip uzerinde yapilir. */
+        etiket_bitleri = ((uint32_t)mod << 1) | (uint32_t)aykiri_var;
+        etiket = (int32_t)etiket_bitleri;
         bit_tamponu |= ((uint64_t)(uint32_t)etiket) << (unsigned int)bit_sayisi;
         bit_sayisi += 4;
 
@@ -394,9 +401,7 @@ int32_t elbari_kabid(const int32_t *ham_veri,
             }
         }
 
-        maske = (bit_genisligi <= 0) ? 0u
-              : ((bit_genisligi >= 32) ? 0xFFFFFFFFu
-                                       : ((1u << (unsigned int)bit_genisligi) - 1u));
+        maske = elbari_ic_alt_maske(bit_genisligi);
 
         /* 5) Aykiri OLMAYAN farklar, blok bit genisligi ile.
          *    SIFIR BLOK (bit_genisligi == 0) durumunda hic veri biti
@@ -461,7 +466,9 @@ int32_t elbari_kabid(const int32_t *ham_veri,
             float oran;
             erken_iptal_bakildi = 1;
 
-            oran = (float)(veri_indeksi * 4) / (float)bayt_indeksi;
+            /* MISRA 10.8: bilesik ifade once degiskene alinir. */
+            islenen_bayt = veri_indeksi * 4;
+            oran = (float)islenen_bayt / (float)bayt_indeksi;
             if ((oran < ELBARI_ERKEN_IPTAL_ESIGI) && (veri_indeksi < eleman_sayisi))
             {
                 return ELBARI_SIKISTIRILAMAZ;
@@ -497,6 +504,9 @@ int32_t elbari_basit(const uint8_t *girdi,
     int32_t  bit_sayisi = 0;
     int32_t  cikti_indeksi = 1;
     int32_t  gecici[ELBARI_BLOK_BOYUTU];
+    uint64_t etiket_ham;
+    int32_t  isaret_konumu;
+    unsigned int kaydirma;
 
     if ((girdi == NULL) || (cikti == NULL) || (eleman_sayisi < 0))
     {
@@ -538,12 +548,16 @@ int32_t elbari_basit(const uint8_t *girdi,
             return ELBARI_HATA_BOZUK_GIRDI;
         }
 
-        etiket = (int32_t)(bit_tamponu & (uint64_t)ELBARI_ETIKET_MASKESI);
+        /* MISRA 10.8: bilesik ifade once ayni genislikte degiskene alinir. */
+        etiket_ham = bit_tamponu & (uint64_t)ELBARI_ETIKET_MASKESI;
+        etiket = (int32_t)etiket_ham;
         bit_tamponu >>= 4;
         bit_sayisi -= 4;
 
-        mod = etiket >> 1;
-        aykiri_var = (etiket & 1) != 0 ? 1 : 0;
+        /* MISRA 10.1: kaydirma ve maskeleme isaretsiz tip uzerinde.
+         * MISRA 12.1: kosul ifadesi acikca parantezlenir. */
+        mod = (int32_t)((uint32_t)etiket >> 1);
+        aykiri_var = (((uint32_t)etiket & 1u) != 0u) ? 1 : 0;
 
         switch (mod)
         {
@@ -559,8 +573,7 @@ int32_t elbari_basit(const uint8_t *girdi,
 
         kalan = eleman_sayisi - cikti_indeksi;
         blok_boyu = (kalan < ELBARI_BLOK_BOYUTU) ? kalan : ELBARI_BLOK_BOYUTU;
-        maske = (bit_genisligi <= 0) ? 0u
-                                     : ((1u << (unsigned int)bit_genisligi) - 1u);
+        maske = elbari_ic_alt_maske(bit_genisligi);
 
         /* 2) Aykiri maske */
         if (aykiri_var != 0)
@@ -605,7 +618,11 @@ int32_t elbari_basit(const uint8_t *girdi,
             bit_sayisi -= bit_genisligi;
 
             /* Isaret genisletme: dar alanda saklanan negatif deger geri kurulur */
-            isaret_biti = 1u << (unsigned int)(bit_genisligi - 1);
+            /* MISRA 10.8 + 12.2: kaydirma miktari once degiskene alinir ve
+             * araligi acikca sinirlanir (bit_genisligi 1..16'dir). */
+            isaret_konumu = bit_genisligi - 1;
+            kaydirma = (unsigned int)isaret_konumu & 31u;
+            isaret_biti = 1u << kaydirma;
             if ((ham & isaret_biti) != 0u)
             {
                 ham |= ~maske;
