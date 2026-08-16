@@ -339,7 +339,16 @@ int32_t elbari_kabid(const int32_t *ham_veri,
             }
         }
 
-        aykiri_var = (aykiri_maske != 0u) ? 1 : 0;
+        /* MISRA 10.6: "kosul ? 1 : 0" bilesik ifadedir; int32_t'ye
+         * atanmasi genisletme sayilir. if/else ile ayni sonuc, kural disi. */
+        if (aykiri_maske != 0u)
+        {
+            aykiri_var = 1;
+        }
+        else
+        {
+            aykiri_var = 0;
+        }
 
         /* 2) Bu blok icin en kucuk yeterli bit genisligi (bkz. genislik tablosu) */
         if (maks_mutlak <= 0)
@@ -557,7 +566,16 @@ int32_t elbari_basit(const uint8_t *girdi,
         /* MISRA 10.1: kaydirma ve maskeleme isaretsiz tip uzerinde.
          * MISRA 12.1: kosul ifadesi acikca parantezlenir. */
         mod = (int32_t)((uint32_t)etiket >> 1);
-        aykiri_var = (((uint32_t)etiket & 1u) != 0u) ? 1 : 0;
+        /* MISRA 10.6: "kosul ? 1 : 0" bilesik ifadedir; int32_t'ye
+         * atanmasi genisletme sayilir. if/else ile ayni sonuc, kural disi. */
+        if ((((uint32_t)etiket) & 1u) != 0u)
+        {
+            aykiri_var = 1;
+        }
+        else
+        {
+            aykiri_var = 0;
+        }
 
         switch (mod)
         {

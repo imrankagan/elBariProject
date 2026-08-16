@@ -206,8 +206,18 @@ static ELBARI_SATIRICI int32_t elbari_ic_bayrak_var_mi(const uint8_t *bayraklar,
     uint32_t bayt = i >> 3;
     uint32_t bit = i & 7u;
     uint8_t  maske = elbari_ic_bit_maskesi[bit];
+    int32_t  kurulu;
 
-    return ((bayraklar[bayt] & maske) != 0u) ? 1 : 0;
+    /* MISRA 10.6: bilesik ifade yerine acik dallanma. */
+    if ((bayraklar[bayt] & maske) != 0u)
+    {
+        kurulu = 1;
+    }
+    else
+    {
+        kurulu = 0;
+    }
+    return kurulu;
 }
 
 /* ---------------------------------------------------------------------

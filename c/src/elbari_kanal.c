@@ -105,6 +105,7 @@ static int32_t elbari_ic_ikinci_derece_daha_iyi_mi(const int32_t *kanal,
     int64_t ikinci_toplam = 0;
     int32_t onceki_fark;
     int32_t i;
+    int32_t daha_iyi;
 
     if (uzunluk < 3)
     {
@@ -127,7 +128,16 @@ static int32_t elbari_ic_ikinci_derece_daha_iyi_mi(const int32_t *kanal,
         onceki_fark = fark;
     }
 
-    return (ikinci_toplam < birinci_toplam) ? 1 : 0;
+    /* MISRA 10.6: bilesik ifade yerine acik dallanma. */
+    if (ikinci_toplam < birinci_toplam)
+    {
+        daha_iyi = 1;
+    }
+    else
+    {
+        daha_iyi = 0;
+    }
+    return daha_iyi;
 }
 
 /* ---------------------------------------------------------------------
@@ -225,9 +235,15 @@ int32_t elbari_kanal_kabid(const int32_t *ham_veri,
          * deger harcar hem de hizli tarama istatistiklerini bozarak veriyi
          * gereksiz yere reddettirebilir. Bu yuzden ilk deger yukun basina
          * ayri bir alan olarak yazilir ve akista yalnizca farklar kalir. */
-        ikinci_derece = ((uzunluk >= 3) &&
-                         (elbari_ic_ikinci_derece_daha_iyi_mi(calisma_alani, uzunluk) != 0))
-                        ? 1 : 0;
+        /* MISRA 10.6: bilesik ifade yerine acik dallanma. */
+        ikinci_derece = 0;
+        if (uzunluk >= 3)
+        {
+            if (elbari_ic_ikinci_derece_daha_iyi_mi(calisma_alani, uzunluk) != 0)
+            {
+                ikinci_derece = 1;
+            }
+        }
 
         if (ikinci_derece != 0)
         {
@@ -245,7 +261,15 @@ int32_t elbari_kanal_kabid(const int32_t *ham_veri,
             yuk_uzunlugu = uzunluk;
         }
 
-        on_ek_boyu = (ikinci_derece != 0) ? 4 : 0;
+        /* MISRA 10.6: bilesik ifade yerine acik dallanma. */
+        if (ikinci_derece != 0)
+        {
+            on_ek_boyu = 4;
+        }
+        else
+        {
+            on_ek_boyu = 0;
+        }
         ham_bayt = yuk_uzunlugu * 4;
 
         if ((yazma_konumu + on_ek_boyu) > cikti_kapasitesi)
@@ -388,7 +412,15 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
         ikinci_derece = elbari_ic_bayrak_var_mi(ikinci_derece_bayraklari, c);
 
         /* Ikinci derece kanallarda yukun basinda mutlak ilk deger bulunur. */
-        on_ek_boyu = (ikinci_derece != 0) ? 4 : 0;
+        /* MISRA 10.6: bilesik ifade yerine acik dallanma. */
+        if (ikinci_derece != 0)
+        {
+            on_ek_boyu = 4;
+        }
+        else
+        {
+            on_ek_boyu = 0;
+        }
         if (yuk_boyutu < on_ek_boyu)
         {
             return ELBARI_HATA_BOZUK_GIRDI;

@@ -208,6 +208,7 @@ int32_t elbari_cerceve_gecerli_mi(const uint8_t *cerceve, int32_t cerceve_boyutu
 {
     uint32_t beklenen;
     uint32_t hesaplanan;
+    int32_t  gecerli;
 
     if ((cerceve == NULL) || (cerceve_boyutu < ELBARI_CERCEVE_BASLIK_BOYUTU))
     {
@@ -232,7 +233,16 @@ int32_t elbari_cerceve_gecerli_mi(const uint8_t *cerceve, int32_t cerceve_boyutu
     beklenen   = elbari_ic_u32_oku(&cerceve[4]);
     hesaplanan = elbari_crc32(&cerceve[8], cerceve_boyutu - 8);
 
-    return (beklenen == hesaplanan) ? 1 : 0;
+    /* MISRA 10.6: bilesik ifade yerine acik dallanma. */
+    if (beklenen == hesaplanan)
+    {
+        gecerli = 1;
+    }
+    else
+    {
+        gecerli = 0;
+    }
+    return gecerli;
 }
 
 uint32_t elbari_cerceve_sira_no(const uint8_t *cerceve)
