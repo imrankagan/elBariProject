@@ -443,7 +443,7 @@ int32_t durum = elbari_cerceve_oku(gelen_paket, gelen_boyut, kanal,
 | MSVC x64 derleme | ✅ `/W4` ile 0 uyarı |
 | Verim ve gecikme dağılımı ölçümü | ✅ Ölçüldü (aşağıda) |
 | MISRA C:2012 uyum incelemesi | ✅ Elle yapıldı, belgelendi ([MISRA_UYUM.md](belgeler/MISRA_UYUM.md)) |
-| MISRA C:2012 **araç taraması** | ✅ Cppcheck MISRA eklentisi — kayıtlı sapmalar dışında 0 bulgu, CI'da her push'ta |
+| MISRA C:2012 **araç taraması** | ✅ Cppcheck MISRA eklentisi, **iki sürümde** (2.21.0 + 2.13.0) — kayıtlı sapmalar dışında 0 bulgu, CI'da her push'ta |
 | MSVC `/Wall /analyze` statik analiz | ✅ 0 bulgu |
 | Sağlamlık (fuzz) testi | ✅ 400.000 tur, 0 tampon taşması |
 | Sertifikalı MISRA aracıyla doğrulama | ⏳ Yapılmadı — müşteri/program gerektirdiğinde |
@@ -503,15 +503,16 @@ sapma kaydı: **[MISRA_UYUM.md](belgeler/MISRA_UYUM.md)**
 | Zorunlu (Mandatory) kurallar | İhlal yok |
 | Gerekli (Required) kurallar | Yalnızca 1 kayıtlı sapma (Kural 21.15, `memcpy` tip yorumlaması) |
 | Tavsiye (Advisory) kurallar | Yalnızca 1 kayıtlı sapma (Kural 15.5, tek çıkış noktası) |
-| Cppcheck MISRA eklentisi | ✅ Kayıtlı sapmalar dışında 0 bulgu |
+| Cppcheck MISRA eklentisi (2.21.0 + 2.13.0) | ✅ Kayıtlı sapmalar dışında 0 bulgu |
 | Cppcheck `--enable=all` | ✅ 0 hata, 0 uyarı |
 | MSVC `/Wall /analyze` | ✅ 0 bulgu |
 | MSVC `/W4` | ✅ 0 uyarı |
 
-Araç taraması **süs değil, iş gördü** — beş gerçek bulgu düzeltildi:
+Araç taraması **süs değil, iş gördü** — altı gerçek bulgu düzeltildi:
 
 | Kural | Sorun | Düzeltme |
 | --- | --- | --- |
+| 10.6 | `koşul ? 1 : 0` bileşik ifadedir; `int32_t`'ye atanması genişletmedir (5 yer, **Gerekli**) | Açık `if/else`. Cast ile susturmak Kural 10.8'i ihlal ederdi — döngüsel |
 | 10.1 | Kanal bayraklarında işaretli operandla bit işlemi (5 yerde tekrarlanan deyim) | Ortak yardımcı: `elbari_ic_bayrak_kur` / `elbari_ic_bayrak_var_mi` |
 | 12.2 | Kaydırma miktarının sınırlı olduğu elle ispatlanabiliyordu ama araç göremiyordu | **Kaydırma tamamen kaldırıldı** — 33 girişlik maske tablosu, indeks açıkça 0..32'ye kelepçeli |
 | 10.4 | `sizeof(...) == 4` — işaretsizle işaretliyi karşılaştırma | `== 4u` |
@@ -524,6 +525,19 @@ Bunların **hiçbiri bit akışını değiştirmedi**: her adımda 27 uygunluk v
 > 12.2 düzeltmesi öğreticidir: "araç anlamıyor, biz biliyoruz" demek yerine kaydırma
 > işlemini koddan çıkardık. Sonuç hem araç için hem insan için ispatlanabilir oldu,
 > maliyeti ise 132 baytlık salt-okunur tablo.
+
+**Tarama iki farklı araç sürümünde yürütülür** ve bunun somut bir sebebi var:
+
+| Ortam | Cppcheck | Kural 10.6'yı yakaladı mı? |
+| --- | --- | --- |
+| Yerel | 2.21.0 | ❌ Hayır |
+| CI | 2.13.0 | ✅ Evet, 5 adet |
+
+Daha *eski* sürüm, daha yenisinin kaçırdığı bir **Gerekli** kuralı buldu. Platform farkı
+değil, sürüm farkı — ve yönü sezgiye aykırı. Buradan çıkan sonuç: *tek bir araç
+sürümünden "temiz" almak zayıf bir kanıttır.* CI'daki `misra` işi yalnızca rapor
+üretmez; kayıtlı sapmalar dışında bir kural görürse **derlemeyi kırar**, böylece
+belgelenmemiş yeni bir ihlal sessizce içeri giremez.
 
 Öne çıkan noktalar:
 

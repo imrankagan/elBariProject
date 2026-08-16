@@ -8,7 +8,9 @@
 `malloc`, `printf`, `qsort` gibi kütüphane çağrılarını serbestçe kullanır.
 
 **Yöntem:** Elle inceleme + MSVC `/Wall /analyze` + GCC/Clang uyarıları + ASan/UBSan +
-**Cppcheck 2.21.0 MISRA eklentisi** ile otomatik kural taraması.
+Cppcheck MISRA eklentisiyle otomatik kural taraması — **iki farklı sürümde**
+(yerelde 2.21.0, CI'da 2.13.0). Sebebi Bölüm 3.6'da; kısacası sürümler birbirinin
+kaçırdığını yakalıyor.
 
 > ⚠️ **Dürüstlük notu:** Kod bir **açık kaynak** MISRA denetleyicisinden (Cppcheck)
 > temiz geçmektedir. Bu, **sertifikalı** bir MISRA aracı (Helix QAC, PC-lint Plus,
@@ -29,7 +31,7 @@
 | Kayıtlı sapma sayısı | 4 (D-1 … D-4) |
 | MSVC `/Wall /analyze` | ✅ 0 bulgu |
 | MSVC `/W4` derleme | ✅ 0 uyarı |
-| Cppcheck MISRA eklentisi | ✅ Kayıtlı sapmalar dışında 0 bulgu |
+| Cppcheck MISRA eklentisi (2.21.0 ve 2.13.0) | ✅ Kayıtlı sapmalar dışında 0 bulgu |
 
 **Cppcheck MISRA taraması — nihai sonuç:**
 
@@ -200,6 +202,7 @@ Aynı taramada bulunan diğer gerçek bulgular da düzeltildi:
 
 | Kural | Yer | Sorun | Düzeltme |
 | --- | --- | --- | --- |
+| 10.6 | 5 yer (`elbari.c`, `elbari_kanal.c`) | `koşul ? 1 : 0` — bileşik ifadenin geniş tipe atanması | Açık `if/else` (bkz. 3.6) |
 | 10.4 | `elbari_ic.h` | `sizeof(...) == 4` — işaretsiz ile işaretli karşılaştırma | `== 4u` |
 | 10.8 | `elbari.c`, `elbari_float_xor.c` | bileşik ifadenin doğrudan dönüşümü | ara değişkene alındı |
 | 17.8 | `elbari_float_xor.c` | `deger >>= 1` parametreyi değiştiriyordu | yerel kopya |
@@ -238,6 +241,58 @@ düşmanca bir paket bu yolla taşma tetikleyemez.
 Yine de kesin davranış isteniyorsa, çağıran ilk `elbari_crc32` çağrısını tek bir iş
 parçacığından yapmalıdır. Kütüphanenin geri kalanında **hiç** paylaşılan durum yoktur;
 tüm fonksiyonlar yeniden girişlidir (reentrant).
+
+---
+
+### 3.6 Kural 10.6 — `koşul ? 1 : 0` ve iki sürümle tarama dersi
+
+**Bulgu.** CI'daki MISRA işi ilk koşuşunda kırmızı yandı: Kural 10.6 (**Gerekli**),
+5 adet. Hepsi aynı deyimdi:
+
+```c
+aykiri_var  = (aykiri_maske != 0u) ? 1 : 0;
+on_ek_boyu  = (ikinci_derece != 0) ? 4 : 0;
+```
+
+**Neden ihlal.** `koşul ? 1 : 0` MISRA'nın *essential type* modelinde **bileşik
+ifadedir**. Sabit operandların çıkardığı temel tip `int32_t`'den dardır; dolayısıyla
+atama bir genişletmedir ve 10.6 bunu yasaklar.
+
+**Yanlış çözüm.** Ternary'i `(int32_t)` ile cast edip susturmak akla geliyor — ama
+bileşik ifadeyi cast etmek bu sefer **Kural 10.8'i** ihlal eder. Döngüsel. Tek temiz yol
+dallanmadır:
+
+```c
+if (aykiri_maske != 0u)
+{
+    aykiri_var = 1;
+}
+else
+{
+    aykiri_var = 0;
+}
+```
+
+CI'nın işaretlediği 5 atamanın yanında, işaretlemediği 3 `return koşul ? 1 : 0` yeri de
+aynı şekilde çevrildi; böylece sınıf tamamen kapandı ve ileride başka bir araç sürümü
+CI'yı kırmayacak.
+
+#### Asıl ders: yeni sürüm ≠ daha sıkı
+
+| Ortam | Cppcheck | Kural 10.6'yı yakaladı mı? |
+| --- | --- | --- |
+| Yerel (Windows) | **2.21.0** | ❌ Hayır |
+| CI (Ubuntu) | **2.13.0** | ✅ Evet, 5 adet |
+
+Platform farkı değildir — yerelde `--platform=unix64` ile tekrarlandığında da çıkmadı.
+**Sürüm farkıdır ve yönü sezgiye aykırıdır:** daha *eski* sürüm, daha yenisinin
+kaçırdığı bir **Gerekli** kuralı buluyor.
+
+Bunun pratik sonucu şudur: **tek bir araç sürümünden "temiz" almak, uyum kanıtı olarak
+zayıftır.** Bu projede tarama bilinçli olarak iki sürümde yürütülür ve ikisinin birleşimi
+esas alınır. Ticari bir araç (Helix QAC, PC-lint Plus, Polyspace) devreye girdiğinde de
+beklenti aynıdır: onun bulacağı yeni bulgular olacaktır, bu bir başarısızlık değil
+sürecin normal işleyişidir.
 
 ---
 
@@ -329,7 +384,8 @@ yapılandırmada bu sapma tamamen ortadan kalkar.
 | MSVC `/Wall /analyze` statik analiz | 0 bulgu |
 | GCC + Clang `-Wall -Wextra -Wpedantic -Wshadow -Wcast-qual` | 0 uyarı (CI) |
 | ASan + UBSan çalışma zamanı | 0 bulgu (CI) |
-| **Cppcheck MISRA eklentisi** | **Kayıtlı sapmalar (D-1, D-4) dışında 0 bulgu** |
+| **Cppcheck MISRA eklentisi (2.21.0, yerel)** | **Kayıtlı sapmalar (D-1, D-4) dışında 0 bulgu** |
+| **Cppcheck MISRA eklentisi (2.13.0, CI)** | **Kayıtlı sapmalar dışında 0 bulgu — her push'ta** |
 | Cppcheck `--enable=all` genel analiz | 0 hata, 0 uyarı (yalnızca 3 `style` ipucu) |
 | .NET ile ikili uyumluluk — kanal katmanı | 59.695 bayt birebir aynı |
 | .NET ile ikili uyumluluk — float katmanı | 27.403 bayt birebir aynı |
@@ -363,6 +419,14 @@ python <cppcheck_dizini>\addons\misra.py c\src\*.dump
 
 `--std=c11` verilmelidir: kod C17 olarak derlenir ve daha düşük bir standart
 `_Static_assert` üzerinde sahte bulgular üretir.
+
+**CI kapısı yalnızca rapor üretmez, eşik denetler.** `.github/workflows/derleme-ve-test.yml`
+içindeki `misra` işi, kayıtlı sapmalar (15.5 ve 21.15) dışında herhangi bir kural
+görürse derlemeyi kırar. Yani bu belgeye kaydedilmemiş yeni bir ihlal sessizce içeri
+giremez. Kapı, sahte bir ihlal enjekte edilerek her iki yönde de sınandı.
+
+İş ayrıca **boş raporu başarısızlık sayar**: `--addon=` seçeneği bazı ortamlarda Python'u
+sessizce başlatamayıp hiç çıktı üretmez ve bu "0 ihlal" sanılabilir.
 
 ---
 
