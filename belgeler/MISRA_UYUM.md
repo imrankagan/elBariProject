@@ -236,10 +236,21 @@ dogrulama.exe <referans_dizini>
 
 ---
 
-## 6. Yapılacaklar
+## 6. Durum ve yapılacaklar
 
-- [ ] Sertifikalı MISRA aracıyla doğrulama (Cppcheck ile başlanabilir; ticari teslimat
-      için Helix QAC / PC-lint Plus / Polyspace)
-- [ ] GCC ve Clang ile `-Wall -Wextra -Wpedantic` derleme
-- [ ] ARM ve big-endian mimaride doğrulama
-- [ ] RTOS üzerinde gerçek en-kötü-durum (WCET) analizi
+| Adım | Durum |
+| --- | --- |
+| Elle uyum incelemesi + sapma kaydı | ✅ Bu belge |
+| MSVC `/Wall /analyze` | ✅ 0 bulgu |
+| GCC + Clang `-Wall -Wextra -Wpedantic -Wshadow -Wcast-qual -Wstrict-prototypes` | ✅ CI'da her push'ta, 0 uyarı |
+| **ASan + UBSan (çalışma zamanı)** | ✅ CI'da temiz — *Kural 1.3 "tanımsız davranış yok" iddiasının deneysel kanıtı* |
+| Fuzz (600.000 tur, kanarya korumalı) | ✅ 0 tampon taşması |
+| Statik MISRA aracı (Cppcheck) | ⏳ Sıradaki adım |
+| Ticari MISRA aracı (Helix QAC / PC-lint / Polyspace) | ⏳ Müşteri/program gerektirdiğinde |
+| ARM ve big-endian doğrulama | ⏳ Donanım yok |
+| RTOS üzerinde WCET analizi | ⏳ Ortam yok — tipik olarak entegratör tarafında yapılır |
+
+> **Terminoloji notu:** "MISRA sertifikası" diye bir belge **yoktur**. MISRA kod
+> sertifikalandırmaz; uyum **kendi beyanınızdır** ve kanıtla desteklenir (uyum matrisi +
+> sapma kaydı + araç raporu). "Nitelikli araç" (qualified tool) kavramı ise yalnızca
+> DO-178C bağlamında, aracın çıktısı insan denetiminin *yerine* kullanılacaksa anlamlıdır.

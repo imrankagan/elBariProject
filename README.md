@@ -448,8 +448,8 @@ int32_t durum = elbari_cerceve_oku(gelen_paket, gelen_boyut, kanal,
 | Sertifikalı MISRA aracıyla doğrulama | ⏳ Yapılmadı |
 | GCC / Clang derleme | ✅ CI'da her push'ta (Linux) |
 | ASan + UBSan (çalışma zamanı) | ✅ CI'da temiz |
-| ARM / big-endian üzerinde doğrulama | ⏳ Henüz yapılmadı |
-| Elle yazılmış SIMD | ⏳ Yok — saf skaler. **Öncelik değil:** ölçümde C zaten C#'ın SIMD'li sürümünden hızlı çıktı ve işlemci payı %0,0007 |
+| ARM / big-endian üzerinde doğrulama | ⏳ Donanım yok — kod derlenir, hız ölçülmedi. [Ayrıntı](belgeler/OLCUM_SONUCLARI.md#-gerçek-arm-donanımında-ölçüm) |
+| Elle yazılmış SIMD | ❌ **Yapılmayacak** — ölçüm kararı: C zaten C#'ın SIMD'li sürümünden hızlı, işlemci payı %0,0006. [Gerekçe](belgeler/OLCUM_SONUCLARI.md#-elle-yazılmış-simd-c-sürümü) |
 
 ### C mi hızlı, C# mı? — ölçüldü
 

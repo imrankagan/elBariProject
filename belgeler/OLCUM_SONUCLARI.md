@@ -278,14 +278,65 @@ Entropi kodlaması ile paket kaybı dayanıklılığı temelde uyuşmaz.
 | ASan + UBSan (CI) | ✅ temiz |
 | Tahsisat | ✅ 0 bayt |
 
-### Bilinen eksikler
+### Bilinen eksikler ve gerekçeleri
 
-| Konu | Durum |
-| --- | --- |
-| Gerçek ARM donanımında ölçüm | ⏳ Yapılmadı |
-| RTOS üzerinde WCET analizi | ⏳ Yapılmadı |
-| Sertifikalı MISRA aracı doğrulaması | ⏳ Yapılmadı |
-| Elle yazılmış SIMD (C) | ⏳ Yok — öncelik değil |
+Bu bölüm **bilinçli olarak** ayrı tutulmuştur. Bir alıcının "neyi bilmiyorlar?"
+sorusunun cevabı gizlenmemelidir.
+
+#### ⏳ Gerçek ARM donanımında ölçüm
+
+**Durum:** Yapılmadı — donanım mevcut değil.
+
+Kod ARM'da **derlenir** (bağımlılıksız C99), ancak hız ve gecikme rakamları yalnızca
+x64 üzerinde ölçülmüştür. ARM kartlar (Raspberry Pi, Jetson) tipik olarak daha yavaştır;
+kabaca 5-10 kat varsayılabilir ama bu **ölçülmemiş bir tahmindir**.
+
+**Ne gerekir:** Bir Raspberry Pi 4/5 ya da Jetson kartı. `make` ile derlenip
+`kapsamli` ve `olcum` çalıştırılması yeterli — kod değişikliği gerekmez.
+
+**Önemi:** Orta. İşlemci payı x64'te %0,0006 çıktığı için 10 kat yavaşlama bile
+%0,006 eder; tıkanma riski yoktur. Ölçüm, iddiayı doğrulamak içindir.
+
+#### ⏳ RTOS üzerinde en-kötü-durum (WCET) analizi
+
+**Durum:** Yapılmadı — RTOS ortamı mevcut değil.
+
+Bu belgedeki gecikme yüzdelikleri genel amaçlı bir işletim sistemi üzerinde alınmıştır
+ve üst değerler büyük ölçüde **işletim sistemi gürültüsüdür**. Gerçek WCET, kesintilerin
+denetim altında olduğu bir RTOS'ta ve statik analiz araçlarıyla belirlenir.
+
+**Ne gerekir:** Hedef RTOS (VxWorks, PikeOS, NuttX vb.) + WCET analiz aracı. Bu, tipik
+olarak müşteri/entegratör tarafında yapılır.
+
+**Kolaylaştıran tasarım:** Sabit blok yapısı, özyineleme olmaması, dinamik bellek
+kullanılmaması ve tüm döngülerin sınırlı olması WCET analizini **mümkün** kılar. Bu
+özellikler MISRA belgesinde ayrıca doğrulanmıştır.
+
+#### ❌ Elle yazılmış SIMD (C sürümü)
+
+**Durum:** Yapılmayacak — **ölçüm gerekçesiyle**.
+
+Bu bir eksiklik değil, **ölçüme dayalı bir karardır**:
+
+1. **C zaten C#'tan hızlı.** C# sürümü elle AVX2 kullanıyor, C sürümü saf skaler.
+   Buna rağmen C, çözmede %30-80 daha hızlı (bkz. bölüm 3). Elle SIMD'in getirisi
+   sanıldığı kadar büyük değil.
+2. **SIMD işin küçük bir kısmına dokunuyor.** Fark hesabı vektörleşebilir ama asıl
+   yük olan **bit paketleme döngüsü** doğası gereği sıralıdır — her değer bir öncekinin
+   bıraktığı bit konumundan devam eder.
+3. **İşlemci zaten boşta.** Hedef senaryoda kullanım %0,0006. Elle SIMD bunu %0,0004
+   yapar — ölçülebilir ama anlamsız.
+4. **Maliyeti gerçek:** mimariye özel kod yolları (AVX2 / NEON / skaler), üç ayrı
+   test yükü, MISRA denetiminin zorlaşması, taşınabilirliğin azalması.
+
+> **Karar:** Tıkanan yer işlemci değil, telsizin bant genişliğidir. Optimizasyon çabası
+> orana ve dayanıklılığa harcanmalıdır. Bu karar, gerekçesi değişirse (ör. çok daha
+> yüksek veri hızı gerektiren bir kullanım ortaya çıkarsa) yeniden değerlendirilebilir.
+
+#### ⏳ Sertifikalı araçla MISRA doğrulaması
+
+**Durum:** Elle inceleme yapıldı ve belgelendi ([MISRA_UYUM.md](MISRA_UYUM.md)); araçla
+doğrulanmadı.
 
 ---
 
