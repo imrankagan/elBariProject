@@ -52,9 +52,15 @@ jobs:
         working-directory: c
         run: ./uygunluk ../testverisi/vektorler.txt
 
-      - name: Fuzz (saglamlik)
+      - name: Fuzz (cozucu saglamligi)
         working-directory: c
         run: ./fuzz 300000
+
+      # Kodlayici tarafi: kabul edilen her girdi kayipsiz geri gelmeli.
+      # 2^31'lik fark hatasi bu adim olmadigi icin gozden kacmisti.
+      - name: Deger fuzz'i (kodlayici tam turu)
+        working-directory: c
+        run: ./deger_fuzz 300000
 
   # -------------------------------------------------------------------
   # Denetleyiciler: tanimsiz davranis ve bellek hatalarini CALISIRKEN yakalar
@@ -86,6 +92,13 @@ jobs:
           ASAN_OPTIONS: detect_leaks=1
           UBSAN_OPTIONS: print_stacktrace=1
         run: ./fuzz-san 50000
+
+      - name: Deger fuzz'i (denetleyici altinda)
+        working-directory: c
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+          UBSAN_OPTIONS: print_stacktrace=1
+        run: ./deger_fuzz-san 50000
 
   # -------------------------------------------------------------------
   # MISRA C:2012 kural taramasi

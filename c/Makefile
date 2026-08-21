@@ -36,7 +36,7 @@ KIYAS_KAYNAK = kiyas/onisleme.c kiyas/kodekler.c kiyas/sprintz.c
 MAV_KAYNAK = mavlink/mav_bicim.c mavlink/mav_sema.c mavlink/mav_kademe.c \
              mavlink/mav_uretici.c
 
-PROGRAMLAR = dogrulama olcum fuzz uygunluk kapsamli kiyas kiyas-oztest mav_olcum
+PROGRAMLAR = dogrulama olcum fuzz deger_fuzz uygunluk kapsamli kiyas kiyas-oztest              mav_olcum
 
 .PHONY: all sanitize test temizle
 
@@ -49,6 +49,12 @@ olcum: test/olcum.c $(KAYNAK)
 	$(CC) $(CFLAGS) -o $@ $^
 
 fuzz: test/fuzz.c $(KAYNAK)
+	$(CC) $(CFLAGS) -o $@ $^
+
+# Kodlayici deger fuzz'i: encode -> decode tam tur.
+# fuzz.c COZUCU saglamligini sinar; bu ise kodlayicinin kabul ettigi her
+# girdinin kayipsiz geri geldigini sinar. Ikisi ayri boslugu kapatir.
+deger_fuzz: test/deger_fuzz.c $(KAYNAK)
 	$(CC) $(CFLAGS) -o $@ $^
 
 uygunluk: test/uygunluk.c $(KAYNAK)
@@ -73,7 +79,7 @@ mav_olcum: mavlink/mav_olcum.c $(MAV_KAYNAK) $(KAYNAK)
 
 # Denetleyicili surumler ayri isimle uretilir; normal surumlerin
 # uzerine yazilmaz.
-sanitize: uygunluk-san fuzz-san
+sanitize: uygunluk-san fuzz-san deger_fuzz-san
 
 uygunluk-san: test/uygunluk.c $(KAYNAK)
 	$(CC) $(SAN_BAYRAK) -o $@ $^
@@ -81,12 +87,16 @@ uygunluk-san: test/uygunluk.c $(KAYNAK)
 fuzz-san: test/fuzz.c $(KAYNAK)
 	$(CC) $(SAN_BAYRAK) -o $@ $^
 
+deger_fuzz-san: test/deger_fuzz.c $(KAYNAK)
+	$(CC) $(SAN_BAYRAK) -o $@ $^
+
 # Uygunluk vektorleri depoda oldugu icin bu test bagimsiz calisir.
 # Fuzz de dis veri istemez.
-test: uygunluk fuzz kiyas-oztest
+test: uygunluk fuzz deger_fuzz kiyas-oztest
 	./uygunluk ../testverisi/vektorler.txt
 	./fuzz 200000
+	./deger_fuzz 200000
 	./kiyas-oztest
 
 temizle:
-	rm -f $(PROGRAMLAR) uygunluk-san fuzz-san *.o
+	rm -f $(PROGRAMLAR) uygunluk-san fuzz-san deger_fuzz-san *.o
