@@ -106,11 +106,11 @@ zaman: [1700000000, 1700000001, 1700000002, ...] farklar:   1  ✓
                               ↓
                     her kanal kendi içinde düzgün
                               ↓
-                         4.95x  ✓
+                         5.05x  ✓
 ```
 
 > Gerçek GPS verisiyle ölçüldü (24.642 kayıt): kanal ayrımı **olmadan reddediliyor**,
-> **ile 4.95x**. Yani birincil hedef veri tipi ancak bu katmanla çalışıyor.
+> **ile 5.05x**. Yani birincil hedef veri tipi ancak bu katmanla çalışıyor.
 
 ---
 
@@ -303,7 +303,7 @@ sıkıştırılamaz. Kuantalama gürültüyü baştan atar.
     C   →  yukarıdakilerin tümü + RTOS + bare-metal MCU + DSP
 ```
 
-Gerçek GPS verisiyle (24.642 kayıt) iki sürüm **59.695 bayt birebir aynı** çıktı üretir
+Gerçek GPS verisiyle (24.642 kayıt) iki sürüm **58.525 bayt birebir aynı** çıktı üretir
 ve birbirinin çıktısını çözebilir.
 
 ---

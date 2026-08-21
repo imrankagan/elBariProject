@@ -59,6 +59,38 @@
 #define ELBARI_GENISLIK_6               (10)   /* M <= 511 */
 #define ELBARI_GENISLIK_7               (16)   /* M <= 32767 */
 #define ELBARI_ETIKET_MASKESI           (0x0F)
+
+/* ---------------------------------------------------------------------
+ * BLOK-USTU SIFIR KOSUSU  (bicim surumu 3)
+ * ---------------------------------------------------------------------
+ * Sifir blok (mod 0) veri biti yazmaz ama ETIKETINI yine yazar. Bu,
+ * bicime deger basina 0,5 bitlik bir taban ve 32 bitlik degerler icin
+ * 64x'lik sert bir TAVAN koyar - veri ne kadar sabit olursa olsun.
+ *
+ * Olculdu: gercek bir kumanda girisi (RCIN) kanalinda bloklarin %94,5'i
+ * sifir blok ve bunlarin %93'u uzun kosular halinde. Yani ciktinin
+ * ucte ikisi etiketten ibaret. Sprintz-Delta ayni veride 74x aliyordu -
+ * yani ElBari'nin TEORIK TAVANININ ustunde.
+ *
+ * KACIS KODU - neden bu birlesim:
+ *   Etiket "mod 0 + aykiri_var 1" ardindan 8 bitlik aykiri maskesi 0x00,
+ *   surum 2 kodlayicisinda ULASILAMAZ bir birlesimdir: aykiri_var ancak
+ *   maske sifir DEGILKEN kurulur. Bu yuzden maske 0x00 kacis isareti
+ *   olarak kullanilabilir ve SURUM 2 AKISLARI SURUM 3 COZUCUSUNDE
+ *   AYNEN calismaya devam eder. Yeni bir etiket degeri harcanmaz.
+ *
+ * MALIYET: kacis 4 + 8 + 16 = 28 bit. Duz kodlama kosu basina 4 bit.
+ *          Basabas nokta 7 bloktur; bu yuzden esik 8'dir.
+ * ------------------------------------------------------------------- */
+
+/** Kacisin kazanmaya basladigi kosu uzunlugu (blok cinsinden). */
+#define ELBARI_SIFIR_KOSU_ESIGI         (8)
+
+/** 16 bitlik kosu sayacinin siniri. */
+#define ELBARI_SIFIR_KOSU_MAKS          (65535)
+
+/** Kosu sayacinin bit genisligi. */
+#define ELBARI_SIFIR_KOSU_BITI          (16)
 #define ELBARI_BAYT_MASKESI             (0xFFu)
 
 /**
@@ -255,6 +287,24 @@ static int32_t elbari_ic_bit_yukle(uint64_t      *bit_tamponu,
     return 1;
 }
 
+/**
+ * ham_veri[i .. i+7] araligindaki TUM farklar sifir mi?
+ * Cagiran, i+7'nin sinirlar icinde oldugunu garanti etmelidir.
+ */
+static int32_t elbari_ic_sifir_blok_mu(const int32_t *ham_veri, int32_t i)
+{
+    int32_t j;
+
+    for (j = 0; j < ELBARI_BLOK_BOYUTU; j++)
+    {
+        if (elbari_ic_fark(ham_veri[i + j], ham_veri[(i + j) - 1]) != 0)
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 /* ---------------------------------------------------------------------
  * KODLAYICI
  * ------------------------------------------------------------------- */
@@ -316,6 +366,61 @@ int32_t elbari_kabid(const int32_t *ham_veri,
         int32_t etiket;
         uint32_t maske;
         int32_t j;
+
+        /* 0) BLOK-USTU SIFIR KOSUSU (bicim surumu 3).
+         *    Ileriye bakilir; yeterince uzun bir tam-sifir blok dizisi
+         *    varsa hepsi TEK bir kacisla yazilir. Kisa kosularda kacis
+         *    zarar edeceginden esik altinda duz kodlama surer. */
+        if (blok_boyu == ELBARI_BLOK_BOYUTU)
+        {
+            int32_t kosu = 0;
+            int32_t ileri = veri_indeksi;
+
+            while (((eleman_sayisi - ileri) >= ELBARI_BLOK_BOYUTU) &&
+                   (kosu < ELBARI_SIFIR_KOSU_MAKS) &&
+                   (elbari_ic_sifir_blok_mu(ham_veri, ileri) != 0))
+            {
+                kosu++;
+                ileri += ELBARI_BLOK_BOYUTU;
+            }
+
+            if (kosu >= ELBARI_SIFIR_KOSU_ESIGI)
+            {
+                /* Etiket: mod 0, aykiri_var 1 -> ham deger 1 */
+                bit_tamponu |= ((uint64_t)1u) << (unsigned int)bit_sayisi;
+                bit_sayisi += 4;
+                if (elbari_ic_bit_bosalt(&bit_tamponu, &bit_sayisi,
+                                         cikti, cikti_kapasitesi,
+                                         &bayt_indeksi) == 0)
+                {
+                    return ELBARI_HATA_TAMPON_KUCUK;
+                }
+
+                /* Aykiri maskesi 0x00: kacis isareti. Tamponun bu bitleri
+                 * zaten sifirdir, yalnizca sayac ilerletilir. */
+                bit_sayisi += 8;
+                if (elbari_ic_bit_bosalt(&bit_tamponu, &bit_sayisi,
+                                         cikti, cikti_kapasitesi,
+                                         &bayt_indeksi) == 0)
+                {
+                    return ELBARI_HATA_TAMPON_KUCUK;
+                }
+
+                /* Kosu uzunlugu (16 bit) */
+                bit_tamponu |= ((uint64_t)(uint32_t)kosu)
+                               << (unsigned int)bit_sayisi;
+                bit_sayisi += ELBARI_SIFIR_KOSU_BITI;
+                if (elbari_ic_bit_bosalt(&bit_tamponu, &bit_sayisi,
+                                         cikti, cikti_kapasitesi,
+                                         &bayt_indeksi) == 0)
+                {
+                    return ELBARI_HATA_TAMPON_KUCUK;
+                }
+
+                veri_indeksi = ileri;
+                continue;
+            }
+        }
 
         /* 1) Blok icindeki farklari incele: en buyuk mutlak deger ve
          *    aykiri deger maskesi belirlenir. */
@@ -614,6 +719,44 @@ int32_t elbari_basit(const uint8_t *girdi,
             aykiri_maske = (uint32_t)(bit_tamponu & (uint64_t)ELBARI_BAYT_MASKESI);
             bit_tamponu >>= 8;
             bit_sayisi -= 8;
+
+            /* BLOK-USTU SIFIR KOSUSU (bicim surumu 3).
+             * Maske 0x00, surum 2 kodlayicisinin URETEMEYECEGI bir
+             * degerdir (aykiri_var ancak maske sifir degilken kurulur);
+             * bu yuzden kacis isareti olarak kullanilir. Surum 2 akislari
+             * bu daldan hic gecmez ve aynen cozulur. */
+            if ((mod == 0) && (aykiri_maske == 0u))
+            {
+                int32_t kosu;
+                int32_t r;
+
+                if (elbari_ic_bit_yukle(&bit_tamponu, &bit_sayisi,
+                                        girdi, girdi_boyutu, &bayt_indeksi,
+                                        ELBARI_SIFIR_KOSU_BITI) == 0)
+                {
+                    return ELBARI_HATA_BOZUK_GIRDI;
+                }
+                kosu = (int32_t)(uint32_t)(bit_tamponu & 0xFFFFu);
+                bit_tamponu >>= (unsigned int)ELBARI_SIFIR_KOSU_BITI;
+                bit_sayisi -= ELBARI_SIFIR_KOSU_BITI;
+
+                /* Kodlayici sifir uzunlukta kosu yazmaz. */
+                if (kosu <= 0) { return ELBARI_HATA_BOZUK_GIRDI; }
+
+                for (r = 0; r < kosu; r++)
+                {
+                    for (j = 0; j < ELBARI_BLOK_BOYUTU; j++)
+                    {
+                        if (cikti_indeksi >= eleman_sayisi)
+                        {
+                            return ELBARI_HATA_BOZUK_GIRDI;
+                        }
+                        cikti[cikti_indeksi] = cikti[cikti_indeksi - 1];
+                        cikti_indeksi++;
+                    }
+                }
+                continue;
+            }
         }
 
         /* 3) Aykiri OLMAYAN farklar (isaret genisletmesi ile) */

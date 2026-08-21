@@ -5,7 +5,7 @@
 
 ## 1. Soru
 
-ElBâri'nin vitrin rakamları (4.95x) tek bir büyük blok sıkıştırmaktan geliyor. **Canlı
+ElBâri'nin vitrin rakamları (5.05x) tek bir büyük blok sıkıştırmaktan geliyor. **Canlı
 İHA telemetrisinde** durum farklıdır: veri damla damla akar, kritik mesajlar bekleyemez
 ve her paket telsizin MTU'suna sığmak zorundadır.
 
@@ -215,7 +215,7 @@ Bu deseni ancak **gerçek jiroskop** üretti.
 - **Dar bantlı telsizde kısa gecikmeyle kazanç.** SR1 profilinde 2 s bütçe yalnızca
   1,16x, 1 s ve altı başabaş ya da altında. Vekilin en dar olduğu yer, en çok
   ihtiyaç duyulan yerdir — bu, tasarımın bilinen ve ölçülmüş sınırıdır.
-- "4.95x" — o rakam tek blok sıkıştırmaya aittir, canlı telemetriye değil.
+- "5.05x" — o rakam tek blok sıkıştırmaya aittir, canlı telemetriye değil.
 - **Bu sayıların her İHA'yı temsil ettiği.** Platform sabit kanattır (Carbon Z T-28);
   yönelimi bir çoklu rotordan belirgin biçimde daha düzgündür, dolayısıyla ATTITUDE
   kazancı çoklu rotor telemetrisine göre **iyimser** taraftadır.

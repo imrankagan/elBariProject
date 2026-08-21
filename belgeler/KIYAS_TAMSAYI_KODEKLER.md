@@ -57,11 +57,11 @@ Bu belge o boşluğu kapatıyor ve **beklendiği gibi, iddiayı küçültüyor.*
 
 | Kodek | Kaynak | Bayt | Oran | bit/değer | encode MB/sn | decode MB/sn |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| **ElBâri (kanal)** | bu çalışma | **59.695** | **4.95x** | **6.46** | 1.200 | 1.380 |
+| **ElBâri (kanal)** | bu çalışma | **58.525** | **5.05x** | **6.34** | 1.176 | 1.673 |
 | Sprintz-Delta | Blalock ve ark. 2018 | 63.321 | 4.67x | 6.85 | 463 | 1.045 |
 | Simple8b | Anh & Moffat 2010 | 63.885 | 4.63x | 6.91 | 364 | 1.824 |
 | OptPFD (PFOR+yama) | Zukowski 2006 / Yan 2009 | 64.807 | 4.56x | 7.01 | 260 | 1.103 |
-| ElBâri (çerçeve, 100) | bu çalışma | 68.844 | 4.30x | 7.45 | 538 | 851 |
+| ElBâri (çerçeve, 100) | bu çalışma | 68.282 | 4.33x | 7.39 | 548 | 885 |
 | BP128 | Lemire & Boytsov 2015 | 81.130 | 3.64x | 8.78 | 556 | 1.078 |
 | VByte (LEB128) | varint temel çizgisi | 93.540 | 3.16x | 10.12 | 2.599 | 1.612 |
 | StreamVByte | Lemire & Kurz 2017 | 104.855 | 2.82x | 11.35 | 1.803 | 1.671 |
@@ -91,51 +91,71 @@ taşır. Ölçüm ALFA uçuş logundan üretilen altı fikstürle tekrarlandı
 
 | Veri seti | K | Ham B | **ElBâri** | ElBâri enc | Ailenin en iyisi | Fark | Pareto |
 | --- | ---: | ---: | ---: | ---: | --- | ---: | :---: |
-| GPS (OSM referans) | 3 | 295.704 | **4,95x** | 1.121 | Sprintz 4,67x | **+%6,0** | E+D |
-| GPS (ALFA uçuş) | 3 | 164.064 | **5,60x** | 997 | Simple8b 5,43x | **+%3,1** | E+D |
-| Titreşim (VIBE) | 3 | 820.056 | 5,38x | 957 | Simple8b 5,51x | −%2,4 | E |
-| Yönelim (ATT) | 3 | 820.188 | 14,70x | 1.482 | Sprintz 15,55x | −%5,5 | E |
-| IMU (jiro+ivme) | 6 | 3.280.752 | 6,88x | 1.002 | Simple8b 7,43x | −%7,4 | E |
-| Servo (RCOU) | 8 | 2.186.848 | 25,64x | 1.834 | Sprintz 34,18x | −%25,0 | E |
-| Kumanda (RCIN) | 8 | 2.186.848 | 40,09x | 2.197 | Sprintz 74,39x | **−%46,1** | — |
+| GPS (OSM referans) | 3 | 295.704 | **5,05x** | 1.176 | Sprintz 4,67x | **+%8,1** | E+D |
+| GPS (ALFA uçuş) | 3 | 164.064 | **5,60x** | 1.003 | Simple8b 5,43x | **+%3,1** | E+D |
+| Titreşim (VIBE) | 3 | 820.056 | 5,38x | 958 | Simple8b 5,51x | −%2,4 | E |
+| Yönelim (ATT) | 3 | 820.188 | **15,57x** | 1.622 | Sprintz 15,55x | **+%0,1** | E+D |
+| IMU (jiro+ivme) | 6 | 3.280.752 | 6,88x | 1.019 | Simple8b 7,43x | −%7,4 | E |
+| Servo (RCOU) | 8 | 2.186.848 | **37,50x** | 2.897 | Sprintz 34,18x | **+%9,7** | E+D |
+| Kumanda (RCIN) | 8 | 2.186.848 | **92,26x** | 4.037 | Sprintz 74,39x | **+%24,0** | E+D |
+
+> Bu tablo **biçim sürümü 3** iledir. Sürüm 2'de son üç satır sırasıyla 14,70x /
+> 25,64x / 40,09x idi ve ElBâri yalnızca iki veri setinde liderdi. Aradaki fark
+> §3'ün sonundaki *blok-üstü sıfır koşusu* eklentisinden gelir.
 
 *Fark = ElBâri'nin, kendisi hariç ailenin en iyi oranına göre farkı. Pareto: E = oran ↔
 encode cephesinde, D = oran ↔ decode cephesinde. Encode MB/sn skaler C.*
 
 **Okunuşu üç cümlede:**
 
-1. **Konum verisinde ElBâri lider** — iki GPS setinde de en yüksek oran, üstelik her iki
-   Pareto cephesinde birden.
-2. **Yönelim, IMU ve titreşimde rekabetçi ama lider değil** — %2–7 geride. Buna karşılık
-   oran liderinin **2–2,8 katı encode hızıyla** çalışıyor ve encode cephesinde kalıyor.
-3. **Tekrarlı PWM kanallarında (RC girişi/servo çıkışı) açık farkla geride** — ve bu bir
-   ayar meselesi değil, aşağıdaki gibi **biçimsel bir tavan.**
+1. **Yedi veri setinin beşinde ElBâri lider** — iki GPS seti, yönelim, servo çıkışı ve
+   kumanda girişi. Beşinde de her iki Pareto cephesinde birden.
+2. **IMU ve titreşimde rekabetçi ama lider değil** — %2–7 geride. Buna karşılık oran
+   liderinin **2–2,4 katı encode hızıyla** çalışıyor ve encode cephesinde kalıyor.
+3. **Tekrarlı PWM kanallarındaki eski açık, biçim değişikliğiyle kapandı** — nasıl
+   kapandığı aşağıda.
 
-#### RCIN bulgusu: biçimin sert tavanı
+#### RCIN bulgusu ve çözümü: biçimin sert tavanı kaldırıldı
 
-ElBâri her 8 değer için 4 bitlik bir etiket yazar; sıfır blokta veri biti hiç yazılmaz
-ama **etiket yine yazılır.** Yani biçimin taban maliyeti **değer başına 0,5 bit**tir ve
-bu, 32 bitlik değerler için oranı **64x'te sabitler** — veri ne kadar sabit olursa olsun.
+**Bulgu (sürüm 2).** ElBâri her 8 değer için 4 bitlik bir etiket yazar; sıfır blokta veri
+biti hiç yazılmaz ama **etiket yine yazılırdı.** Bu, biçime değer başına 0,5 bitlik bir
+taban ve 32 bitlik değerler için **64x'lik sert bir tavan** koyuyordu — veri ne kadar
+sabit olursa olsun.
 
-RCIN'de aritmetik şöyle:
+RCIN'de aritmetik şöyleydi:
 
 | | |
 | --- | ---: |
 | Blok sayısı (68.339 kayıt × 8 kanal ÷ 8) | 68.344 |
 | Hepsi sıfır blok olsaydı | 34.204 bayt |
-| **ElBâri'nin bu veri şeklindeki teorik tavanı** | **63,94x** |
-| ElBâri'nin ölçülen değeri | 40,09x (54.543 bayt) |
+| **Sürüm 2'nin bu veri şeklindeki teorik tavanı** | **63,94x** |
+| Sürüm 2'nin ölçülen değeri | 40,09x (54.543 bayt) |
 | **Sprintz-Delta'nın ölçülen değeri** | **74,39x (29.398 bayt)** |
 
-**Sprintz, ElBâri'nin teorik tavanının üstüne çıkıyor.** Sebep: Sprintz sıfır koşularını
-bloklar boyunca çalıştırır (run-length), ElBâri ise her bloğa ayrı etiket yazar. Neredeyse
-sabit bir kanalda ElBâri'nin çıktısının **%63'ü etikettir.**
+Sprintz, sürüm 2'nin **teorik tavanının üstüne** çıkıyordu. Sebep: Sprintz sıfır
+koşularını bloklar boyunca çalıştırır (run-length), sürüm 2 ise her bloğa ayrı etiket
+yazıyordu. Neredeyse sabit bir kanalda çıktının **%63'ü etiketti.**
 
-Bu, ölçümün en somut mimari bulgusudur ve iki yol açar:
-- **Kabul et ve kapsamı daralt** — ElBâri sürekli değişen telemetri (konum, yönelim, IMU)
-  için tasarlanmıştır; neredeyse sabit ayrık kanallar hedef değildir.
-- **Ya da biçime blok-üstü sıfır koşusu ekle** — sürüm 3 adayı. Tavanı kaldırır ama
-  bağımsız çerçeve garantisiyle etkileşimi ayrıca ölçülmelidir.
+**Çözüm (sürüm 3): blok-üstü sıfır koşusu.** Ardışık tam sıfır blokları tek bir kaçışla
+kodlanıyor. Ölçüm önce yapıldı: RCIN'de blokların %94,5'i sıfır blok ve bunların %93'ü
+uzun koşular hâlinde.
+
+| | Sürüm 2 | **Sürüm 3** | Sprintz |
+| --- | ---: | ---: | ---: |
+| RCIN | 40,09x | **92,26x** | 74,39x |
+| RCOU | 25,64x | **37,50x** | 34,18x |
+| ATT | 14,70x | **15,57x** | 15,55x |
+| GPS / IMU / VIBE | — | **değişmedi** | — |
+
+Encode hızı da arttı (RCIN 2.197 → 4.037 MB/sn): koşu kaçışı blok başına iş atlıyor.
+
+**Kaçış kodu geriye dönük güvenli.** Etiket `mod 0 + aykırı_var 1` ardından aykırı
+maskesi `0x00`, sürüm 2 kodlayıcısının **üretemeyeceği** bir birleşimdir — `aykırı_var`
+ancak maske sıfır değilken kurulur. Bu yüzden sürüm 3 çözücüsü bütün sürüm 2 akışlarını
+aynen çözer ve **29 uygunluk vektörünün 26'sı bit bit değişmeden geçti**; değişen üçü
+yalnızca çerçeve başlığındaki sürüm baytı yüzünden yeniden üretildi.
+
+Ayrıntı: [BICIM_SPESIFIKASYONU.md §2.2b](BICIM_SPESIFIKASYONU.md)
 
 ## 4. Sonuçların dürüst okunması
 
@@ -145,21 +165,21 @@ Doğru rakip ailesiyle ölçüldüğünde ElBâri'nin oran üstünlüğü şu:
 
 | Rakip | ElBâri'nin farkı |
 | --- | ---: |
-| Sprintz-Delta | **+%6,1** |
-| Simple8b | +%7,0 |
-| OptPFD | +%8,6 |
-| BP128 | +%35,9 |
-| VByte | +%56,7 |
+| Sprintz-Delta | **+%8,2** |
+| Simple8b | +%9,2 |
+| OptPFD | +%10,7 |
+| BP128 | +%38,6 |
+| VByte | +%59,8 |
 
-Yani zstd karşısındaki "üç kat" farkın yerini, gerçek ailede **%6'lık bir fark** aldı.
+Yani zstd karşısındaki "üç kat" farkın yerini, gerçek ailede **%8'lik bir fark** aldı.
 Bu, beklenen ve kabul edilmesi gereken sonuçtur: ElBâri zaten aynı fikirleri kullanıyor.
 %6, kanal başına uyarlanabilir fark derecesi + genişletilmiş bit genişliği tablosu +
 sıfır blok kısayolunun birlikte getirdiği kazançtır.
 
-> **Ve bu %6 veri setine bağlıdır.** Yukarıdaki yedi set tablosunda aynı fark GPS'te
-> +%3…+%6, yönelim/IMU/titreşimde −%2…−%7, tekrarlı PWM kanallarında −%25…−%46 çıkıyor.
-> Tek bir veri setinden okunan "%6 önde" ifadesi **genellenemez**; savunulabilir ifade
-> "konum verisinde önde, sürekli telemetride rekabetçi, tekrarlı kanallarda geride"dir.
+> **Ve bu fark veri setine bağlıdır.** Yukarıdaki yedi set tablosunda aynı fark GPS'te
+> +%3…+%8, yönelimde +%0,1, tekrarlı PWM kanallarında +%10…+%24, IMU ve titreşimde ise
+> −%2…−%7 çıkıyor. Tek bir veri setinden okunan bir yüzde **genellenemez**; savunulabilir
+> ifade "yedi setin beşinde önde, IMU ve titreşimde geride"dir.
 
 **2. Çerçeveleme açılınca ElBâri oran liderliğini kaybediyor.**
 
@@ -167,9 +187,9 @@ Bu, bu ölçümün en önemli bulgusudur:
 
 | | Oran |
 | --- | ---: |
-| ElBâri (kanal, çerçevesiz) | 4,95x |
+| ElBâri (kanal, çerçevesiz) | 5,05x |
 | Sprintz-Delta | 4,67x |
-| **ElBâri (çerçeve, 100 kayıt)** | **4,30x** |
+| **ElBâri (çerçeve, 100 kayıt)** | **4,33x** |
 
 Paket kaybı dayanıklılığı açıldığında ElBâri, Sprintz'in **%8 altına** düşüyor. Yani
 projenin asıl ayırt edici özelliği (bağımsız çerçeveler), oran üstünlüğünün tamamını ve
@@ -223,7 +243,8 @@ bağlar:
 
 | Çerçeve (kayıt) | Çerçeve sayısı | Toplam bayt | Oran | ort. B/çerçeve | **en büyük B** | gecikme @10 Hz | @50 Hz |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| *çerçeveleme yok* | — | 59.695 | **4.95x** | — | — | *akış* | *akış* |
+| *çerçeveleme yok* | — | 58.525 | **5.05x** | — | — | *akış* | *akış* |
+| 1 | 24.642 | 1.084.248 | 0.27x | 44 | 44 | 0,10 s | 0,02 s |
 | 1 | — | — | — | — | — | — | — |
 | 2 | 12.321 | 596.564 | 0.50x | 48 | 56 | 0,20 s | 0,04 s |
 | 5 | 4.929 | 302.147 | 0.98x | 61 | 92 | 0,50 s | 0,10 s |
@@ -231,30 +252,30 @@ bağlar:
 | 20 | 1.233 | 117.037 | 2.53x | 95 | 160 | 2,00 s | 0,40 s |
 | **25** | 986 | 104.838 | **2.82x** | 106 | **185** | 2,50 s | **0,50 s** |
 | 50 | 493 | 79.928 | 3.70x | 162 | 315 | 5,00 s | 1,00 s |
-| 100 | 247 | 68.844 | 4.30x | 279 | **572** | 10,00 s | 2,00 s |
+| 100 | 247 | 68.282 | 4.33x | 279 | **572** | 10,00 s | 2,00 s |
 | 200 | 124 | 63.321 | 4.67x | 511 | 1.001 | 20,00 s | 4,00 s |
 | 500 | 50 | 61.207 | 4.83x | 1.224 | 2.339 | 50,00 s | 10,00 s |
-| 1000 | 25 | 59.730 | 4.95x | 2.389 | 4.228 | 100,00 s | 20,00 s |
+| 1000 | 25 | 58.757 | 5.03x | 2.350 | 4.228 | 100,00 s | 20,00 s |
 
 *(1 kayıt/çerçeve desteklenmiyor: çekirdek kodlayıcı tek elemanlı girdiyi
 `ELBARI_SIKISTIRILAMAZ` ile reddediyor.)*
 
-### Bunun anlamı — README'deki 4.30x rakamı ne kadar gerçekçi?
+### Bunun anlamı — README'deki 4.33x rakamı ne kadar gerçekçi?
 
 **Sıkıştırma 5 kayıt/çerçevenin altında tamamen kayboluyor.** 2 kayıtta oran 0.50x —
 veri **iki katına çıkıyor**, çünkü 16 baytlık çerçeve başlığı 24 baytlık yükten büyük.
 
-**4.30x rakamı, 10 saniyelik tamponlama gerektiriyor** (10 Hz telemetride). Canlı
+**4.33x rakamı, 10 saniyelik tamponlama gerektiriyor** (10 Hz telemetride). Canlı
 telemetri için bu kabul edilemez: uçağın 10 saniye önceki konumunu görürsün.
 
-**4.30x rakamı ayrıca tek pakete sığmıyor.** En büyük çerçeve 572 bayt; tipik SiK
+**4.33x rakamı ayrıca tek pakete sığmıyor.** En büyük çerçeve 572 bayt; tipik SiK
 radyo yükünün iki katından fazla. Çerçeve parçalanmak zorunda kalırsa,
 *"bir paket düşerse yalnızca o çerçeve kaybolur"* garantisi zayıflar — çünkü artık
 bir çerçeve birden fazla pakete yayılmıştır.
 
 **Gerçekçi çalışma noktası çok daha küçük.** Hem tek pakete sığan (≤185 B) hem
 gecikmesi kabul edilebilir (50 Hz'de 0,5 s) tek satır **25 kayıt/çerçeve** ve orada
-oran **2.82x** — README'nin öne çıkardığı 4.95x'in **%57'si**.
+oran **2.82x** — README'nin öne çıkardığı 5.05x'in **%56'sı**.
 
 > Bu, projenin en önemli ölçülmemiş varsayımıydı: çerçeveleme maliyeti README'de
 > "%13" (4.95 → 4.30) olarak geçiyor. Gerçek kısıtlar altında maliyet **%43**
@@ -265,10 +286,10 @@ oran **2.82x** — README'nin öne çıkardığı 4.95x'in **%57'si**.
 | Eski iddia | Ölçümden sonra |
 | --- | --- |
 | "zstd/LZ4/Brotli'yi üç kat geçiyoruz" | Doğru ama ilgisiz — onlar doğru rakip değil |
-| "En yüksek oran bizde" | **Yalnızca konum verisinde ve çerçevesiz modda.** Yedi veri setinin ikisinde lider, üçünde %2–7 geride, ikisinde %25–46 geride |
+| "En yüksek oran bizde" | **Çerçevesiz modda, yedi veri setinin beşinde.** İkisinde (IMU, titreşim) %2–7 geride. Çerçeveleme açıkken liderlik kayboluyor |
 | "Hem oran hem hız lideri" | Skaler uygulamalar arasında evet; SIMD'li kütüphanelerle test edilmedi. Hız iddiası **kurulmadı** |
 | "Kanal ayrımı ayırt edici özelliğimiz" | Değil — ailenin tamamı buna muhtaç |
-| "Her tür telemetride çalışır" | **Hayır.** Neredeyse sabit ayrık kanallarda biçimin 64x'lik sert tavanı var; Sprintz o tavanın üstüne çıkıyor |
+| "Her tür telemetride çalışır" | Sürüm 2'de neredeyse sabit kanallarda 64x'lik sert tavan vardı; **sürüm 3'te kaldırıldı** (§3). Kalan zayıf nokta gürültülü çok kanallı veri (IMU, titreşim) |
 | Ayırt edici özellik | **Paket kaybı dayanıklılığı** — ailede başka kimsede yok. Oran değil, bu |
 
 ## 7. Sınırlar
@@ -300,13 +321,14 @@ oran **2.82x** — README'nin öne çıkardığı 4.95x'in **%57'si**.
    dördüncüsü — **patlamalı paket kaybı altında kurtarma oranı** — eksik. Gilbert-Elliott
    kanal modeliyle eklendiğinde çerçeve boyutu için gerçek bir optimum tanımlanabilir.
    Tezin merkezî katkı adayı budur.
-3. **Blok-üstü sıfır koşusu (biçim sürüm 3).** RCIN bulgusu biçimin 64x'lik sert
-   tavanını gösterdi. Sıfır blokların koşu uzunluğuyla kodlanması bu tavanı kaldırır;
-   bağımsız çerçeve garantisiyle etkileşimi ölçülmelidir. **Somut ve ölçülebilir bir
-   sonraki adım budur.**
-4. **Farklı platform ve uçuş.** Mevcut altı fikstür aynı sabit kanat uçuşundan geliyor;
+3. ~~Blok-üstü sıfır koşusu~~ — **yapıldı** (biçim sürümü 3, §3). RCIN 40,09x → 92,26x.
+4. **IMU ve titreşim neden geride?** Kalan iki açık burada. Her ikisi de gürültülü çok
+   kanallı veri; Simple8b'nin 64 bitlik kelime paketlemesi bu profilde ElBâri'nin
+   8'erli blok yapısından iyi çalışıyor. Blok boyutunun kanal başına uyarlanması
+   incelenmeye değer.
+5. **Farklı platform ve uçuş.** Mevcut altı fikstür aynı sabit kanat uçuşundan geliyor;
    çoklu rotor logu tabloyu belirgin biçimde değiştirebilir.
-5. **Gömülü ARM üzerinde** aynı tabloyu üret.
+6. **Gömülü ARM üzerinde** aynı tabloyu üret.
 
 ---
 

@@ -28,7 +28,11 @@
 
 #define ELBARI_SIHIR_0   (0xEBu)
 #define ELBARI_SIHIR_1   (0x71u)
-#define ELBARI_SURUM     (2u)
+/* Bicim surumu 3: blok-ustu sifir kosusu eklendi (bkz. elbari.c).
+ * Surum 3 cozucusu surum 2 akislarini AYNEN cozer, ama tersi gecerli
+ * degildir - bu yuzden surum bayti yukseltilir ve eski cozucu yeni
+ * cerceveyi sessizce yanlis cozmek yerine REDDEDER. */
+#define ELBARI_SURUM     (3u)
 
 /* ---------------------------------------------------------------------
  * CRC-32 (IEEE 802.3)

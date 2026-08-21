@@ -1,15 +1,15 @@
 # Paket Kaybı Altında Kurtarma — Çerçeve Boyutu Süpürmesi
 
 > Ölçüm kodu: [`c/test/kayip.c`](../c/test/kayip.c) ·
-> Çalıştırma: `kayip <fikstür.bin> [mtu]`
+> Çalıştırma: `kayip <fikstür.bin> [mtu]` ·
+> Sayılar **biçim sürümü 3** iledir.
 
 ## 1. Neden bu ölçüm
 
 ElBâri'nin ailesindeki (Simple8b, OptPFD, Sprintz, BP128) **hiçbir üyede paket kaybı
-dayanıklılığı yoktur**. Oran yarışında ElBâri konum verisinde önde, sürekli telemetride
-%2-7 geride, tekrarlı kanallarda belirgin geride
-([kıyas raporu](KIYAS_TAMSAYI_KODEKLER.md)). Yani projenin savunulabilir katkısı oran
-değil, **kayıplı linkte çalışabilmek**.
+dayanıklılığı yoktur**. Oran yarışında ElBâri yedi veri setinin beşinde önde, ikisinde
+(IMU, titreşim) %2-7 geride ([kıyas raporu](KIYAS_TAMSAYI_KODEKLER.md)) — yani fark
+ölçülü. Projenin asıl ayırt edici katkısı oran değil, **kayıplı linkte çalışabilmek**.
 
 Ama o katkı bugüne kadar **tek bir işletim noktasında** ölçülmüştü: 100 kayıt/çerçeve.
 Elde bir nokta vardı, eğri yoktu — dolayısıyla "çerçeve boyutu kaç olmalı?" sorusunun
@@ -61,11 +61,11 @@ Delta kodlamayı çerçevelemeden kullanmak, kayıplı linkte **çalışmaz**:
 
 | Veri | Boyut | Oran | Paket | %1 kayıpta hayatta kalma |
 | --- | ---: | ---: | ---: | ---: |
-| Yönelim (ATT) | 55.795 B | 14,70x | 224 | **%10,5** |
-| GPS | 59.695 B | 4,95x | 239 | **%9,1** |
+| Yönelim (ATT) | 52.661 B | 15,57x | 211 | **%12,0** |
+| GPS | 58.525 B | 5,05x | 235 | **%9,5** |
 
 Tek bir paket düşerse akışın tamamı çözülemez. **%1 kayıpta akışın onda dokuzu
-tamamen gider.** Nominal 14,70x'lik oran, etkin olarak **1,5x**'e iner.
+tamamen gider.** Nominal 15,57x'lik oran, etkin olarak **1,9x**'e iner.
 
 Tablodaki bütün çerçeveli değerler bunun üstünde. Karşılaştırma buradan başlamalı.
 
@@ -79,10 +79,10 @@ Bağımsız kayıp (patlama uzunluğu 1):
 | 10 | 368.763 | 2,22x | 1,00 | 2,20x | 2,12x | 2,00x | 1,67x |
 | 25 | 175.014 | 4,69x | 1,00 | 4,64x | 4,45x | 4,21x | 3,53x |
 | 50 | 110.089 | 7,45x | 1,00 | 7,38x | 7,08x | 6,72x | 5,59x |
-| 100 | 77.869 | 10,53x | 1,02 | 10,42x | 9,94x | 9,51x | 7,86x |
-| 200 | 61.902 | 13,25x | 1,28 | 13,10x | 12,43x | 11,54x | **9,05x** |
-| 500 | 53.181 | 15,42x | 1,95 | 15,11x | **14,14x** | **12,65x** | 8,65x |
-| 1000 | 49.325 | 16,63x | 3,33 | **16,09x** | 14,03x | 11,48x | 6,06x |
+| 100 | 76.332 | 10,75x | 1,02 | 10,63x | 10,14x | 9,70x | 8,02x |
+| 200 | 59.575 | 13,77x | 1,28 | 13,61x | 12,91x | 11,99x | **9,41x** |
+| 500 | 50.355 | 16,29x | 1,87 | 15,96x | **14,98x** | **13,51x** | 9,56x |
+| 1000 | 46.343 | 17,70x | 3,14 | **17,21x** | 15,10x | 12,56x | 7,30x |
 
 *Sayılar etkin orandır. Kalın = o kayıp oranındaki optimum.*
 
@@ -94,9 +94,9 @@ Sezgiye aykırı ama ölçülmüş sonuç. Yönelim verisi, %25 kayıp:
 
 | kayıt/çerçeve | patlama 1 | patlama 3 | patlama 10 |
 | ---: | ---: | ---: | ---: |
-| 200 | 9,05x | 9,77x | **10,09x** |
-| 500 | 8,65x | 10,21x | **11,40x** |
-| 1000 | 6,06x | 9,75x | **10,62x** |
+| 200 | 9,41x | 10,00x | **10,07x** |
+| 500 | 9,56x | 11,22x | **12,31x** |
+| 1000 | 7,30x | 10,22x | **12,71x** |
 
 Sebep: **patlamalar kayıpları yoğunlaştırır.** Aynı toplam kayıp oranı bağımsız
 dağıldığında daha çok sayıda *ayrı* çerçeveye dokunur; patlamalı dağıldığında birkaç
@@ -142,7 +142,7 @@ verisi o kadar iyi sıkışır ki 1000 kayıt hâlâ 3,3 pakete sığar; GPS'te 
 
 ## 8. Düşük kayıpta eğri düzleşiyor
 
-%1 kayıpta ATT için 500 → 15,11x, 1000 → 16,09x; GPS için 500 → 4,54x, 1000 → 4,61x.
+%1 kayıpta ATT için 500 → 15,96x, 1000 → 17,21x; GPS için 500 → 4,54x, 1000 → 4,61x.
 Yani düşük kayıpta çerçeve boyutu seçimi **neredeyse fark etmiyor** ve sınırlayan şey
 kayıp değil, gecikme bütçesi ile MTU oluyor.
 

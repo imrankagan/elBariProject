@@ -59,7 +59,7 @@ testverisi/      gerçek GPS verisi + dondurulmuş uygunluk vektörleri
 | [c/mavlink/](c/mavlink/) | **İki kademeli MAVLink vekili** — canlı telemetride sıkıştırma ([BENIOKU](c/mavlink/BENIOKU.md)) |
 | [c/veri/](c/veri/) | **ArduPilot DataFlash log okuyucusu** — gerçek uçuş logundan ölçüm fikstürü üretir ([BENIOKU](c/veri/BENIOKU.md)) |
 | [belgeler/](belgeler/) | [Biçim spesifikasyonu](belgeler/BICIM_SPESIFIKASYONU.md) (ICD), [ölçüm sonuçları](belgeler/OLCUM_SONUCLARI.md), [tamsayı kodek kıyası](belgeler/KIYAS_TAMSAYI_KODEKLER.md), [MAVLink vekili ölçümü](belgeler/MAVLINK_VEKIL.md), [kayıp dayanıklılığı süpürmesi](belgeler/KAYIP_DAYANIKLILIK.md), [MISRA uyum matrisi](belgeler/MISRA_UYUM.md), [akış şemaları](belgeler/AKIS_SEMASI.md) |
-| [testverisi/](testverisi/) | `gercek_gps.bin` (24.642 gerçek kayıt), `vektorler.txt` (28 uygunluk vektörü) |
+| [testverisi/](testverisi/) | `gercek_gps.bin` (24.642 gerçek kayıt), `vektorler.txt` (29 uygunluk vektörü) |
 
 ## 🧱 Mimari — Üç Katman
 
@@ -95,7 +95,7 @@ zıplar (`lat → lon` farkı milyonlarca birim olur), aykırı oranı %100'e ç
 kanal kendi içinde düzgün delta üretir.
 
 > Ölçülmüş etki (gerçek GPS verisi): kanal ayrımı **olmadan REDDEDİLİYOR** → kanal
-> ayrımı **ile 4.95x**. Yani birincil hedef veri tipi ancak bu katmanla çalışıyor.
+> ayrımı **ile 5.05x**. Yani birincil hedef veri tipi ancak bu katmanla çalışıyor.
 >
 > Bu ElBâri'ye özgü bir zayıflık değil: kanal ayrımı olmadan **tamsayı kodek ailesinin
 > tamamı** çöküyor (BP128 1.00x, Sprintz 0.97x, Simple8b 0.50x — veriyi ikiye katlıyor).
@@ -103,8 +103,8 @@ kanal kendi içinde düzgün delta üretir.
 
 ## ✨ Özellikler
 
-- **Kayıpsız Sıkıştırma** — 28 dondurulmuş uygunluk vektörü, 32 senaryoluk .NET takımı ve
-  CI'da her push'ta 300.000 turluk fuzz ile doğrulanır
+- **Kayıpsız Sıkıştırma** — 29 dondurulmuş uygunluk vektörü, 32 senaryoluk .NET takımı ve
+  CI'da her push'ta 300.000 turluk çözücü fuzz'ı + 300.000 turluk kodlayıcı değer fuzz'ı
 - **Zero-Allocation** — `Span<T>` tabanlı; çalışma alanı çağıran tarafından verilir
   (ölçüldü: 100 encode+decode turunda **0 bayt** heap tahsisatı)
 - **Çok Mimarili SIMD**:
@@ -112,8 +112,10 @@ kanal kendi içinde düzgün delta üretir.
   - 🧩 **ARM**: NEON (4×32-bit paralel) — kod mevcut, gerçek ARM donanımında henüz
     benchmark edilmedi
   - ✅ **Eski işlemciler**: Scalar fallback (her zaman çalışır)
-- **Adaptif Bit-Width** — blok başına 8 mod (0/2/3/4/5/8/10/16 bit, biçim sürümü 2),
-  aykırı değerler için 32 bit
+- **Adaptif Bit-Width** — blok başına 8 mod (0/2/3/4/5/8/10/16 bit), aykırı değerler
+  için 32 bit
+- **Blok-Üstü Sıfır Koşusu** *(biçim sürümü 3)* — ardışık sıfır blokları tek kaçışla
+  kodlanır; neredeyse sabit kanallarda oranı kat kat artırır (RCIN 40x → **92x**)
 - **Kanal Başına Adaptif Fark Derecesi** — düzgün kanallar (sabit hızlı GPS) ikinci
   derece farkı, gürültülü kanallar birinci dereceyi seçer
 - **Paket Kaybı Dayanıklılığı** — bağımsız çerçeveler + CRC32
@@ -136,7 +138,7 @@ kanal kendi içinde düzgün delta üretir.
 
 | İşlem | Verim | Hız | Oran |
 | --- | --- | --- | --- |
-| encode | ~96M kayıt/sn | **863 MB/sn** | 4.95x |
+| encode | ~96M kayıt/sn | **863 MB/sn** | 5.05x |
 | decode | ~127M kayıt/sn | **846 MB/sn** | — |
 
 ### Çerçeve Katmanı (100 kayıt/çerçeve, paket kaybına dayanıklı)
@@ -146,11 +148,11 @@ kanal kendi içinde düzgün delta üretir.
 | encode | ~22M kayıt/sn | 224 MB/sn | 4.5 µs |
 | decode | ~53M kayıt/sn | 245 MB/sn | 1.9 µs (CRC dahil) |
 
-Çerçeveleme, dayanıklılık karşılığında oranı (4.95x → 4.30x) ve encode hızını düşürür
+Çerçeveleme, dayanıklılık karşılığında oranı (5.05x → 4.33x) ve encode hızını düşürür
 (küçük bloklar + kanal başına heuristik + CRC). Buna karşılık kayıplı linkte
 çalışabilirlik kazanılır.
 
-> ⚠️ **Ama bu 4.30x rakamı gerçekçi bir çalışma noktası değil.** 100 kayıt/çerçeve,
+> ⚠️ **Ama bu 4.33x rakamı gerçekçi bir çalışma noktası değil.** 100 kayıt/çerçeve,
 > 10 Hz telemetride **10 saniyelik tamponlama** demektir ve en büyük çerçeve **572 bayt**
 > — tipik SiK radyo yükünün iki katından fazla. Hem tek pakete sığan hem gecikmesi kabul
 > edilebilir nokta **25 kayıt/çerçeve** ve orada oran **2.82x**. Yani çerçevelemenin
@@ -209,11 +211,11 @@ Detayları*). O halde asıl rakip zstd değil, **aynı ailenin diğer üyeleridi
 
 | Kodek | Kaynak | Bayt | Oran | bit/değer | encode | decode |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| **ElBâri (kanal)** | bu çalışma | **59.695** | **4.95x** | **6.46** | 1.200 MB/sn | 1.380 MB/sn |
+| **ElBâri (kanal)** | bu çalışma | **58.525** | **5.05x** | **6.34** | 1.176 MB/sn | 1.673 MB/sn |
 | Sprintz-Delta | Blalock ve ark. 2018 | 63.321 | 4.67x | 6.85 | 463 MB/sn | 1.045 MB/sn |
 | Simple8b | Anh & Moffat 2010 | 63.885 | 4.63x | 6.91 | 364 MB/sn | 1.824 MB/sn |
 | OptPFD (PFOR+yama) | Zukowski 2006 / Yan 2009 | 64.807 | 4.56x | 7.01 | 260 MB/sn | 1.103 MB/sn |
-| ElBâri (çerçeve, 100) | bu çalışma | 68.844 | 4.30x | 7.45 | 538 MB/sn | 851 MB/sn |
+| ElBâri (çerçeve, 100) | bu çalışma | 68.282 | 4.33x | 7.45 | 538 MB/sn | 851 MB/sn |
 | BP128 | Lemire & Boytsov 2015 | 81.130 | 3.64x | 8.78 | 556 MB/sn | 1.078 MB/sn |
 | VByte (LEB128) | varint temel çizgisi | 93.540 | 3.16x | 10.12 | 2.599 MB/sn | 1.612 MB/sn |
 | StreamVByte | Lemire & Kurz 2017 | 104.855 | 2.82x | 11.35 | 1.803 MB/sn | 1.671 MB/sn |
@@ -236,32 +238,35 @@ uçuş logundan üretilen altı fikstürle tekrarlandı:
 
 | Veri seti | K | **ElBâri** | Ailenin en iyisi | Fark |
 | --- | ---: | ---: | --- | ---: |
-| GPS (OSM referans) | 3 | **4.95x** | Sprintz 4.67x | **+%6,0** |
+| GPS (OSM referans) | 3 | **5.05x** | Sprintz 4.67x | **+%8,1** |
 | GPS (ALFA uçuş) | 3 | **5.60x** | Simple8b 5.43x | **+%3,1** |
 | Titreşim | 3 | 5.38x | Simple8b 5.51x | −%2,4 |
-| Yönelim | 3 | 14.70x | Sprintz 15.55x | −%5,5 |
+| Yönelim | 3 | **15.57x** | Sprintz 15.55x | **+%0,1** |
 | IMU | 6 | 6.88x | Simple8b 7.43x | −%7,4 |
-| Servo (RCOU) | 8 | 25.64x | Sprintz 34.18x | −%25,0 |
-| Kumanda (RCIN) | 8 | 40.09x | Sprintz 74.39x | **−%46,1** |
+| Servo (RCOU) | 8 | **37.50x** | Sprintz 34.18x | **+%9,7** |
+| Kumanda (RCIN) | 8 | **92.26x** | Sprintz 74.39x | **+%24,0** |
 
-**Konum verisinde lider, sürekli telemetride rekabetçi, tekrarlı PWM kanallarında açık
-farkla geride.** Son satır bir ayar meselesi değil: ElBâri her 8 değere 4 bitlik etiket
-yazar, sıfır blokta bile. Bu, değer başına 0,5 bitlik bir taban ve **64x'lik sert bir
-tavan** demektir. RCIN'de ElBâri 40.09x alıyor, Sprintz **74.39x** — yani ElBâri'nin
-teorik tavanının üstünde. Ayrıntı:
-[belgeler/KIYAS_TAMSAYI_KODEKLER.md §3](belgeler/KIYAS_TAMSAYI_KODEKLER.md).
+**Yedi veri setinin beşinde lider; IMU ve titreşimde %2–7 geride.**
+
+Tekrarlı PWM kanallarındaki eski açık (RCIN 40.09x, Sprintz 74.39x) bir ayar meselesi
+değildi: sürüm 2'de ElBâri her 8 değere 4 bitlik etiket yazıyordu, sıfır blokta bile —
+yani değer başına 0,5 bitlik taban ve **64x'lik sert bir tavan**. **Biçim sürümü 3**
+ardışık sıfır bloklarını tek bir kaçışla kodlayarak bu tavanı kaldırdı; RCIN 40.09x →
+**92.26x** oldu ve encode hızı da 2.197 → 4.037 MB/sn'ye çıktı. Ayrıntı:
+[belgeler/KIYAS_TAMSAYI_KODEKLER.md §3](belgeler/KIYAS_TAMSAYI_KODEKLER.md) ve
+[biçim spesifikasyonu §2.2b](belgeler/BICIM_SPESIFIKASYONU.md).
 
 ### Bu ölçümün üç bulgusu
 
-**1. Katkı gerçek ama küçük ve veri setine bağlı.**
-GPS verisinde ElBâri'nin oran üstünlüğü Sprintz'e karşı **%6,1**, Simple8b'ye karşı
-%7,0, OptPFD'ye karşı %8,6. Genel amaçlı sıkıştırıcılara karşı görülen "üç kat" farkın
+**1. Katkı gerçek ama ölçülü ve veri setine bağlı.**
+GPS verisinde ElBâri'nin oran üstünlüğü Sprintz'e karşı **%8,2**, Simple8b'ye karşı
+%9,2, OptPFD'ye karşı %10,7. Genel amaçlı sıkıştırıcılara karşı görülen "üç kat" farkın
 gerçek ailedeki karşılığı budur. Ama yukarıdaki tabloda görüldüğü gibi bu fark **her
-veri setinde geçerli değil** — yönelim/IMU'da negatife, tekrarlı kanallarda belirgin
-negatife dönüyor. Beklenen sonuç: ElBâri zaten aynı fikirleri kullanıyor.
+veri setinde aynı değil** — yönelimde kıl payı, tekrarlı kanallarda belirgin, IMU ve
+titreşimde ise negatif. Beklenen sonuç: ElBâri zaten aynı fikirleri kullanıyor.
 
 **2. Çerçeveleme açılınca oran liderliği kayboluyor.**
-Paket kaybı dayanıklılığı devredeyken ElBâri **4.30x** ile Sprintz'in (**4.67x**)
+Paket kaybı dayanıklılığı devredeyken ElBâri **4.33x** ile Sprintz'in (**4.67x**)
 %8 altına düşüyor. Yani projenin ayırt edici özelliği, oran üstünlüğünün tamamını
 yiyor. Savunulabilir iddia "en yüksek oran" değil, **"ailede kayıplı linkte
 çalışabilen tek üye"** — tablodaki diğer yedi kodeğin hiçbirinde paket kaybı
@@ -288,8 +293,8 @@ zayıflık değil, problem sınıfının zorunlu ön koşulu.
 
 | Yöntem | Boyut | Oran | Encode | Decode |
 | --- | ---: | ---: | ---: | ---: |
-| **ElBâri — kanal ayrımı** | **59.695 B** | **4.95x** | **863 MB/sn** | **846 MB/sn** |
-| **ElBâri — çerçeveli (100)** | 68.844 B | 4.30x | 224 MB/sn | 245 MB/sn |
+| **ElBâri — kanal ayrımı** | **58.525 B** | **5.05x** | **863 MB/sn** | **846 MB/sn** |
+| **ElBâri — çerçeveli (100)** | 68.282 B | 4.33x | 224 MB/sn | 245 MB/sn |
 | Zstd (seviye 1) | 184.181 B | 1.61x | 210 MB/sn | 313 MB/sn |
 | Zstd (seviye 3) | 175.535 B | 1.68x | 156 MB/sn | 323 MB/sn |
 | Zstd (seviye 9) | 172.483 B | 1.71x | 81 MB/sn | 804 MB/sn |
@@ -315,7 +320,7 @@ zayıflık değil, problem sınıfının zorunlu ön koşulu.
 
 **1. "Sıkıştırıcı yapıştırmak" telemetride yetersiz kalıyor.**
 Yaygın yaklaşım telemetriyi olduğu gibi Zstd/LZ4'e vermektir. Ölçüm bunun zayıf kaldığını
-gösteriyor: Zstd-1 yalnızca **1.61x**, LZ4 **1.29x** veriyor. ElBâri **4.95x** ile bunların
+gösteriyor: Zstd-1 yalnızca **1.61x**, LZ4 **1.29x** veriyor. ElBâri **5.05x** ile bunların
 **üç katından fazla** sıkıştırıyor ve aynı zamanda daha hızlı. Sebep basit — genel
 sıkıştırıcılar veriyi anlamsız bir bayt yığını olarak görür; kanalların iç içe geçmesi
 onların örüntü aramasını köreltir. ElBâri verinin **kayıt yapısını bilir**.
@@ -327,8 +332,9 @@ hem 800+ MB/sn hızı** aynı anda veren tek yöntem ElBâri'dir.
 
 **3. Biçim sürümü 2, bu tablodaki oran liderliğini de aldı.**
 Sürüm 1'de Brotli-q11 kanal-ayrılmış veride **3.88x** ile ElBâri'yi (3.56x) geçiyordu.
-Sürüm 2'deki bit genişliği tablosu genişletmesinden sonra ElBâri **4.95x** ile bu değeri
-de aştı — üstelik Brotli'den **~800 kat hızlı** encode ederek. Bu liderlik **yalnızca
+Sürüm 2'deki bit genişliği tablosu genişletmesi bu değeri aştı; sürüm 3'teki sıfır
+koşusuyla birlikte ElBâri **5.05x**'te — üstelik Brotli'den **~800 kat hızlı** encode
+ederek. Bu liderlik **yalnızca
 genel amaçlı sıkıştırıcılar arasında** geçerlidir; doğru aile için Karşılaştırma 1.
 
 Yani **bu tablodaki genel amaçlı sıkıştırıcılar arasında** ElBâri hem en yüksek orana
@@ -664,7 +670,7 @@ Araç taraması **süs değil, iş gördü** — altı gerçek bulgu düzeltildi
 | 2.5 / 8.9 | Kullanılmayan makrolar, gereksiz dosya kapsamı | Temizlendi |
 
 Bunların **hiçbiri bit akışını değiştirmedi**: her adımda uygunluk vektörleri ve .NET ile
-59.695 baytlık birebir karşılaştırma tekrar çalıştırılarak doğrulandı.
+58.525 baytlık birebir karşılaştırma tekrar çalıştırılarak doğrulandı.
 
 > 12.2 düzeltmesi öğreticidir: "araç anlamıyor, biz biliyoruz" demek yerine kaydırma
 > işlemini koddan çıkardık. Sonuç hem araç için hem insan için ispatlanabilir oldu,
@@ -998,7 +1004,7 @@ ve doğrulama sırası.
 
 ### Dondurulmuş uygunluk vektörleri
 
-[`testverisi/vektorler.txt`](testverisi/vektorler.txt) — 28 referans vektör. Bit genişliği
+[`testverisi/vektorler.txt`](testverisi/vektorler.txt) — 29 referans vektör. Bit genişliği
 tablosunu, aykırı değerleri, kısmi blokları, ikinci derece farkı, ham geçişi, çerçeve
 başlığını, float kuantalamasını ve XOR katmanını kapsar.
 
@@ -1010,7 +1016,7 @@ Bir implementasyon uyumlu sayılır **ancak ve ancak**:
 | Implementasyon | Uygunluk |
 | --- | --- |
 | C# (.NET 10) | ✅ Referans — vektörler bundan üretildi |
-| C (C99/C17) | ✅ **28 vektör, 56 kontrol, 0 hata** |
+| C (C99/C17) | ✅ **29 vektör, 58 kontrol, 0 hata** |
 
 ```bash
 c\derle.bat
@@ -1055,8 +1061,8 @@ Success Rate: 100.0%
 | Senaryo | Sonuç |
 | --- | --- |
 | GERÇEK GPS — kanal ayrımsız | ⊘ REDDEDİLDİ (beklenen) |
-| GERÇEK GPS — kanal ayrımı | **4.95x** |
-| GERÇEK GPS — çerçeveli (100) | **4.30x** (CRC dahil) |
+| GERÇEK GPS — kanal ayrımı | **5.05x** |
+| GERÇEK GPS — çerçeveli (100) | **4.33x** (CRC dahil) |
 | GERÇEK GPS — çerçeveli (500) | **4.83x** |
 | İHA 6 kanal — kanal ayrımsız | ⊘ REDDEDİLDİ (beklenen) |
 | İHA 6 kanal — kanal ayrımı | **7.09x** |
@@ -1169,9 +1175,9 @@ onu **bağımlılıksız, tahsisatsız, AOT-hazır ve kayıplı-link-dayanıklı
 telemetri kodeki olarak paketlemesidir.
 
 **Bu katkı ölçüldü.** Aynı ailenin üyeleriyle (Simple8b, BP128, OptPFD, Sprintz-Delta)
-yedi veri setinde yan yana koyulduğunda ElBâri konum verisinde **+%3…+%6 önde**,
-yönelim/IMU/titreşimde **%2-7 geride**, tekrarlı PWM kanallarında **%25-46 geride**
-kalıyor; çerçeveleme açıkken oran liderliği Sprintz'e geçer. Ayrıntı ve dürüst sınırlar:
+yedi veri setinde yan yana koyulduğunda ElBâri **beş sette önde** (konum +%3…+%8,
+yönelim +%0,1, tekrarlı PWM +%10…+%24), **iki sette geride** (IMU ve titreşim, %2-7);
+çerçeveleme açıkken oran liderliği Sprintz'e geçer. Ayrıntı ve dürüst sınırlar:
 **[belgeler/KIYAS_TAMSAYI_KODEKLER.md](belgeler/KIYAS_TAMSAYI_KODEKLER.md)**.
 
 ## ⚠️ Patent ve IP Notu

@@ -44,6 +44,29 @@ namespace ElBâri
     {
         public const int BLOK_BOYUTU = 8;
 
+        // -----------------------------------------------------------------
+        // BLOK-ÜSTÜ SIFIR KOŞUSU  (biçim sürümü 3)
+        // -----------------------------------------------------------------
+        // Sıfır blok (mod 0) veri biti yazmaz ama ETİKETİNİ yine yazar. Bu,
+        // biçime değer başına 0,5 bitlik bir taban ve 32 bitlik değerler için
+        // 64x'lik sert bir TAVAN koyar — veri ne kadar sabit olursa olsun.
+        //
+        // Ölçüldü: gerçek bir kumanda girişi (RCIN) kanalında blokların
+        // %94,5'i sıfır blok ve bunların %93'ü uzun koşular hâlinde.
+        //
+        // KAÇIŞ KODU: etiket "mod 0 + aykırı_var 1" ardından 8 bitlik aykırı
+        // maskesi 0x00, sürüm 2 kodlayıcısında ULAŞILAMAZ bir birleşimdir
+        // (aykırı_var ancak maske sıfır DEĞİLKEN kurulur). Bu yüzden sürüm 2
+        // akışları sürüm 3 çözücüsünde aynen çalışır.
+        //
+        // MALİYET: kaçış 4 + 8 + 16 = 28 bit; düz kodlama koşu başına 4 bit.
+        //          Başabaş nokta 7 bloktur, bu yüzden eşik 8'dir.
+        //
+        // C sürümüyle BİREBİR aynı kural: c/src/elbari.c
+        private const int SIFIR_KOSU_ESIGI = 8;
+        private const int SIFIR_KOSU_MAKS = 65535;
+        private const int SIFIR_KOSU_BITI = 16;
+
         // Sihirli Sayı Sabitleri (Okunabilirlik ve Bakım İçin)
         private const int AYKIRI_ESIK = 32767;
         private const int MAKS_BIT_GENISLIGI = 16;
@@ -322,6 +345,20 @@ namespace ElBâri
             Unsafe.Add(ref ciktiRef, ciktiIndeksi + 7) = deger7;
         }
 
+        /// <summary>
+        /// hamVeri[i .. i+7] aralığındaki TÜM farklar sıfır mı?
+        /// Çağıran, i+7'nin sınırlar içinde olduğunu garanti etmelidir.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool SifirBlokMu(scoped ReadOnlySpan<int> hamVeri, int i)
+        {
+            for (int j = 0; j < BLOK_BOYUTU; j++)
+            {
+                if (hamVeri[i + j] != hamVeri[i + j - 1]) { return false; }
+            }
+            return true;
+        }
+
         // =================================================================
         // ELKÂBID (KODLAYICI) – %100 YİĞİNSİZ & AYKIRI HARİTALI
         // PERFORMANS: Agresif Satıriçi + Sıcak Yol Optimizasyonu
@@ -364,6 +401,45 @@ namespace ElBâri
             {
                 int kalan = hamVeri.Length - veriIndeksi;
                 int blokBoyu = kalan < BLOK_BOYUTU ? kalan : BLOK_BOYUTU;
+
+                // 0) BLOK-ÜSTÜ SIFIR KOŞUSU (biçim sürümü 3).
+                //    İleriye bakılır; yeterince uzun bir tam-sıfır blok dizisi
+                //    varsa hepsi TEK bir kaçışla yazılır. Kısa koşularda kaçış
+                //    zarar edeceğinden eşik altında düz kodlama sürer.
+                if (blokBoyu == BLOK_BOYUTU)
+                {
+                    int kosu = 0;
+                    int ileri = veriIndeksi;
+
+                    while (hamVeri.Length - ileri >= BLOK_BOYUTU &&
+                           kosu < SIFIR_KOSU_MAKS &&
+                           SifirBlokMu(hamVeri, ileri))
+                    {
+                        kosu++;
+                        ileri += BLOK_BOYUTU;
+                    }
+
+                    if (kosu >= SIFIR_KOSU_ESIGI)
+                    {
+                        // Etiket: mod 0, aykırı_var 1 -> ham değer 1
+                        bitTamponu |= 1L << bitSayisi;
+                        bitSayisi += 4;
+                        BitTamponuBosalt(ref bitTamponu, ref bitSayisi, cikti, ref baytIndeksi);
+
+                        // Aykırı maskesi 0x00: kaçış işareti. Tamponun bu
+                        // bitleri zaten sıfırdır, yalnızca sayaç ilerletilir.
+                        bitSayisi += 8;
+                        BitTamponuBosalt(ref bitTamponu, ref bitSayisi, cikti, ref baytIndeksi);
+
+                        // Koşu uzunluğu (16 bit)
+                        bitTamponu |= (long)(uint)kosu << bitSayisi;
+                        bitSayisi += SIFIR_KOSU_BITI;
+                        BitTamponuBosalt(ref bitTamponu, ref bitSayisi, cikti, ref baytIndeksi);
+
+                        veriIndeksi = ileri;
+                        continue;
+                    }
+                }
 
                 int maksMutlak = 0;
                 byte aykiriMaske = 0;
@@ -616,6 +692,32 @@ namespace ElBâri
                     aykiriMaske = (int)(bitTamponu & BAYT_MASKESI);
                     bitTamponu >>= 8;
                     bitSayisi -= 8;
+
+                    // BLOK-ÜSTÜ SIFIR KOŞUSU (biçim sürümü 3).
+                    // Maske 0x00, sürüm 2 kodlayıcısının ÜRETEMEYECEĞİ bir
+                    // değerdir; kaçış işareti olarak kullanılır. Sürüm 2
+                    // akışları bu daldan hiç geçmez ve aynen çözülür.
+                    if (mod == 0 && aykiriMaske == 0)
+                    {
+                        BitTamponuYukle(ref bitTamponu, ref bitSayisi, girdi, ref baytIndeksi, SIFIR_KOSU_BITI);
+                        int kosu = (int)(bitTamponu & 0xFFFF);
+                        bitTamponu >>= SIFIR_KOSU_BITI;
+                        bitSayisi -= SIFIR_KOSU_BITI;
+
+                        // Kodlayıcı sıfır uzunlukta koşu yazmaz.
+                        if (kosu <= 0) { return; }
+
+                        for (int r = 0; r < kosu; r++)
+                        {
+                            for (int j = 0; j < BLOK_BOYUTU; j++)
+                            {
+                                if (ciktiIndeksi >= cikti.Length) { return; }
+                                cikti[ciktiIndeksi] = cikti[ciktiIndeksi - 1];
+                                ciktiIndeksi++;
+                            }
+                        }
+                        continue;
+                    }
                 }
 
                 for (int j = 0; j < blokBoyu; j++)

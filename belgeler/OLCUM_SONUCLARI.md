@@ -32,7 +32,7 @@
 
 | Veri seti | Çekirdek | Kanal | Çerçeve (100) |
 | --- | ---: | ---: | ---: |
-| **Gerçek GPS** | ⊘ RED | **4.95x** | 4.30x |
+| **Gerçek GPS** | ⊘ RED | **5.05x** | 4.33x |
 | **İHA telemetri** | ⊘ RED | **7.13x** | 5.82x |
 | **Float kuantalanmış** | 1.94x | **10.51x** | 7.94x |
 | Sıralı sayaç | 12.80x | 63.73x | 10.26x |
@@ -45,7 +45,7 @@
 - **Çok kanallı veride çekirdek katmanı tek başına REDDEDİYOR.** Kanallar iç içe
   olduğu için ardışık farklar zıplıyor ve veri "sıkıştırılamaz" görünüyor. Kanal
   katmanı bu yüzden zorunlu, süs değil.
-- **Çerçeveleme oranı düşürüyor** (4.95x → 4.30x, yaklaşık %13). Bu, paket kaybı
+- **Çerçeveleme oranı düşürüyor** (5.05x → 4.33x, yaklaşık %14). Bu, paket kaybı
   dayanıklılığının bedeli. Kayıpsız bir taşıma varsa çerçeve katmanı kullanılmamalı.
 - **Rastgele veride 1.94x** — sıkıştırılamayan veride bile bit paketleme sayesinde
   bir miktar kazanç var, ve veri **kaybolmuyor** (ham geçiş).
@@ -177,8 +177,8 @@ Aynı makine, aynı gerçek GPS verisi, aynı tur sayısı.
 
 | Yöntem | Boyut | Oran | Encode | Decode |
 | --- | ---: | ---: | ---: | ---: |
-| **ElBâri — kanal ayrımı** | **59.695 B** | **4.95x** | **863 MB/sn** | 846 MB/sn |
-| **ElBâri — çerçeveli** | 68.844 B | 4.30x | 224 MB/sn | 245 MB/sn |
+| **ElBâri — kanal ayrımı** | **58.525 B** | **5.05x** | **863 MB/sn** | 846 MB/sn |
+| **ElBâri — çerçeveli** | 68.282 B | 4.33x | 224 MB/sn | 245 MB/sn |
 | Zstd (seviye 1) | 184.181 B | 1.61x | 214 MB/sn | 303 MB/sn |
 | Zstd (seviye 19) | 97.481 B | 3.03x | 8 MB/sn | 481 MB/sn |
 | LZ4 (hızlı) | 228.684 B | 1.29x | 909 MB/sn | 3.110 MB/sn |
@@ -242,7 +242,7 @@ Skeptik bir müşteri haklı olarak şunu sorar:
 
 | Sınır | Oran | Bize göre |
 | --- | ---: | --- |
-| **Bizim çıktımız** | **4.95x** | — |
+| **Bizim çıktımız** | **5.05x** | — |
 | Bit paketleme tabanı (etiket bedava) | 5.56x | %11 küçük |
 | Shannon entropisi (model bedava) | 6.30x | %21 küçük |
 | **Entropi + frekans tablosu** | **4.54x** | **%8 BÜYÜK** |
@@ -269,7 +269,7 @@ Entropi kodlaması ile paket kaybı dayanıklılığı temelde uyuşmaz.
 
 | Kontrol | Sonuç |
 | --- | --- |
-| C ↔ .NET ikili uyumluluk | ✅ 59.695 bayt birebir aynı |
+| C ↔ .NET ikili uyumluluk | ✅ 58.525 bayt birebir aynı |
 | Uygunluk vektörleri | ✅ 27 vektör, 54 kontrol, 0 hata |
 | C# test paketi | ✅ 32 senaryo, 0 hata |
 | Fuzz (düşmanca girdi) | ✅ 0 tampon taşması, bozuk çerçeve reddi %100 |

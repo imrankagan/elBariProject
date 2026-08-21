@@ -1,8 +1,14 @@
 # ElBâri Biçim Spesifikasyonu
 
 **Belge türü:** Arayüz Kontrol Dokümanı (ICD)
-**Biçim sürümü:** 2
+**Biçim sürümü:** 3
 **Durum:** Dondurulmuş — bu sürümde geriye dönük uyumsuz değişiklik yapılmaz
+
+> **Sürüm 3'te ne değişti:** Çekirdek katmanına **blok-üstü sıfır koşusu** eklendi
+> (§2.2b). Sürüm 3 çözücüsü **bütün sürüm 2 akışlarını aynen çözer**; tersi geçerli
+> değildir, bu yüzden çerçeve başlığındaki sürüm baytı `2` → `3` yükseltilmiştir
+> (§4.1). Sürüm 2'nin ürettiği bit akışları bit bit değişmeden geçerlidir — kaçış
+> kodu sürüm 2'de **ulaşılamaz** bir birleşim üzerine kuruludur.
 
 ---
 
@@ -77,6 +83,58 @@ Her blok için bit akışına sırasıyla şunlar yazılır:
 
 **Aykırı maskesi:** Blok içindeki 8 pozisyon için birer bit. Bit *j* set ise, *j*.
 fark aykırıdır ve adım 3'te atlanıp adım 4'te 32 bit olarak yazılır.
+
+> **Ulaşılamaz birleşim.** `aykırı_var = 1` iken aykırı maskesi **asla 0x00 olamaz**:
+> kodlayıcı `aykırı_var` bitini ancak maske sıfır değilken kurar. Sürüm 3 bu boşluğu
+> kaçış kodu olarak kullanır (§2.2b).
+
+### 2.2b Blok-üstü sıfır koşusu *(sürüm 3)*
+
+**Sorun.** Sıfır blok (`mod = 0`, aykırı yok) veri biti yazmaz ama **etiketini yine
+yazar**. Bu, biçime değer başına 0,5 bitlik bir taban maliyeti ve 32 bitlik değerler
+için **64x'lik sert bir tavan** koyar — veri ne kadar sabit olursa olsun.
+
+Ölçüldü: gerçek bir ArduPilot kumanda girişi (RCIN) kanalında blokların **%94,5'i**
+sıfır blok ve bunların %93'ü uzun koşular hâlinde. Yani çıktının üçte ikisi
+etiketten ibaretti.
+
+**Çözüm.** Ardışık **tam** sıfır blokları tek bir kaçışla kodlanır:
+
+| Sıra | Alan | Bit | Değer |
+| --- | --- | ---: | --- |
+| 1 | etiket | 4 | `0x1` — yani `mod = 0`, `aykırı_var = 1` |
+| 2 | aykırı maskesi | 8 | `0x00` — **kaçış işareti** |
+| 3 | koşu uzunluğu | 16 | koşudaki tam sıfır blok sayısı `R`, `1 ≤ R ≤ 65535` |
+
+Çözücü bu kaçışı gördüğünde `R × 8` adet değeri, bir öncekiyle aynı olacak şekilde
+üretir (tüm farklar sıfırdır) ve bir sonraki bloğa geçer.
+
+**Neden bu birleşim.** Yukarıda belirtildiği gibi `aykırı_var = 1` + maske `0x00`
+sürüm 2 kodlayıcısının **üretemeyeceği** bir birleşimdir. Bu sayede:
+
+- yeni bir `mod` değeri harcanmaz (dördü de dolu),
+- **sürüm 2 akışları sürüm 3 çözücüsünde aynen çalışır** — çünkü sürüm 2 bu daldan
+  hiç geçmez.
+
+**Kullanım kuralı (kodlayıcı).** Kaçış 4 + 8 + 16 = **28 bit**, düz kodlama koşu
+başına 4 bit tutar. Başabaş nokta 7 bloktur; bu yüzden kodlayıcı kaçışı yalnızca
+**R ≥ 8** iken kullanır. Daha kısa koşular düz kodlanır. Bu eşik biçimin parçasıdır:
+uyumlu bir kodlayıcı aynı eşiği kullanmalıdır, aksi hâlde bit bit aynı çıktı üretmez.
+
+**Kısıtlar.**
+
+- Koşuya yalnızca **tam** bloklar (8 eleman) girer; kısa son blok koşuya dâhil edilmez.
+- `R = 0` geçersizdir; çözücü bunu bozuk girdi olarak reddeder.
+- `R` 16 bite sığmazsa koşu birden çok kaçışa bölünür.
+
+**Ölçülen etki** (gerçek ArduPilot uçuş logu, kanal katmanı):
+
+| Veri | Sürüm 2 | **Sürüm 3** |
+| --- | ---: | ---: |
+| Kumanda girişi (RCIN, 8 kanal) | 40,09x | **92,26x** |
+| Servo çıkışı (RCOU, 8 kanal) | 25,64x | **37,50x** |
+| Yönelim (ATT, 3 kanal) | 14,70x | **15,57x** |
+| GPS / IMU / titreşim | — | **değişmedi** (sıfır koşusu yok) |
 
 ### 2.3 Bit genişliği seçimi
 
@@ -247,7 +305,8 @@ başlangıç `0xFFFFFFFF`, sonuç `0xFFFFFFFF` ile XOR'lanır.
 
 1. Uzunluk ≥ 16
 2. Sihirli sayı `0xEB 0x71`
-3. Sürüm `2`
+3. Sürüm `3` (sürüm `2` çerçeveleri **reddedilir**; sürüm 3 çözücüsü sürüm 2
+   *çekirdek akışlarını* çözer ama çerçeve başlığı sürümü tam eşleşmelidir)
 4. Ayrılmış bayt `0`
 5. CRC32 eşleşmesi
 6. Kayıt sayısı makul aralıkta (çarpım taşması dahil)
@@ -407,7 +466,7 @@ Sürüm 1'de etiketin `mod` alanı 3 bit olmasına rağmen yalnızca 4 değer ku
 
 | Ölçüm | Sürüm 1 | Sürüm 2 |
 | --- | ---: | ---: |
-| Gerçek GPS (24.642 kayıt) | 3.56x | **4.95x** |
+| Gerçek GPS (24.642 kayıt) | 3.56x | **5.05x** |
 | İHA telemetrisi (kuantalanmış) | 8.01x | **10.51x** |
 | Test paketi ortalaması | 5.45x | **8.83x** |
 

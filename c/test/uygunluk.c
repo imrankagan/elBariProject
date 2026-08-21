@@ -27,7 +27,10 @@
 #include "../src/elbari.h"
 
 #define MAKS_SATIR    (8192)
-#define MAKS_ELEMAN_T (256)
+/* Vektor basina azami eleman. Bu siniri asan bir vektor SESSIZCE
+ * ATLANMAMALIDIR - atlanirsa bozuk bir vektor fark edilmeden gecerdi;
+ * ayristirici sinir asimini hata olarak bildirir. */
+#define MAKS_ELEMAN_T (512)
 #define MAKS_BAYT_T   (2048)
 
 static int g_gecen = 0;
@@ -614,6 +617,16 @@ int main(int argc, char **argv)
                 vektor_sayisi++;
                 vektoru_dogrula(ad, katman, kanal, sirano,
                                 girdi, girdi_adet, beklenen, beklenen_adet);
+            }
+            else if ((girdi_adet < 0) || (girdif_adet < 0) ||
+                     (beklenen_adet < 0))
+            {
+                /* Ayristirma basarisiz: siniri asan ya da bozuk bir alan.
+                 * SESSIZCE ATLANMAMALI - atlanirsa bozuk bir vektor fark
+                 * edilmeden gecer ve kapsam sanildigindan dar olur. */
+                vektor_sayisi++;
+                sonuc(ad, "ayristirma", 0,
+                      "vektor cozulemedi (MAKS_ELEMAN_T asildi ya da bozuk alan)");
             }
             else
             {
