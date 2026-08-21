@@ -9,8 +9,10 @@
 *.sarif
 
 # Kiyas kosum ciktilari (dondurulmus kopya belgeler/ altindadir)
-kiyas/kiyas_sonuclari.csv
-kiyas/son_kosu.txt
+# (kiyas.exe bunlari CALISMA DIZININE yazar; veri/ altindan kosuldugunda
+#  da yakalansin diye yol belirtilmez)
+kiyas_sonuclari.csv
+son_kosu.txt
 
 # Ucus logu turevleri.
 # ALFA veri seti acildiginda 12,5 GB'dir; depoya GIRMEZ. Ondan turetilen

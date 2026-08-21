@@ -736,7 +736,26 @@ int main(int argc, char **argv)
     frekans = zamanlayici_frekansi();
 
     /* --- Calisma alanlari (olcum dongusunun disinda ayrilir) --- */
+    /* Cikti tamponu EN KOTU duruma gore olculur. En kotu durum supurmenin
+     * en kucuk cercevesidir: cerceve basina 1 kayit oldugunda her kaydin
+     * ustune bir cerceve basligi biner ve toplam HAM VERIDEN buyuk cikar.
+     * Sabit bir carpan (eleman x 8) bunu tutmuyordu; supurme tablosunun
+     * kpc=1 satiri "kodlama hatasi" veriyordu - kodek degil, tampon
+     * yetersizdi. */
     is.cikti_kap = (eleman_sayisi * 8) + 65536;
+    {
+        int32_t kayit = (kanal_sayisi > 0) ? (eleman_sayisi / kanal_sayisi) : 0;
+        int32_t bir_crc = elbari_cerceve_en_kotu_durum_boyutu(1, kanal_sayisi);
+
+        if ((kayit > 0) && (bir_crc > 0) && (kayit < (2147483647 / bir_crc)))
+        {
+            int32_t supurme_en_kotu = kayit * bir_crc;
+            if (supurme_en_kotu > (is.cikti_kap - 65536))
+            {
+                is.cikti_kap = supurme_en_kotu + 65536;
+            }
+        }
+    }
     is.cikti     = (uint8_t *)malloc((size_t)is.cikti_kap);
     is.kanal_i32 = (int32_t *)malloc((size_t)eleman_sayisi * sizeof(int32_t));
     is.kanal_u32 = (uint32_t *)malloc((size_t)eleman_sayisi * sizeof(uint32_t));
