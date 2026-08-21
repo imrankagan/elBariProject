@@ -46,8 +46,8 @@ static int32_t hedef_hesapla(double hz, double gecikme)
     return n;
 }
 
-int32_t mav_vekil_kur(mav_vekil *v, double gecikme_saniye, int32_t kuantala,
-                      int32_t mtu)
+int32_t mav_vekil_kur(mav_vekil *v, const hiz_profili *profil,
+                      double gecikme_saniye, int32_t kuantala, int32_t mtu)
 {
     int32_t sema_adedi = 0;
     const mesaj_tanimi *sema = mav_sema_tablosu(&sema_adedi);
@@ -55,7 +55,10 @@ int32_t mav_vekil_kur(mav_vekil *v, double gecikme_saniye, int32_t kuantala,
     int32_t havuz = 0;
     int32_t ofset = 0;
 
-    if ((v == NULL) || (gecikme_saniye <= 0.0)) { return -1; }
+    if ((v == NULL) || (profil == NULL) || (gecikme_saniye <= 0.0))
+    {
+        return -1;
+    }
 
     (void)memset(v, 0, sizeof(*v));
     v->gecikme_saniye = gecikme_saniye;
@@ -65,7 +68,7 @@ int32_t mav_vekil_kur(mav_vekil *v, double gecikme_saniye, int32_t kuantala,
 
     for (i = 0; i < sema_adedi; i++)
     {
-        havuz += hedef_hesapla(sema[i].hz, gecikme_saniye)
+        havuz += hedef_hesapla(mav_hiz(&sema[i], profil), gecikme_saniye)
                  * mav_kanal_sayisi(&sema[i]);
     }
 
@@ -82,7 +85,7 @@ int32_t mav_vekil_kur(mav_vekil *v, double gecikme_saniye, int32_t kuantala,
     for (i = 0; i < sema_adedi; i++)
     {
         int32_t kanal = mav_kanal_sayisi(&sema[i]);
-        int32_t hedef = hedef_hesapla(sema[i].hz, gecikme_saniye);
+        int32_t hedef = hedef_hesapla(mav_hiz(&sema[i], profil), gecikme_saniye);
 
         v->biriktiriciler[i].msgid        = sema[i].msgid;
         v->biriktiriciler[i].kayit_sayisi = 0;
@@ -100,7 +103,7 @@ int32_t mav_vekil_kur(mav_vekil *v, double gecikme_saniye, int32_t kuantala,
     for (i = 0; i < sema_adedi; i++)
     {
         int32_t gerek = elbari_cerceve_gerekli_calisma_alani(
-                            hedef_hesapla(sema[i].hz, gecikme_saniye),
+                            hedef_hesapla(mav_hiz(&sema[i], profil), gecikme_saniye),
                             mav_kanal_sayisi(&sema[i]));
         if (gerek > v->elbari_calisma_kap) { v->elbari_calisma_kap = gerek; }
     }
@@ -112,7 +115,7 @@ int32_t mav_vekil_kur(mav_vekil *v, double gecikme_saniye, int32_t kuantala,
     v->coz_tampon_kap = 0;
     for (i = 0; i < sema_adedi; i++)
     {
-        int32_t gerek = hedef_hesapla(sema[i].hz, gecikme_saniye)
+        int32_t gerek = hedef_hesapla(mav_hiz(&sema[i], profil), gecikme_saniye)
                         * mav_kanal_sayisi(&sema[i]);
         if (gerek > v->coz_tampon_kap) { v->coz_tampon_kap = gerek; }
     }
@@ -124,7 +127,7 @@ int32_t mav_vekil_kur(mav_vekil *v, double gecikme_saniye, int32_t kuantala,
     v->ham_tampon_kap   = 0;
     for (i = 0; i < sema_adedi; i++)
     {
-        int32_t hedef = hedef_hesapla(sema[i].hz, gecikme_saniye);
+        int32_t hedef = hedef_hesapla(mav_hiz(&sema[i], profil), gecikme_saniye);
         int32_t sikistirma = elbari_cerceve_en_kotu_durum_boyutu(
                                  hedef, mav_kanal_sayisi(&sema[i]));
         int32_t hamm = hedef * (MAV_EK_YUK + MAV_MAKS_YUK + 1);

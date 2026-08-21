@@ -3,12 +3,17 @@
  * ---------------------------------------------------------------------
  * !!! DURUSTLUK NOTU - BU VERININ NESI GERCEK, NESI DEGIL !!!
  *
- *   GERCEK : enlem / boylam, testverisi/gercek_gps.bin icindeki
- *            OpenStreetMap GPS izlerinden gelir. Gercek olcum gurultusu
- *            ve duzensiz orneklemesiyle birlikte.
+ *   GERCEK : enlem / boylam, verilen GPS fiksturunden gelir (OSM izleri
+ *            ya da ArduPilot logundan uretilmis alfa_gps.bin). Gercek
+ *            olcum gurultusu ve duzensiz orneklemesiyle birlikte.
  *
- *   SENTETIK: yonelim, IMU, RC, servo, batarya, titresim. Bunlar
- *            makul bir ucus modelinden uretilir.
+ *            YONELIM ve IMU de mav_uretici_gercek_veri ile gercek ucus
+ *            logundan beslenebilir (alfa_att.bin / alfa_imu.bin).
+ *            Verilmezse asagidaki sentetik modele duserler.
+ *
+ *   SENTETIK: RC, servo, batarya, titresim - ve att/imu fiksturu
+ *            verilmediyse yonelim ile IMU. Bunlar makul bir ucus
+ *            modelinden uretilir.
  *
  *   Sentetik veri sikistirma olcumlerini KOLAYCA YANILTIR: fazla duzgun
  *   bir sinyal gercekci olmayan yuksek oranlar verir. Bu yuzden burada
@@ -83,6 +88,14 @@ static uint32_t rast(mav_uretici *u)
     return u->rastgele;
 }
 
+/** Gercek log degerini SCALED_IMU'nun int16 alanina sigdirir. */
+static int16_t i16_kirp(int32_t v)
+{
+    if (v >  32767) { return  32767; }
+    if (v < -32768) { return -32768; }
+    return (int16_t)v;
+}
+
 /** [-aralik, +aralik] araliginda tamsayi gurultu. */
 static int32_t gurultu(mav_uretici *u, int32_t aralik)
 {
@@ -131,13 +144,15 @@ static void yf(uint8_t *p, int32_t o, double deger)
  * KURULUM
  * ------------------------------------------------------------------- */
 
-void mav_uretici_kur(mav_uretici *u, const int32_t *gps, int32_t gps_kayit)
+void mav_uretici_kur(mav_uretici *u, const hiz_profili *profil,
+                     const int32_t *gps, int32_t gps_kayit)
 {
     int32_t adet = 0;
     const mesaj_tanimi *sema = mav_sema_tablosu(&adet);
     int32_t i;
 
     (void)memset(u, 0, sizeof(*u));
+    u->profil     = profil;
     u->gps        = gps;
     u->gps_kayit  = gps_kayit;
     u->gps_indeks = 0;
@@ -149,9 +164,29 @@ void mav_uretici_kur(mav_uretici *u, const int32_t *gps, int32_t gps_kayit)
     {
         /* Mesajlar ayni anda baslamasin: faz kaydirmasi gercekci bir
          * akis deseni verir (hepsi ayni tik'ta gelmez). */
-        u->sonraki[i] = ((double)i * 0.017);
-        (void)sema;
+        /* Bu profilde hic yayinlanmayan mesaj (0 Hz) ufkun otesine
+         * atilir; yoksa t=0'da bir kez uretilirdi. */
+        u->sonraki[i] = (mav_hiz(&sema[i], profil) > 0.0)
+                        ? ((double)i * 0.017)
+                        : 1.0e30;
     }
+}
+
+void mav_uretici_gercek_veri(mav_uretici *u,
+                             const int32_t *att, int32_t att_kayit,
+                             const int32_t *imu, int32_t imu_kayit)
+{
+    if (u == NULL) { return; }
+
+    /* Bos fikstur sessizce "gercek" sayilmamali: kayit yoksa NULL kalir
+     * ve mesaj sentetige duser. */
+    u->att        = ((att != NULL) && (att_kayit > 0)) ? att : NULL;
+    u->att_kayit  = (u->att != NULL) ? att_kayit : 0;
+    u->att_indeks = 0;
+
+    u->imu        = ((imu != NULL) && (imu_kayit > 0)) ? imu : NULL;
+    u->imu_kayit  = (u->imu != NULL) ? imu_kayit : 0;
+    u->imu_indeks = 0;
 }
 
 /* ---------------------------------------------------------------------
@@ -217,14 +252,35 @@ static void yuk_uret(mav_uretici *u, const mesaj_tanimi *t, mav_mesaj *m)
         u->gps_indeks = (u->gps_indeks + 1) % u->gps_kayit;
         break;
 
-    case 26:  /* SCALED_IMU - gurultu BILEREK yuksek */
+    case 26:  /* SCALED_IMU */
         y32(m->yuk, 0, ms);
-        y16(m->yuk, 4,  (uint32_t)(int32_t)(int16_t)(  40 + gurultu(u, 30)));
-        y16(m->yuk, 6,  (uint32_t)(int32_t)(int16_t)( -25 + gurultu(u, 30)));
-        y16(m->yuk, 8,  (uint32_t)(int32_t)(int16_t)(-1000 + gurultu(u, 35)));
-        y16(m->yuk, 10, (uint32_t)(int32_t)(int16_t)(gurultu(u, 12)));
-        y16(m->yuk, 12, (uint32_t)(int32_t)(int16_t)(gurultu(u, 12)));
-        y16(m->yuk, 14, (uint32_t)(int32_t)(int16_t)(gurultu(u, 10)));
+        if (u->imu != NULL)
+        {
+            /* GERCEK IMU. Fikstur sirasi GyrXYZ sonra AccXYZ; SCALED_IMU
+             * once ivmeyi bekler. Birimler zaten ortusuyor (mg ve
+             * mrad/sn) - bu yuzden donusum yok, yalnizca yeniden
+             * siralama. */
+            const int32_t *d = &u->imu[u->imu_indeks * 6];
+
+            y16(m->yuk, 4,  (uint32_t)(int32_t)i16_kirp(d[3]));  /* xacc  */
+            y16(m->yuk, 6,  (uint32_t)(int32_t)i16_kirp(d[4]));  /* yacc  */
+            y16(m->yuk, 8,  (uint32_t)(int32_t)i16_kirp(d[5]));  /* zacc  */
+            y16(m->yuk, 10, (uint32_t)(int32_t)i16_kirp(d[0]));  /* xgyro */
+            y16(m->yuk, 12, (uint32_t)(int32_t)i16_kirp(d[1]));  /* ygyro */
+            y16(m->yuk, 14, (uint32_t)(int32_t)i16_kirp(d[2]));  /* zgyro */
+            u->imu_indeks = (u->imu_indeks + 1) % u->imu_kayit;
+        }
+        else
+        {
+            /* SENTETIK - gurultu BILEREK yuksek */
+            y16(m->yuk, 4,  (uint32_t)(int32_t)(int16_t)(  40 + gurultu(u, 30)));
+            y16(m->yuk, 6,  (uint32_t)(int32_t)(int16_t)( -25 + gurultu(u, 30)));
+            y16(m->yuk, 8,  (uint32_t)(int32_t)(int16_t)(-1000 + gurultu(u, 35)));
+            y16(m->yuk, 10, (uint32_t)(int32_t)(int16_t)(gurultu(u, 12)));
+            y16(m->yuk, 12, (uint32_t)(int32_t)(int16_t)(gurultu(u, 12)));
+            y16(m->yuk, 14, (uint32_t)(int32_t)(int16_t)(gurultu(u, 10)));
+        }
+        /* Manyetometre her durumda sentetik: fikstur MAG tasimiyor. */
         y16(m->yuk, 16, (uint32_t)(int32_t)(int16_t)( 220 + gurultu(u, 6)));
         y16(m->yuk, 18, (uint32_t)(int32_t)(int16_t)(  60 + gurultu(u, 6)));
         y16(m->yuk, 20, (uint32_t)(int32_t)(int16_t)(-410 + gurultu(u, 6)));
@@ -232,12 +288,41 @@ static void yuk_uret(mav_uretici *u, const mesaj_tanimi *t, mav_mesaj *m)
 
     case 30:  /* ATTITUDE */
         y32(m->yuk, 0, ms);
-        yf(m->yuk, 4,  (0.10 * sinus(zaman * 0.8)) + ((double)gurultu(u, 100) * 0.0001));
-        yf(m->yuk, 8,  (0.07 * kosinus(zaman * 0.6)) + ((double)gurultu(u, 100) * 0.0001));
-        yf(m->yuk, 12, (0.50 * sinus(zaman * 0.05)) + ((double)gurultu(u, 60) * 0.0001));
-        yf(m->yuk, 16, (0.08 * kosinus(zaman * 0.8)) + ((double)gurultu(u, 150) * 0.0001));
-        yf(m->yuk, 20, (0.04 * sinus(zaman * 0.6)) + ((double)gurultu(u, 150) * 0.0001));
-        yf(m->yuk, 24, (0.02 * kosinus(zaman * 0.05)) + ((double)gurultu(u, 120) * 0.0001));
+        if (u->att != NULL)
+        {
+            /* GERCEK yonelim: fikstur milirad tutar, MAVLink radyan. */
+            const int32_t *a = &u->att[u->att_indeks * 3];
+
+            yf(m->yuk, 4,  (double)a[0] * 0.001);   /* roll  */
+            yf(m->yuk, 8,  (double)a[1] * 0.001);   /* pitch */
+            yf(m->yuk, 12, (double)a[2] * 0.001);   /* yaw   */
+            u->att_indeks = (u->att_indeks + 1) % u->att_kayit;
+        }
+        else
+        {
+            yf(m->yuk, 4,  (0.10 * sinus(zaman * 0.8)) + ((double)gurultu(u, 100) * 0.0001));
+            yf(m->yuk, 8,  (0.07 * kosinus(zaman * 0.6)) + ((double)gurultu(u, 100) * 0.0001));
+            yf(m->yuk, 12, (0.50 * sinus(zaman * 0.05)) + ((double)gurultu(u, 60) * 0.0001));
+        }
+        if (u->imu != NULL)
+        {
+            /* Acisal hizlar gercek jiroskoptan (mrad/sn -> rad/sn).
+             * ATT kaydi hiz tasimaz; jiroskop AYNI ucusun kanalidir.
+             * Ornek ornek hizalanmis DEGILDIR - ama sikistirma her
+             * kanali kendi icinde islediginden onemli olan kanalin
+             * istatistigidir, o da gercektir. */
+            const int32_t *g = &u->imu[u->imu_indeks * 6];
+
+            yf(m->yuk, 16, (double)g[0] * 0.001);
+            yf(m->yuk, 20, (double)g[1] * 0.001);
+            yf(m->yuk, 24, (double)g[2] * 0.001);
+        }
+        else
+        {
+            yf(m->yuk, 16, (0.08 * kosinus(zaman * 0.8)) + ((double)gurultu(u, 150) * 0.0001));
+            yf(m->yuk, 20, (0.04 * sinus(zaman * 0.6)) + ((double)gurultu(u, 150) * 0.0001));
+            yf(m->yuk, 24, (0.02 * kosinus(zaman * 0.05)) + ((double)gurultu(u, 120) * 0.0001));
+        }
         break;
 
     case 33:  /* GLOBAL_POSITION_INT */
@@ -348,6 +433,10 @@ int32_t mav_uretici_sonraki(mav_uretici *u, double sure_siniri, mav_mesaj *m)
 
     u->t = en_erken_t;
     yuk_uret(u, &sema[en_erken], m);
-    u->sonraki[en_erken] += (1.0 / sema[en_erken].hz);
+    {
+        double hz = mav_hiz(&sema[en_erken], u->profil);
+        /* 0 Hz mesaj bir daha secilmesin diye ufkun otesine atilir. */
+        u->sonraki[en_erken] += (hz > 0.0) ? (1.0 / hz) : 1.0e30;
+    }
     return 1;
 }

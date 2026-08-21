@@ -169,36 +169,100 @@ static const alan_tanimi A_VIBRATION[] = {
 /* =====================================================================
  * MESAJ TABLOSU
  * ---------------------------------------------------------------------
- * hz degerleri ArduPilot'un "normal" telemetri onayarina yakin secilmis
- * TEMSILI degerlerdir; kendi aracinizin SRx_* parametreleriyle
- * degistirin.
+ * Her mesaj bir ArduPilot AKIS GRUBUNA baglanir. Hizin kendisi burada
+ * DEGIL, asagidaki profil tablosundadir: ayni mesaj USB linkinde 10 Hz,
+ * telsizde 2 Hz akar.
  * ===================================================================== */
 
 static const mesaj_tanimi SEMA[] =
 {
     {   0, "HEARTBEAT",           9, A_HEARTBEAT,           ALAN_ADEDI(A_HEARTBEAT),
-        KADEME_CANLI, 0,  1.0 },
+        KADEME_CANLI, 0, AKIS_SABIT },
     {   1, "SYS_STATUS",         31, A_SYS_STATUS,          ALAN_ADEDI(A_SYS_STATUS),
-        KADEME_CANLI, 0,  2.0 },
+        KADEME_CANLI, 0, AKIS_EXT_STAT },
     {  24, "GPS_RAW_INT",        30, A_GPS_RAW_INT,         ALAN_ADEDI(A_GPS_RAW_INT),
-        KADEME_TOPLU, 0,  5.0 },
+        KADEME_TOPLU, 0, AKIS_EXT_STAT },
     {  26, "SCALED_IMU",         22, A_SCALED_IMU,          ALAN_ADEDI(A_SCALED_IMU),
-        KADEME_TOPLU, 0, 10.0 },
+        KADEME_TOPLU, 0, AKIS_RAW_SENS },
     {  30, "ATTITUDE",           28, A_ATTITUDE,            ALAN_ADEDI(A_ATTITUDE),
-        KADEME_TOPLU, 0, 10.0 },
+        KADEME_TOPLU, 0, AKIS_EXTRA1 },
     {  33, "GLOBAL_POSITION_INT",28, A_GLOBAL_POSITION_INT, ALAN_ADEDI(A_GLOBAL_POSITION_INT),
-        KADEME_TOPLU, 5,  5.0 },   /* her 5'incisi ayrica canli -> 1 Hz harita */
+        KADEME_TOPLU, 5, AKIS_POSITION },  /* her 5'incisi ayrica canli */
     {  36, "SERVO_OUTPUT_RAW",   21, A_SERVO_OUTPUT_RAW,    ALAN_ADEDI(A_SERVO_OUTPUT_RAW),
-        KADEME_TOPLU, 0,  5.0 },
+        KADEME_TOPLU, 0, AKIS_RC_CHAN },
     {  65, "RC_CHANNELS",        42, A_RC_CHANNELS,         ALAN_ADEDI(A_RC_CHANNELS),
-        KADEME_TOPLU, 0,  5.0 },
+        KADEME_TOPLU, 0, AKIS_RC_CHAN },
     {  74, "VFR_HUD",            20, A_VFR_HUD,             ALAN_ADEDI(A_VFR_HUD),
-        KADEME_TOPLU, 4,  4.0 },   /* her 4'uncusu ayrica canli -> 1 Hz gosterge */
+        KADEME_TOPLU, 4, AKIS_EXTRA2 },    /* her 4'uncusu ayrica canli */
     { 147, "BATTERY_STATUS",     36, A_BATTERY_STATUS,      ALAN_ADEDI(A_BATTERY_STATUS),
-        KADEME_TOPLU, 0,  1.0 },
+        KADEME_TOPLU, 0, AKIS_EXTRA3 },
     { 241, "VIBRATION",          32, A_VIBRATION,           ALAN_ADEDI(A_VIBRATION),
-        KADEME_TOPLU, 0,  2.0 }
+        KADEME_TOPLU, 0, AKIS_EXTRA3 }
 };
+
+/* =====================================================================
+ * HIZ PROFILLERI
+ * ---------------------------------------------------------------------
+ * KAYNAK: ALFA veri setindeki ucusun KENDI parametre dokumu
+ *         "2018-07-30 16-13-40.bin.param" (ArduPlane 3.9.0beta1).
+ *         Degerler oradaki SR0_* / SR1_* satirlarindan AYNEN alindi;
+ *         secilmis ya da yuvarlatilmis degildir.
+ *
+ *   SR0_*  USB / companion baglantisi - genis bant
+ *   SR1_*  telemetri telsizi          - dar bant
+ *
+ * Vekilin hedefi telsiz linkidir; bu yuzden SR1 ONCE gelir. SR0 ise
+ * kazancin bant genisligiyle nasil degistigini gosterir.
+ *
+ * HEARTBEAT bir akis grubuna bagli degildir: ArduPilot onu her iki
+ * baglantida da 1 Hz yayinlar.
+ * ===================================================================== */
+
+static const hiz_profili PROFILLER[] =
+{
+    { "SR1 - telemetri telsizi",
+      "ALFA ucusunun SR1_* degerleri (dar bant link)",
+      {  1.0,    /* AKIS_SABIT    : HEARTBEAT sabit 1 Hz */
+         2.0,    /* AKIS_RAW_SENS : SR1_RAW_SENS = 2     */
+         2.0,    /* AKIS_EXT_STAT : SR1_EXT_STAT = 2     */
+         2.0,    /* AKIS_POSITION : SR1_POSITION = 2     */
+         2.0,    /* AKIS_RC_CHAN  : SR1_RC_CHAN  = 2     */
+         4.0,    /* AKIS_EXTRA1   : SR1_EXTRA1   = 4     */
+         4.0,    /* AKIS_EXTRA2   : SR1_EXTRA2   = 4     */
+         2.0 } },/* AKIS_EXTRA3   : SR1_EXTRA3   = 2     */
+
+    { "SR0 - USB / companion",
+      "ALFA ucusunun SR0_* degerleri (genis bant link)",
+      {  1.0,    /* AKIS_SABIT    : HEARTBEAT sabit 1 Hz */
+        10.0,    /* AKIS_RAW_SENS : SR0_RAW_SENS = 10    */
+        25.0,    /* AKIS_EXT_STAT : SR0_EXT_STAT = 25    */
+        10.0,    /* AKIS_POSITION : SR0_POSITION = 10    */
+        10.0,    /* AKIS_RC_CHAN  : SR0_RC_CHAN  = 10    */
+        10.0,    /* AKIS_EXTRA1   : SR0_EXTRA1   = 10    */
+        10.0,    /* AKIS_EXTRA2   : SR0_EXTRA2   = 10    */
+        10.0 } } /* AKIS_EXTRA3   : SR0_EXTRA3   = 10    */
+};
+
+int32_t mav_hiz_profili_adedi(void)
+{
+    return (int32_t)(sizeof(PROFILLER) / sizeof(PROFILLER[0]));
+}
+
+const hiz_profili *mav_hiz_profili(int32_t indeks)
+{
+    if ((indeks < 0) || (indeks >= mav_hiz_profili_adedi())) { return NULL; }
+    return &PROFILLER[indeks];
+}
+
+double mav_hiz(const mesaj_tanimi *t, const hiz_profili *p)
+{
+    int32_t g;
+
+    if ((t == NULL) || (p == NULL)) { return 0.0; }
+    g = (int32_t)t->grup;
+    if ((g < 0) || (g >= (int32_t)AKIS_GRUP_ADEDI)) { return 0.0; }
+    return p->grup_hz[g];
+}
 
 #define SEMA_ADEDI ((int32_t)(sizeof(SEMA) / sizeof(SEMA[0])))
 

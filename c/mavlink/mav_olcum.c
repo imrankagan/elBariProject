@@ -13,7 +13,12 @@
  *   - Tam tur     : yer istasyonu ayni mesajlari geri aliyor mu
  *
  * Calistirma:
- *   mav_olcum <gercek_gps.bin> [saniye]
+ *   mav_olcum <gps.bin> [saniye] [--att <att.bin>] [--imu <imu.bin>]
+ *
+ *   --att / --imu verilirse yonelim ve IMU kanallari GERCEK ucus
+ *   logundan beslenir (donustur.exe'nin urettigi alfa_att.bin /
+ *   alfa_imu.bin). Verilmezse o kanallar sentetik kalir ve bu ciktida
+ *   acikca yazilir.
  * ===================================================================== */
 
 #define _CRT_SECURE_NO_WARNINGS
@@ -53,6 +58,62 @@ static unsigned char *dosya_oku(const char *yol, long *boyut_cikti)
 
     *boyut_cikti = boyut;
     return tampon;
+}
+
+/**
+ * Fikstur yukler ve kanal sayisini DOGRULAR.
+ *
+ * Yanlis kanalli bir dosyayi sessizce kabul etmek, olcumu fark
+ * edilmeden bozardi (orn. att fiksturunu IMU yerine vermek).
+ *
+ * @param ham_cikti  serbest birakilacak ham tampon
+ * @return kayit dizisine isaretci, ya da NULL
+ */
+static const int32_t *fikstur_yukle(const char *yol, int32_t beklenen_kanal,
+                                    int32_t *kayit_cikti,
+                                    unsigned char **ham_cikti)
+{
+    long boyut = 0;
+    unsigned char *ham = dosya_oku(yol, &boyut);
+    int32_t kanal = 0;
+    int32_t eleman = 0;
+
+    *ham_cikti  = NULL;
+    *kayit_cikti = 0;
+
+    if (ham == NULL)
+    {
+        (void)fprintf(stderr, "HATA: fikstur okunamadi: %s\n", yol);
+        return NULL;
+    }
+    if (boyut < 8)
+    {
+        (void)fprintf(stderr, "HATA: fikstur cok kisa: %s\n", yol);
+        free(ham);
+        return NULL;
+    }
+
+    (void)memcpy(&kanal, &ham[0], 4);
+    (void)memcpy(&eleman, &ham[4], 4);
+
+    if (kanal != beklenen_kanal)
+    {
+        (void)fprintf(stderr,
+                      "HATA: %s -> %d kanal, %d bekleniyordu\n",
+                      yol, (int)kanal, (int)beklenen_kanal);
+        free(ham);
+        return NULL;
+    }
+    if ((eleman <= 0) || ((long)eleman * 4L) > (boyut - 8L))
+    {
+        (void)fprintf(stderr, "HATA: fikstur basligi tutmuyor: %s\n", yol);
+        free(ham);
+        return NULL;
+    }
+
+    *ham_cikti   = ham;
+    *kayit_cikti = eleman / kanal;
+    return (const int32_t *)(const void *)&ham[8];
 }
 
 /* ---------------------------------------------------------------------
@@ -144,9 +205,12 @@ typedef struct
     long    en_buyuk_paket;
     int32_t dogru;
     double  en_kotu_hata_orani;
+    /* Tam tur kalirsa HANGI mesajda kaldigi: "KALDI" tek basina tanisiz. */
+    const char *hatali_mesaj;
 } olcum_sonucu;
 
-static int32_t olc(const mav_mesaj *mesajlar, int32_t mesaj_adedi,
+static int32_t olc(const hiz_profili *profil,
+                   const mav_mesaj *mesajlar, int32_t mesaj_adedi,
                    double sure, double gecikme, int32_t kuantala,
                    long taban_bayt, uint8_t *link, int32_t link_kap,
                    mav_mesaj *geri, int32_t geri_kap, int32_t kirilim,
@@ -162,7 +226,7 @@ static int32_t olc(const mav_mesaj *mesajlar, int32_t mesaj_adedi,
     s->gecikme  = gecikme;
     s->kuantala = kuantala;
 
-    if (mav_vekil_kur(&v, gecikme, kuantala, TELSIZ_MTU) < 0) { return -1; }
+    if (mav_vekil_kur(&v, profil, gecikme, kuantala, TELSIZ_MTU) < 0) { return -1; }
 
     for (i = 0; i < mesaj_adedi; i++)
     {
@@ -235,6 +299,7 @@ static int32_t olc(const mav_mesaj *mesajlar, int32_t mesaj_adedi,
                                     kuantala, &s->en_kotu_hata_orani) != 0)
                 {
                     hata++;
+                    if (s->hatali_mesaj == NULL) { s->hatali_mesaj = sema[k].ad; }
                 }
                 eslesen++;
                 ai++;
@@ -244,7 +309,11 @@ static int32_t olc(const mav_mesaj *mesajlar, int32_t mesaj_adedi,
             /* Kalan mesaj varsa kayip demektir. */
             while ((ai < mesaj_adedi))
             {
-                if (mesajlar[ai].msgid == sema[k].msgid) { hata++; }
+                if (mesajlar[ai].msgid == sema[k].msgid)
+                {
+                    hata++;
+                    if (s->hatali_mesaj == NULL) { s->hatali_mesaj = sema[k].ad; }
+                }
                 ai++;
             }
             (void)eslesen;
@@ -312,6 +381,15 @@ int main(int argc, char **argv)
     uint8_t *link;
     int32_t link_kap;
     int32_t i;
+    int32_t profil_i;
+    const char *att_yolu = NULL;
+    const char *imu_yolu = NULL;
+    unsigned char *att_ham = NULL;
+    unsigned char *imu_ham = NULL;
+    const int32_t *att = NULL;
+    const int32_t *imu = NULL;
+    int32_t att_kayit = 0;
+    int32_t imu_kayit = 0;
 
     static const double GECIKMELER[] = { 0.25, 0.5, 1.0, 2.0, 5.0 };
     const int32_t GECIKME_ADEDI =
@@ -319,13 +397,30 @@ int main(int argc, char **argv)
 
     if (argc < 2)
     {
-        (void)fprintf(stderr, "Kullanim: mav_olcum <gercek_gps.bin> [saniye]\n");
+        (void)fprintf(stderr,
+            "Kullanim: mav_olcum <gps.bin> [saniye] [--att <dosya>] [--imu <dosya>]\n"
+            "  --att : 3 kanalli gercek yonelim fiksturu (alfa_att.bin)\n"
+            "  --imu : 6 kanalli gercek IMU fiksturu    (alfa_imu.bin)\n"
+            "Verilmeyen kanallar sentetik uretilir.\n");
         return 2;
     }
-    if (argc >= 3)
+    for (i = 2; i < argc; i++)
     {
-        sure = atof(argv[2]);
-        if (sure < 1.0) { sure = 1.0; }
+        if ((strcmp(argv[i], "--att") == 0) && ((i + 1) < argc))
+        {
+            att_yolu = argv[i + 1];
+            i++;
+        }
+        else if ((strcmp(argv[i], "--imu") == 0) && ((i + 1) < argc))
+        {
+            imu_yolu = argv[i + 1];
+            i++;
+        }
+        else
+        {
+            sure = atof(argv[i]);
+            if (sure < 1.0) { sure = 1.0; }
+        }
     }
 
     printf("=====================================================================\n");
@@ -436,130 +531,185 @@ int main(int argc, char **argv)
         return 2;
     }
 
-    /* --- 3) Akisi uret --- */
-    mesaj_kap = (int32_t)(sure * 80.0) + 1024;
-    mesajlar = (mav_mesaj *)malloc((size_t)mesaj_kap * sizeof(mav_mesaj));
-    geri     = (mav_mesaj *)malloc((size_t)mesaj_kap * sizeof(mav_mesaj));
-    if ((mesajlar == NULL) || (geri == NULL)) { return 2; }
-
-    mav_uretici_kur(&u, gps, gps_eleman / 3);
-    while ((mesaj_adedi < mesaj_kap)
-           && (mav_uretici_sonraki(&u, sure, &mesajlar[mesaj_adedi]) != 0))
+    if (att_yolu != NULL)
     {
-        uint8_t gecici[MAV_MAKS_CERCEVE];
-        int32_t n = mav_cerceve_yaz(&mesajlar[mesaj_adedi], gecici,
-                                    (int32_t)sizeof(gecici));
-        if (n > 0) { taban_bayt += (long)n; }
-        mesaj_adedi++;
+        att = fikstur_yukle(att_yolu, 3, &att_kayit, &att_ham);
+        if (att == NULL) { return 2; }
+    }
+    if (imu_yolu != NULL)
+    {
+        imu = fikstur_yukle(imu_yolu, 6, &imu_kayit, &imu_ham);
+        if (imu == NULL) { return 2; }
     }
 
-    printf("--- Uretilen akis ---\n");
-    printf("  Sure          : %.0f saniye\n", sure);
-    printf("  Mesaj         : %d\n", (int)mesaj_adedi);
-    printf("  Taban cizgi   : %ld bayt  =  %.0f bayt/sn  (ham MAVLink v2)\n\n",
-           taban_bayt, (double)taban_bayt / sure);
+    printf("--- Veri kaynaklari ---\n");
+    printf("  enlem/boylam        : GERCEK   %s (%d kayit)\n",
+           argv[1], (int)(gps_eleman / 3));
+    printf("  yonelim (ATTITUDE)  : %s\n",
+           (att != NULL) ? "GERCEK" : "sentetik");
+    if (att != NULL) { printf("                        %s (%d kayit)\n",
+                              att_yolu, (int)att_kayit); }
+    printf("  IMU (SCALED_IMU)    : %s\n",
+           (imu != NULL) ? "GERCEK" : "sentetik");
+    if (imu != NULL) { printf("                        %s (%d kayit)\n",
+                              imu_yolu, (int)imu_kayit); }
+    printf("  RC, servo, batarya, titresim, manyetometre : sentetik\n\n");
 
-    /* --- 4) Mesaj karisimi --- */
+    for (profil_i = 0; profil_i < mav_hiz_profili_adedi(); profil_i++)
     {
-        int32_t sema_adedi = 0;
-        const mesaj_tanimi *sema = mav_sema_tablosu(&sema_adedi);
-        int32_t k;
+        const hiz_profili *profil = mav_hiz_profili(profil_i);
 
-        printf("--- Mesaj karisimi ve kademe atamasi ---\n");
-        printf("  %-22s %6s %7s %10s %8s %s\n",
-               "mesaj", "Hz", "adet", "bayt/sn", "pay", "kademe");
-        printf("  ---------------------------------------------------------------"
-               "------\n");
+        mesaj_adedi = 0;
+        taban_bayt  = 0;
 
-        for (k = 0; k < sema_adedi; k++)
+        printf("#####################################################################\n");
+        printf("  HIZ PROFILI %d/%d: %s\n", (int)(profil_i + 1),
+               (int)mav_hiz_profili_adedi(), profil->ad);
+        printf("  %s\n", profil->aciklama);
+        printf("#####################################################################\n\n");
+
+        /* --- 3) Akisi uret --- */
+        /* Kapasite profilin TOPLAM mesaj hizindan hesaplanir: SR0 profili
+         * SR1'in birkac katini uretir, sabit bir tahmin tasardi. */
         {
-            long bayt = 0;
-            int32_t adet = 0;
+            int32_t sa = 0;
+            const mesaj_tanimi *st = mav_sema_tablosu(&sa);
+            double  toplam_hz = 0.0;
+            int32_t g;
 
-            for (i = 0; i < mesaj_adedi; i++)
+            for (g = 0; g < sa; g++) { toplam_hz += mav_hiz(&st[g], profil); }
+            mesaj_kap = (int32_t)(sure * toplam_hz) + 1024;
+        }
+        mesajlar = (mav_mesaj *)malloc((size_t)mesaj_kap * sizeof(mav_mesaj));
+        geri     = (mav_mesaj *)malloc((size_t)mesaj_kap * sizeof(mav_mesaj));
+        if ((mesajlar == NULL) || (geri == NULL)) { return 2; }
+
+        mav_uretici_kur(&u, profil, gps, gps_eleman / 3);
+        mav_uretici_gercek_veri(&u, att, att_kayit, imu, imu_kayit);
+        while ((mesaj_adedi < mesaj_kap)
+               && (mav_uretici_sonraki(&u, sure, &mesajlar[mesaj_adedi]) != 0))
+        {
+            uint8_t gecici[MAV_MAKS_CERCEVE];
+            int32_t n = mav_cerceve_yaz(&mesajlar[mesaj_adedi], gecici,
+                                        (int32_t)sizeof(gecici));
+            if (n > 0) { taban_bayt += (long)n; }
+            mesaj_adedi++;
+        }
+
+        printf("--- Uretilen akis ---\n");
+        printf("  Sure          : %.0f saniye\n", sure);
+        printf("  Mesaj         : %d\n", (int)mesaj_adedi);
+        printf("  Taban cizgi   : %ld bayt  =  %.0f bayt/sn  (ham MAVLink v2)\n\n",
+               taban_bayt, (double)taban_bayt / sure);
+
+        /* --- 4) Mesaj karisimi --- */
+        {
+            int32_t sema_adedi = 0;
+            const mesaj_tanimi *sema = mav_sema_tablosu(&sema_adedi);
+            int32_t k;
+
+            printf("--- Mesaj karisimi ve kademe atamasi ---\n");
+            printf("  %-22s %6s %7s %10s %8s %s\n",
+                   "mesaj", "Hz", "adet", "bayt/sn", "pay", "kademe");
+            printf("  ---------------------------------------------------------------"
+                   "------\n");
+
+            for (k = 0; k < sema_adedi; k++)
             {
-                if (mesajlar[i].msgid == sema[k].msgid)
+                long bayt = 0;
+                int32_t adet = 0;
+
+                for (i = 0; i < mesaj_adedi; i++)
                 {
-                    uint8_t gecici[MAV_MAKS_CERCEVE];
-                    int32_t n = mav_cerceve_yaz(&mesajlar[i], gecici,
-                                                (int32_t)sizeof(gecici));
-                    if (n > 0) { bayt += (long)n; }
-                    adet++;
+                    if (mesajlar[i].msgid == sema[k].msgid)
+                    {
+                        uint8_t gecici[MAV_MAKS_CERCEVE];
+                        int32_t n = mav_cerceve_yaz(&mesajlar[i], gecici,
+                                                    (int32_t)sizeof(gecici));
+                        if (n > 0) { bayt += (long)n; }
+                        adet++;
+                    }
                 }
+
+                printf("  %-22s %6.1f %7d %10.0f %7.1f%% %s%s\n",
+                       sema[k].ad, mav_hiz(&sema[k], profil), (int)adet, (double)bayt / sure,
+                       (100.0 * (double)bayt) / (double)taban_bayt,
+                       (sema[k].hangi_kademe == KADEME_CANLI) ? "CANLI" : "toplu",
+                       (sema[k].canli_seyreltme > 0) ? " (+seyreltilmis canli)" : "");
             }
-
-            printf("  %-22s %6.1f %7d %10.0f %7.1f%% %s%s\n",
-                   sema[k].ad, sema[k].hz, (int)adet, (double)bayt / sure,
-                   (100.0 * (double)bayt) / (double)taban_bayt,
-                   (sema[k].hangi_kademe == KADEME_CANLI) ? "CANLI" : "toplu",
-                   (sema[k].canli_seyreltme > 0) ? " (+seyreltilmis canli)" : "");
+            printf("\n");
         }
-        printf("\n");
-    }
 
-    /* --- 5) Vekil olcumleri --- */
-    link_kap = (int32_t)(taban_bayt * 2) + 65536;
-    link = (uint8_t *)malloc((size_t)link_kap);
-    if (link == NULL) { return 2; }
+        /* --- 5) Vekil olcumleri --- */
+        link_kap = (int32_t)(taban_bayt * 2) + 65536;
+        link = (uint8_t *)malloc((size_t)link_kap);
+        if (link == NULL) { return 2; }
 
-    printf("--- Vekil: gecikme butcesi suprumu ---\n");
-    printf("  Ondalikli alanlar KUANTALANIYOR (yonelim 0.001 rad, hiz 0.01 m/sn)\n\n");
-    printf("  %8s %10s %10s %10s %9s %9s %8s %s\n",
-           "gecikme", "taban B/sn", "vekil B/sn", "kazanc",
-           "canli", "toplu", "enb pkt", "tam tur");
-    printf("  ---------------------------------------------------------------"
-           "----------------\n");
+        printf("--- Vekil: gecikme butcesi suprumu ---\n");
+        printf("  Ondalikli alanlar KUANTALANIYOR (yonelim 0.001 rad, hiz 0.01 m/sn)\n\n");
+        printf("  %8s %10s %10s %10s %9s %9s %8s %s\n",
+               "gecikme", "taban B/sn", "vekil B/sn", "kazanc",
+               "canli", "toplu", "enb pkt", "tam tur");
+        printf("  ---------------------------------------------------------------"
+               "----------------\n");
 
-    for (i = 0; i < GECIKME_ADEDI; i++)
-    {
-        olcum_sonucu s;
-        if (olc(mesajlar, mesaj_adedi, sure, GECIKMELER[i], 1,
-                taban_bayt, link, link_kap, geri, mesaj_kap,
-                0, &s) < 0)
+        for (i = 0; i < GECIKME_ADEDI; i++)
         {
-            printf("  %8.2f  <-- olcum basarisiz\n", GECIKMELER[i]);
-            continue;
+            olcum_sonucu s;
+            if (olc(profil, mesajlar, mesaj_adedi, sure, GECIKMELER[i], 1,
+                    taban_bayt, link, link_kap, geri, mesaj_kap,
+                    0, &s) < 0)
+            {
+                printf("  %8.2f  <-- olcum basarisiz\n", GECIKMELER[i]);
+                continue;
+            }
+            printf("  %7.2fs %10.0f %10.0f %9.2fx %9.0f %9.0f %8ld %s%s\n",
+                   s.gecikme, s.taban_bsn, s.vekil_bsn, s.kazanc,
+                   s.canli_bsn, s.toplu_bsn, s.en_buyuk_paket,
+                   (s.dogru != 0) ? "GECTI" : (s.hatali_mesaj != NULL)
+                                            ? s.hatali_mesaj : "KALDI",
+                   (s.en_buyuk_paket > TELSIZ_MTU) ? "  <-- MTU asildi" : "");
         }
-        printf("  %7.2fs %10.0f %10.0f %9.2fx %9.0f %9.0f %8ld %s%s\n",
-               s.gecikme, s.taban_bsn, s.vekil_bsn, s.kazanc,
-               s.canli_bsn, s.toplu_bsn, s.en_buyuk_paket,
-               (s.dogru != 0) ? "GECTI" : "KALDI",
-               (s.en_buyuk_paket > TELSIZ_MTU) ? "  <-- MTU asildi" : "");
-    }
 
-    printf("\n  Ondalikli alanlar KUANTALANMIYOR (bit bit kayipsiz)\n\n");
-    printf("  %8s %10s %10s %10s %9s %9s %8s %s\n",
-           "gecikme", "taban B/sn", "vekil B/sn", "kazanc",
-           "canli", "toplu", "enb pkt", "tam tur");
-    printf("  ---------------------------------------------------------------"
-           "----------------\n");
+        printf("\n  Ondalikli alanlar KUANTALANMIYOR (bit bit kayipsiz)\n\n");
+        printf("  %8s %10s %10s %10s %9s %9s %8s %s\n",
+               "gecikme", "taban B/sn", "vekil B/sn", "kazanc",
+               "canli", "toplu", "enb pkt", "tam tur");
+        printf("  ---------------------------------------------------------------"
+               "----------------\n");
 
-    for (i = 0; i < GECIKME_ADEDI; i++)
-    {
-        olcum_sonucu s;
-        if (olc(mesajlar, mesaj_adedi, sure, GECIKMELER[i], 0,
-                taban_bayt, link, link_kap, geri, mesaj_kap,
-                0, &s) < 0)
+        for (i = 0; i < GECIKME_ADEDI; i++)
         {
-            printf("  %8.2f  <-- olcum basarisiz\n", GECIKMELER[i]);
-            continue;
+            olcum_sonucu s;
+            if (olc(profil, mesajlar, mesaj_adedi, sure, GECIKMELER[i], 0,
+                    taban_bayt, link, link_kap, geri, mesaj_kap,
+                    0, &s) < 0)
+            {
+                printf("  %8.2f  <-- olcum basarisiz\n", GECIKMELER[i]);
+                continue;
+            }
+            printf("  %7.2fs %10.0f %10.0f %9.2fx %9.0f %9.0f %8ld %s%s\n",
+                   s.gecikme, s.taban_bsn, s.vekil_bsn, s.kazanc,
+                   s.canli_bsn, s.toplu_bsn, s.en_buyuk_paket,
+                   (s.dogru != 0) ? "GECTI" : (s.hatali_mesaj != NULL)
+                                            ? s.hatali_mesaj : "KALDI",
+                   (s.en_buyuk_paket > TELSIZ_MTU) ? "  <-- MTU asildi" : "");
         }
-        printf("  %7.2fs %10.0f %10.0f %9.2fx %9.0f %9.0f %8ld %s%s\n",
-               s.gecikme, s.taban_bsn, s.vekil_bsn, s.kazanc,
-               s.canli_bsn, s.toplu_bsn, s.en_buyuk_paket,
-               (s.dogru != 0) ? "GECTI" : "KALDI",
-               (s.en_buyuk_paket > TELSIZ_MTU) ? "  <-- MTU asildi" : "");
-    }
 
-    /* --- 6) Tani: 2 saniyelik butcede mesaj basina kirilim --- */
-    {
-        olcum_sonucu s;
-        printf("\n--- Tani: hangi mesaj kazandiriyor? ---");
-        (void)olc(mesajlar, mesaj_adedi, sure, 2.0, 1,
-                  taban_bayt, link, link_kap, geri, mesaj_kap, 1, &s);
-        printf("  ham gecis sutunu: sikistirma kazandirmadigi icin kayitlarin\n");
-        printf("  ham gonderildigi paket sayisi. Vekil bu sayede taban\n");
-        printf("  cizgisinden hicbir kosulda kotu olamaz.\n");
+        /* --- 6) Tani: 2 saniyelik butcede mesaj basina kirilim --- */
+        {
+            olcum_sonucu s;
+            printf("\n--- Tani: hangi mesaj kazandiriyor? ---");
+            (void)olc(profil, mesajlar, mesaj_adedi, sure, 2.0, 1,
+                      taban_bayt, link, link_kap, geri, mesaj_kap, 1, &s);
+            printf("  ham gecis sutunu: sikistirma kazandirmadigi icin kayitlarin\n");
+            printf("  ham gonderildigi paket sayisi. Vekil bu sayede taban\n");
+            printf("  cizgisinden hicbir kosulda kotu olamaz.\n");
+        }
+
+        free(link);
+        free(mesajlar);
+        free(geri);
     }
 
     printf("\n  canli  = sifir gecikmeli ham MAVLink (kalp atisi, sistem durumu,\n");
@@ -572,9 +722,8 @@ int main(int argc, char **argv)
 
     printf("=====================================================================\n");
 
-    free(link);
-    free(mesajlar);
-    free(geri);
     free(ham);
+    free(att_ham);
+    free(imu_ham);
     return 0;
 }

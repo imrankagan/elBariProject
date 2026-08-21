@@ -155,6 +155,29 @@ typedef enum
     KADEME_TOPLU        /* biriktirilir ve sikistirilir */
 } kademe;
 
+/**
+ * ArduPilot AKIS GRUPLARI.
+ *
+ * Otopilot mesajlari tek tek degil, GRUP halinde yayinlar; bir grubun
+ * hizi SRx_<GRUP> parametresidir. Yani "ATTITUDE kac Hz akar" sorusunun
+ * cevabi mesajin kendisinde degil, SRx_EXTRA1 parametresindedir.
+ *
+ * Dagilim ArduPlane 3.9 GCS_Mavlink.cpp / data_stream_send() ile ayni;
+ * ALFA veri seti bu surumun degistirilmis bir halini kullanir.
+ */
+typedef enum
+{
+    AKIS_SABIT = 0,   /* gruba bagli DEGIL: HEARTBEAT her linkte 1 Hz  */
+    AKIS_RAW_SENS,    /* SRx_RAW_SENS : SCALED_IMU, RAW_IMU, ...       */
+    AKIS_EXT_STAT,    /* SRx_EXT_STAT : SYS_STATUS, GPS_RAW_INT, ...   */
+    AKIS_POSITION,    /* SRx_POSITION : GLOBAL_POSITION_INT, ...       */
+    AKIS_RC_CHAN,     /* SRx_RC_CHAN  : RC_CHANNELS, SERVO_OUTPUT_RAW  */
+    AKIS_EXTRA1,      /* SRx_EXTRA1   : ATTITUDE, PID_TUNING, ...      */
+    AKIS_EXTRA2,      /* SRx_EXTRA2   : VFR_HUD                        */
+    AKIS_EXTRA3,      /* SRx_EXTRA3   : VIBRATION, BATTERY_STATUS, ... */
+    AKIS_GRUP_ADEDI
+} akis_grubu;
+
 typedef struct
 {
     uint32_t           msgid;
@@ -170,7 +193,12 @@ typedef struct
      *      gorur, tam hizli veri ise sikistirilmis olarak akar.
      */
     int32_t            canli_seyreltme;
-    double             hz;   /* tipik yayin hizi (olcum senaryosu icin) */
+    /**
+     * Bagli oldugu ArduPilot akis grubu. Yayin hizi mesajda DEGIL,
+     * grubun SRx_* parametresinde tutulur; hiz profili tablosu grubu
+     * Hz'e cevirir (bkz. mav_hiz).
+     */
+    akis_grubu         grup;
 } mesaj_tanimi;
 
 /** Tablodaki mesaj tanimini bulur; bilinmiyorsa NULL. */
@@ -178,6 +206,38 @@ const mesaj_tanimi *mav_sema_bul(uint32_t msgid);
 
 /** Sema tablosu ve uzunlugu. */
 const mesaj_tanimi *mav_sema_tablosu(int32_t *adet_cikti);
+
+/* =====================================================================
+ * HIZ PROFILLERI
+ * ---------------------------------------------------------------------
+ * Hangi mesajin kac Hz aktigi ARACA degil, LINKE baglidir: ayni ucak
+ * USB'den saniyede 25 durum mesaji yollarken telsizden 2 yollar. Tek
+ * bir "temsili hiz" secmek olcumu keyfi kilardi - dar bant secilirse
+ * vekilin kazanci sisirilir, genis bant secilirse dusurulur.
+ *
+ * Bu yuzden hizlar bir PROFIL tablosunda toplanir ve olcum her profil
+ * icin AYRI kosulur. Tablodaki degerler uydurulmamis, ALFA ucusunun
+ * kendi parametre dokumundan okunmustur.
+ * ===================================================================== */
+
+typedef struct
+{
+    const char *ad;
+    const char *aciklama;
+    double      grup_hz[AKIS_GRUP_ADEDI];   /* akis_grubu ile indekslenir */
+} hiz_profili;
+
+/** Tanimli profil sayisi. */
+int32_t mav_hiz_profili_adedi(void);
+
+/** Indekse gore profil; aralik disinda NULL. */
+const hiz_profili *mav_hiz_profili(int32_t indeks);
+
+/**
+ * Bir mesajin bu profildeki yayin hizi (Hz).
+ * t ya da p NULL ise, ya da grup gecersizse 0.0 doner.
+ */
+double mav_hiz(const mesaj_tanimi *t, const hiz_profili *p);
 
 /** Bu mesajin kac ElBari kanalina karsilik geldigi (U64 = 2 kanal). */
 int32_t mav_kanal_sayisi(const mesaj_tanimi *t);
@@ -331,6 +391,9 @@ typedef struct
 
 /**
  * Vekili kurar.
+ * @param profil          Yayin hizi profili. Her mesaj icin kac ornek
+ *                        biriktirilecegi bu profildeki hizdan cikar;
+ *                        NULL verilemez.
  * @param gecikme_saniye  Toplu kademenin gecikme butcesi. Her mesaj icin
  *                        biriktirilecek ornek sayisi bu butceden ve
  *                        mesajin yayin hizindan HESAPLANIR:
@@ -341,8 +404,8 @@ typedef struct
  *                        cok daha iyi oran), 0 = bit deseni korunur.
  * @return 0 basarili, < 0 hata
  */
-int32_t mav_vekil_kur(mav_vekil *v, double gecikme_saniye, int32_t kuantala,
-                      int32_t mtu);
+int32_t mav_vekil_kur(mav_vekil *v, const hiz_profili *profil,
+                      double gecikme_saniye, int32_t kuantala, int32_t mtu);
 
 /** Vekilin ayirdigi belleği birakir. */
 void mav_vekil_birak(mav_vekil *v);
@@ -382,13 +445,38 @@ typedef struct
     const int32_t *gps;          /* gercek GPS verisi: lat, lon, zaman */
     int32_t        gps_kayit;
     int32_t        gps_indeks;
+    /* Istege bagli gercek yonelim / IMU fiksturleri. NULL ise o mesaj
+     * sentetik uretilir; bkz. mav_uretici_gercek_veri. */
+    const int32_t *att;          /* 3 kanal: roll, pitch, yaw (milirad) */
+    int32_t        att_kayit;
+    int32_t        att_indeks;
+    const int32_t *imu;          /* 6 kanal: GyrXYZ (mrad/sn), AccXYZ (mg) */
+    int32_t        imu_kayit;
+    int32_t        imu_indeks;
     double         t;            /* saniye */
     uint32_t       rastgele;
     uint8_t        sira;
     double         sonraki[64];  /* mesaj basina bir sonraki yayin zamani */
+    const hiz_profili *profil;   /* yayin hizlarini veren profil         */
 } mav_uretici;
 
-void mav_uretici_kur(mav_uretici *u, const int32_t *gps, int32_t gps_kayit);
+void mav_uretici_kur(mav_uretici *u, const hiz_profili *profil,
+                     const int32_t *gps, int32_t gps_kayit);
+
+/**
+ * Sentetik kanallarin yerine GERCEK ucus verisi koyar.
+ *
+ * mav_uretici_kur'dan SONRA cagrilir. NULL verilen kanal sentetik kalir,
+ * boylece "neyin gercek oldugu" cagri yerinde acikca gorunur.
+ *
+ * @param att  3 kanalli yonelim fiksturu (milirad) - ATTITUDE roll/pitch/yaw
+ * @param imu  6 kanalli IMU fiksturu (GyrXYZ mrad/sn + AccXYZ mg).
+ *             SCALED_IMU'yu besler; ayrica ATTITUDE'un acisal hiz
+ *             alanlari da buradan gelir (ATT kaydi hiz tasimaz).
+ */
+void mav_uretici_gercek_veri(mav_uretici *u,
+                             const int32_t *att, int32_t att_kayit,
+                             const int32_t *imu, int32_t imu_kayit);
 
 /**
  * Bir sonraki mesaji uretir (zaman sirasinda).

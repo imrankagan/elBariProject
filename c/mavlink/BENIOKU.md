@@ -129,11 +129,66 @@ Linux / macOS:
 
 İkinci argüman simüle edilecek uçuş süresidir (saniye, varsayılan 300).
 
+## Hız profilleri — neden tek bir hız yetmez
+
+Bir mesajın kaç Hz aktığı **araca değil, linke** bağlıdır. Aynı uçak USB'den saniyede
+25 durum mesajı yollarken telemetri telsizinden 2 yollar. Tek bir "temsilî hız" seçmek
+ölçümü keyfî kılardı: dar bant seçilirse vekilin kazancı şişer, geniş bant seçilirse düşer.
+
+Bu yüzden hızlar mesajın kendisinde değil, bağlı olduğu **ArduPilot akış grubunda**
+(`SRx_EXTRA1`, `SRx_RAW_SENS`, …) tutulur; bir **profil tablosu** grubu Hz'e çevirir ve
+ölçüm her profil için ayrı koşulur.
+
+Tablodaki iki profil uydurulmamıştır — ALFA uçuşunun kendi parametre dökümünden
+(`2018-07-30 16-13-40.bin.param`, ArduPlane 3.9.0beta1) **aynen** okunmuştur:
+
+| Grup | `SR1_*` (telsiz) | `SR0_*` (USB) | Bu şemadaki mesajlar |
+| --- | --- | --- | --- |
+| `RAW_SENS` | 2 Hz | 10 Hz | SCALED_IMU |
+| `EXT_STAT` | 2 Hz | 25 Hz | SYS_STATUS, GPS_RAW_INT |
+| `POSITION` | 2 Hz | 10 Hz | GLOBAL_POSITION_INT |
+| `RC_CHAN` | 2 Hz | 10 Hz | RC_CHANNELS, SERVO_OUTPUT_RAW |
+| `EXTRA1` | 4 Hz | 10 Hz | ATTITUDE |
+| `EXTRA2` | 4 Hz | 10 Hz | VFR_HUD |
+| `EXTRA3` | 2 Hz | 10 Hz | VIBRATION, BATTERY_STATUS |
+
+`HEARTBEAT` bir akış grubuna bağlı değildir; ArduPilot onu her iki bağlantıda da 1 Hz yayınlar.
+
+**Sonuç ikisi arasında keskin biçimde ayrışır** ve bu, vekilin en önemli sınırıdır:
+dar bantlı SR1 profilinde 2 saniyelik bütçe başına yalnızca 4–8 kayıt birikir, çerçeve
+başlığı bu kadar az kaydın üzerine dağıtılamaz. Kazanç 2 sn'de **1.16x**'te kalır, kısa
+gecikmelerde 1'in **altına** düşer (taban çizgisine geri düşülür, zarar edilmez).
+Geniş bantlı SR0 profilinde aynı bütçe 20–50 kayıt biriktirir ve kazanç **1.71x** olur.
+
+Yani: *iki kademeli vekil, akış hızı yükseldikçe kazanır.* Dar bantlı bir telsizde
+kazanmak için gecikme bütçesini büyütmek (5 sn → 1.68x) gerekir.
+
+## Gerçek uçuş verisi bağlama
+
+Konum, yönelim ve IMU kanalları gerçek ArduPilot logundan beslenebilir:
+
+```
+mav_olcum alfa_gps.bin 300 --att alfa_att.bin --imu alfa_imu.bin
+```
+
+Fikstürleri [`c/veri/donustur.exe`](../veri/) üretir. Verilmeyen kanal sentetiğe düşer
+ve çıktının başında **hangisinin gerçek olduğu açıkça yazılır.** Açısal hız alanları
+`ATT` kaydında bulunmadığı için `IMU` jiroskopundan gelir.
+
+Gerçek veri sentetikten **iyi** çıkar — sentetik üreteç gürültüyü bilerek yüksek tuttuğu
+için (aşağıda §5) kötümser taraftaydı. SCALED_IMU tek başına 1.77x → **3.24x**,
+ATTITUDE 4.06x → **6.44x** (SR0, 2 sn).
+
+> Gerçek IMU verisi çekirdek kodekte bir **kayıpsızlık hatası** ortaya çıkardı: ardışık
+> farkın tam olarak 2³¹ olduğu durumda (işareti değişip büyüklüğü aynı kalan float)
+> üst bit kayboluyordu. Düzeltildi ve regresyon vektörü eklendi; ayrıntı
+> [belgeler/MAVLINK_VEKIL.md §5](../../belgeler/MAVLINK_VEKIL.md).
+
 ## Şema tablosunu kendi aracınıza uyarlama
 
 [mav_sema.c](mav_sema.c) içinde iki şey değiştirilir:
 
-1. **`hz` değerleri** — ArduPilot'ta `SR0_*` parametreleriyle, PX4'te akış
-   yapılandırmasıyla eşleştirin. Ölçümün gerçekçiliği doğrudan buna bağlıdır.
+1. **`PROFILLER` tablosu** — kendi aracınızın `SRx_*` parametrelerini girin
+   (PX4'te akış yapılandırması). Ölçümün gerçekçiliği doğrudan buna bağlıdır.
 2. **Kademe ataması** — bir mesajın üzerine gerçek zamanda karar veriliyorsa
    `KADEME_CANLI`, değilse `KADEME_TOPLU`. Emin değilseniz CANLI seçin: güvenli taraf odur.
