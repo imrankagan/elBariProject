@@ -218,13 +218,36 @@ Detayları*). O halde asıl rakip zstd değil, **aynı ailenin diğer üyeleridi
 > rakipler için bir **alt sınırdır.** Bu yüzden burada "ElBâri daha hızlı" iddiası
 > **kurulmuyor.**
 
+### Yedi veri setinde konum
+
+Yukarıdaki tablo tek bir veri setine (GPS izleri) aittir. Ölçüm, gerçek bir ArduPilot
+uçuş logundan üretilen altı fikstürle tekrarlandı:
+
+| Veri seti | K | **ElBâri** | Ailenin en iyisi | Fark |
+| --- | ---: | ---: | --- | ---: |
+| GPS (OSM referans) | 3 | **4.95x** | Sprintz 4.67x | **+%6,0** |
+| GPS (ALFA uçuş) | 3 | **5.60x** | Simple8b 5.43x | **+%3,1** |
+| Titreşim | 3 | 5.38x | Simple8b 5.51x | −%2,4 |
+| Yönelim | 3 | 14.70x | Sprintz 15.55x | −%5,5 |
+| IMU | 6 | 6.88x | Simple8b 7.43x | −%7,4 |
+| Servo (RCOU) | 8 | 25.64x | Sprintz 34.18x | −%25,0 |
+| Kumanda (RCIN) | 8 | 40.09x | Sprintz 74.39x | **−%46,1** |
+
+**Konum verisinde lider, sürekli telemetride rekabetçi, tekrarlı PWM kanallarında açık
+farkla geride.** Son satır bir ayar meselesi değil: ElBâri her 8 değere 4 bitlik etiket
+yazar, sıfır blokta bile. Bu, değer başına 0,5 bitlik bir taban ve **64x'lik sert bir
+tavan** demektir. RCIN'de ElBâri 40.09x alıyor, Sprintz **74.39x** — yani ElBâri'nin
+teorik tavanının üstünde. Ayrıntı:
+[belgeler/KIYAS_TAMSAYI_KODEKLER.md §3](belgeler/KIYAS_TAMSAYI_KODEKLER.md).
+
 ### Bu ölçümün üç bulgusu
 
-**1. Katkı gerçek ama küçük — tek haneli yüzde.**
-Doğru aileyle ölçüldüğünde ElBâri'nin oran üstünlüğü Sprintz'e karşı **%6,1**,
-Simple8b'ye karşı %7,0, OptPFD'ye karşı %8,6. Genel amaçlı sıkıştırıcılara karşı
-görülen "üç kat" farkın gerçek ailedeki karşılığı budur. Beklenen sonuç: ElBâri zaten
-aynı fikirleri kullanıyor.
+**1. Katkı gerçek ama küçük ve veri setine bağlı.**
+GPS verisinde ElBâri'nin oran üstünlüğü Sprintz'e karşı **%6,1**, Simple8b'ye karşı
+%7,0, OptPFD'ye karşı %8,6. Genel amaçlı sıkıştırıcılara karşı görülen "üç kat" farkın
+gerçek ailedeki karşılığı budur. Ama yukarıdaki tabloda görüldüğü gibi bu fark **her
+veri setinde geçerli değil** — yönelim/IMU'da negatife, tekrarlı kanallarda belirgin
+negatife dönüyor. Beklenen sonuç: ElBâri zaten aynı fikirleri kullanıyor.
 
 **2. Çerçeveleme açılınca oran liderliği kayboluyor.**
 Paket kaybı dayanıklılığı devredeyken ElBâri **4.30x** ile Sprintz'in (**4.67x**)
