@@ -1,111 +1,255 @@
-PROPRIETARY LICENSE AGREEMENT
-==============================
+ELBÂRİ YAZILIM LİSANS SÖZLEŞMESİ
+Sürüm 2.0
 
-ElBâri - High-Performance Compression Software
-Copyright (c) 2025 İmran Kağan. All Rights Reserved.
+Telif Hakkı (c) 2025-2026 İmran Kağan. Tüm hakları saklıdır.
 
-THIS IS A PROPRIETARY SOFTWARE. ALL RIGHTS RESERVED.
+Bu belgenin Türkçe metni ASILDIR. Aşağıdaki İngilizce çeviri bilgi
+amaçlıdır; çelişki hâlinde Türkçe metin geçerlidir.
 
-NO OPEN SOURCE LICENSE IS GRANTED. This software and its source code are 
-confidential and proprietary to İmran Kağan. Unauthorized copying, 
-distribution, modification, or use is strictly prohibited.
+=====================================================================
+ÖZET (bağlayıcı değildir, kolaylık içindir)
+=====================================================================
 
-TERMS OF USE:
--------------
+  ✅ Okuyabilirsin, inceleyebilirsin, öğrenebilirsin.
+  ✅ Akademik ve eğitim amaçlı kullanabilirsin (tez, ders, araştırma).
+  ✅ Yayınlarında alıntılayabilir ve atıf yapabilirsin.
+  ❌ Ticari olarak kullanamazsın — önce lisans almalısın.
+  ❌ Kopyasını dağıtamaz, yeniden yayımlayamazsın.
+  ❌ Türev bir ürünü dağıtamazsın.
 
-1. LICENSE REQUIRED
-   You MUST obtain a valid commercial license to use this software.
-   No free or trial use is permitted without explicit written permission.
+  Ticari kullanım için: imrankagant@gmail.com
 
-2. RESTRICTIONS
-   You may NOT:
-   - Copy, modify, or distribute the software
-   - Reverse engineer or decompile the software
-   - Use the software without a valid license
-   - Share your license with third parties
-   - Access or view the source code without authorization
+=====================================================================
+1. TANIMLAR
+=====================================================================
 
-3. LICENSE TYPES & PRICING
+1.1 "Yazılım": Bu depoda yer alan kaynak kodu, derlenmiş ikili dosyalar,
+    biçim spesifikasyonu, uygunluk vektörleri, belgeler ve ölçüm
+    kodlarının tamamı.
 
-   BASIC LICENSE: $2,000/year
-   - Single project use
-   - Up to 5 deployments
-   - Email support (72-hour response)
-   - Binary-only distribution
+1.2 "Lisans Veren": İmran Kağan.
 
-   PROFESSIONAL LICENSE: $10,000/year
-   - Multiple projects
-   - Unlimited deployments
-   - Priority support (24-hour response)
-   - Source code access (read-only)
+1.3 "Siz": Bu Yazılıma erişen gerçek veya tüzel kişi.
 
-   ENTERPRISE LICENSE: $50,000/year
-   - Company-wide unlimited use
-   - Source code modification rights
-   - 24/7 premium support
-   - Custom feature development
-   - Service Level Agreement (SLA)
+1.4 "Ticari Kullanım": Doğrudan veya dolaylı olarak ticari kazanç,
+    gelir veya ticari avantaj elde etmeye yönelik her türlü kullanım.
+    Buna şunlar dâhildir ancak bunlarla sınırlı değildir:
+      (a) Yazılımın bir ürün, hizmet veya cihaza dâhil edilmesi,
+      (b) müşterilere sunulan bir hizmetin işletilmesinde kullanılması,
+      (c) ticari bir kuruluşun iç faaliyetlerinde kullanılması,
+      (d) kamu kurumu veya savunma sanayii projelerinde kullanılması,
+      (e) ihaleye, teklife veya ticari değerlendirmeye konu edilmesi.
 
-   OEM/EMBEDDED LICENSE: Contact for pricing
-   - Hardware integration rights
-   - Royalty-based or one-time payment
-   - White-label options available
+1.5 "Akademik Kullanım": Bir eğitim kurumu bünyesinde veya bireysel
+    olarak yürütülen, ticari kazanç amacı gütmeyen öğrenim, öğretim,
+    tez çalışması, bilimsel araştırma ve yayın faaliyetleri.
 
-4. PAYMENT TERMS
-   - Annual licenses: Payment in advance, non-refundable
-   - Automatic renewal unless cancelled 30 days before expiration
-   - Price increases may apply upon renewal
-   - Late payment: 10% penalty per month
+=====================================================================
+2. VERİLEN HAKLAR
+=====================================================================
 
-5. MILITARY/DEFENSE/GOVERNMENT USE
-   Special licensing required. Contact for custom terms.
-   Minimum: Enterprise License + Additional fees
+Lisans Veren, bu sözleşmenin şartlarına uymanız kaydıyla, size dünya
+çapında, telifsiz, münhasır olmayan ve devredilemez şu hakları verir:
 
-6. SUPPORT & UPDATES
-   - Included only with active paid license
-   - Updates and bug fixes at licensor's discretion
-   - Support via email/phone based on license tier
+2.1 İNCELEME. Yazılımı görüntüleyebilir, okuyabilir ve inceleyebilirsiniz.
 
-7. WARRANTY DISCLAIMER
-   THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND.
-   LICENSOR IS NOT LIABLE FOR ANY DAMAGES ARISING FROM USE.
+2.2 AKADEMİK KULLANIM. Yazılımı Akademik Kullanım kapsamında
+    çalıştırabilir, derleyebilir, üzerinde ölçüm yapabilir ve
+    değiştirebilirsiniz.
 
-8. TERMINATION
-   License terminates immediately upon:
-   - Non-payment
-   - Breach of terms
-   - Unauthorized distribution
+2.3 YAYIN VE ATIF. Akademik çalışmalarınızda Yazılıma atıfta
+    bulunabilir, ölçüm sonuçlarını yayımlayabilir ve makul uzunlukta
+    kod alıntıları kullanabilirsiniz. Tez çalışmalarının ulusal tez
+    merkezlerinde arşivlenmesi bu izne dâhildir.
 
-   Upon termination, licensee must destroy all copies.
+2.4 DEĞERLENDİRME. Ticari lisans satın alma kararı vermek amacıyla,
+    en fazla otuz (30) gün süreyle, üretim dışı bir ortamda
+    değerlendirme yapabilirsiniz.
 
-9. INTELLECTUAL PROPERTY
-   All code, algorithms, and documentation remain the exclusive 
-   property of İmran Kağan. No IP rights are transferred.
+2.5 KİŞİSEL KULLANIM. Ticari olmayan kişisel projelerinizde
+    kullanabilirsiniz.
 
-10. CONFIDENTIALITY
-    Licensees with source code access must sign a separate NDA.
-    Disclosure of source code or algorithms is prohibited.
+=====================================================================
+3. KISITLAMALAR
+=====================================================================
 
-11. LEGAL ACTION
-    Unauthorized use will result in:
-    - Immediate legal action
-    - Injunction to cease use
-    - Damages claim (minimum $100,000)
-    - Criminal prosecution where applicable
+Aşağıdakiler Lisans Veren'in önceden yazılı izni olmadan YASAKTIR:
 
-12. GOVERNING LAW
-    This agreement is governed by the laws of Turkey.
-    Disputes shall be resolved in Turkish courts.
+3.1 TİCARİ KULLANIM. Madde 2.4'teki değerlendirme istisnası dışında,
+    Yazılımın hiçbir Ticari Kullanımı yapılamaz.
 
-CONTACT FOR LICENSING:
-----------------------
-Email: [EPOSTA_ADRESINIZ]
-Phone: [TELEFON_NUMARANIZ]
-Website: [WEB_SITENIZ]
+3.2 DAĞITIM. Yazılımın tamamının veya önemli bir kısmının kopyası,
+    kaynak kodu veya ikili biçimde, üçüncü kişilere dağıtılamaz,
+    yeniden yayımlanamaz, satılamaz, kiralanamaz veya barındırma
+    hizmeti olarak sunulamaz.
 
-Response time: 1-2 business days
+3.3 TÜREV ÇALIŞMA DAĞITIMI. Madde 2.2 uyarınca yaptığınız
+    değişiklikler size aittir ancak dağıtılamaz. Değişiklikleri yalnızca
+    kendi Akademik veya kişisel kullanımınızda tutabilirsiniz.
 
----
+3.4 ALT LİSANS. Bu sözleşme kapsamındaki haklar alt lisansla
+    devredilemez.
 
-© 2025 İmran Kağan. All Rights Reserved.
-Unauthorized use is theft and will be prosecuted.
+3.5 BİLDİRİMLERİN KALDIRILMASI. Telif hakkı bildirimleri, lisans
+    metni ve yazar atıfları kaldırılamaz veya değiştirilemez.
+
+3.6 MARKA. "ElBâri" adı, Lisans Veren'in izni olmadan bir ürün veya
+    hizmetin adlandırılmasında kullanılamaz.
+
+=====================================================================
+4. TİCARİ LİSANS
+=====================================================================
+
+4.1 Ticari Kullanım için ayrı bir yazılı lisans sözleşmesi
+    gerekmektedir.
+
+4.2 Ticari lisans koşulları; kullanım kapsamı, dağıtım hacmi, destek
+    düzeyi ve entegrasyon gereksinimlerine göre görüşme yoluyla
+    belirlenir. Sabit bir fiyat listesi yayımlanmamaktadır.
+
+4.3 Savunma, havacılık, uzay ve kamu güvenliği alanlarındaki
+    kullanımlar için ek koşullar ve ayrı bir değerlendirme süreci
+    uygulanır.
+
+4.4 Başvuru: imrankagant@gmail.com
+    Yanıt süresi genellikle 1-2 iş günüdür.
+
+=====================================================================
+5. ÜÇÜNCÜ TARAF VERİLERİ
+=====================================================================
+
+5.1 testverisi/gercek_gps.bin dosyası bu lisansın KAPSAMI DIŞINDADIR.
+    Bu dosya OpenStreetMap katkıcılarına ait olup Open Database License
+    (ODbL) altında dağıtılmaktadır. Ayrıntı: testverisi/KAYNAK.md
+
+5.2 Söz konusu dosya bir ölçüm fikstürüdür; kütüphanenin parçası
+    değildir ve dağıtılan ikili dosyalara girmez.
+
+5.3 c/kiyas/ altındaki rakip kodek uygulamaları, yayımlanmış akademik
+    biçim tanımlarından bağımsız olarak yazılmıştır ve karşılaştırma
+    amaçlıdır. İlgili yayınlara atıf o dosyaların başlıklarındadır.
+
+=====================================================================
+6. GARANTİ REDDİ
+=====================================================================
+
+YAZILIM "OLDUĞU GİBİ" SAĞLANMAKTADIR. LİSANS VEREN, AÇIK VEYA ZIMNİ
+HİÇBİR GARANTİ VERMEZ; TİCARİ ELVERİŞLİLİK, BELİRLİ BİR AMACA
+UYGUNLUK VE İHLAL ETMEME GARANTİLERİ DÂHİL OLMAK ÜZERE TÜM GARANTİLER
+AÇIKÇA REDDEDİLİR.
+
+Yazılım; insan hayatının, sağlığının veya önemli maddi değerlerin
+tehlikeye girebileceği kritik sistemlerde (insansız hava aracı uçuş
+kontrolü, tıbbi cihaz, nükleer tesis, silah sistemi vb.) kullanılmak
+üzere sertifikalandırılmamıştır. Böyle bir kullanım tamamen kullanıcının
+sorumluluğundadır ve bağımsız doğrulama, sertifikasyon ve güvenlik
+analizi gerektirir.
+
+=====================================================================
+7. SORUMLULUĞUN SINIRLANDIRILMASI
+=====================================================================
+
+Yürürlükteki hukukun izin verdiği azami ölçüde, Lisans Veren; doğrudan,
+dolaylı, arızi, özel, cezai veya sonuç niteliğindeki hiçbir zarardan
+(veri kaybı, kâr kaybı, iş kesintisi dâhil) sorumlu tutulamaz.
+
+=====================================================================
+8. FESİH
+=====================================================================
+
+8.1 Bu sözleşmeyi ihlal etmeniz hâlinde lisansınız kendiliğinden ve
+    bildirime gerek olmaksızın sona erer.
+
+8.2 Fesih hâlinde Yazılımın elinizdeki tüm kopyalarını silmeniz
+    gerekir.
+
+8.3 Madde 6, 7 ve 9 fesihten sonra da yürürlükte kalır.
+
+8.4 Fesihten önce yayımlanmış akademik çalışmalarınız etkilenmez.
+
+=====================================================================
+9. UYGULANACAK HUKUK
+=====================================================================
+
+Bu sözleşme Türkiye Cumhuriyeti hukukuna tabidir. Uyuşmazlıklarda
+İstanbul Mahkemeleri ve İcra Daireleri yetkilidir.
+
+=====================================================================
+10. İLETİŞİM
+=====================================================================
+
+İmran Kağan
+E-posta: imrankagant@gmail.com
+Depo   : https://github.com/imrankagan/elBariProject
+
+=====================================================================
+NOT: GITHUB ÜZERİNDEKİ GÖRÜNÜRLÜK
+=====================================================================
+
+Bu deponun herkese açık olması, Yazılımın açık kaynak olduğu anlamına
+GELMEZ. Görünürlük tanıtım ve akademik inceleme amaçlıdır.
+
+GitHub Hizmet Şartları, herkese açık depoların görüntülenmesine ve
+"fork" edilmesine izin verir. Bu, GitHub platformu içindeki teknik bir
+işlemdir ve Madde 3.2'deki dağıtım yasağını platform dışına taşımaz:
+fork edilen bir kopya da bu lisansa tabidir ve üçüncü kişilere
+dağıtılamaz, ticari olarak kullanılamaz.
+
+
+=====================================================================
+=====================================================================
+
+ENGLISH TRANSLATION (informative only; the Turkish text governs)
+
+ELBÂRİ SOFTWARE LICENSE AGREEMENT, Version 2.0
+Copyright (c) 2025-2026 İmran Kağan. All rights reserved.
+
+SUMMARY (not binding)
+  ✅ You may read, study and learn from this Software.
+  ✅ You may use it for academic and educational purposes.
+  ✅ You may cite it and publish measurement results.
+  ❌ You may NOT use it commercially without a separate license.
+  ❌ You may NOT redistribute copies or derivative works.
+
+  For commercial licensing: imrankagant@gmail.com
+
+GRANT. Subject to compliance with this agreement, you are granted a
+worldwide, royalty-free, non-exclusive, non-transferable right to:
+(a) view and study the Software; (b) run, compile, benchmark and modify
+it for Academic Use; (c) cite it and publish results, including
+archiving of theses in national thesis repositories; (d) evaluate it for
+up to thirty (30) days in a non-production environment for the purpose
+of deciding on a commercial license; (e) use it in non-commercial
+personal projects.
+
+RESTRICTIONS. Without prior written permission you may not: use the
+Software commercially (as defined in the Turkish text, Article 1.4);
+distribute, republish, sell, rent or host copies of the Software;
+distribute derivative works; sublicense; remove copyright or license
+notices; or use the "ElBâri" name to designate a product or service.
+
+THIRD-PARTY DATA. testverisi/gercek_gps.bin is NOT covered by this
+license. It originates from OpenStreetMap contributors and is licensed
+under the Open Database License (ODbL). See testverisi/KAYNAK.md
+
+NO WARRANTY. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED. The Software is not certified for
+safety-critical use.
+
+LIMITATION OF LIABILITY. To the maximum extent permitted by law, the
+Licensor shall not be liable for any direct, indirect, incidental,
+special, punitive or consequential damages.
+
+TERMINATION. Your license terminates automatically upon breach. Upon
+termination you must delete all copies. Academic works published before
+termination are unaffected.
+
+GOVERNING LAW. This agreement is governed by the laws of the Republic
+of Türkiye; the courts of İstanbul have jurisdiction.
+
+PUBLIC VISIBILITY ON GITHUB does not make this Software open source.
+Forking is a platform-level operation permitted by GitHub's Terms of
+Service; a forked copy remains subject to this license and may not be
+redistributed or used commercially.
+
+Contact: İmran Kağan — imrankagant@gmail.com

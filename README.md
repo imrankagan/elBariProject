@@ -1,6 +1,6 @@
 # ElBâri — Telemetri Sıkıştırma Motoru
 
-[![License: Proprietary](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE.txt)
+[![Lisans: Akademik serbest / Ticari lisanslı](https://img.shields.io/badge/lisans-akademik%20serbest%20%7C%20ticari%20lisansl%C4%B1-orange.svg)](LICENSE.txt)
 [![.NET 10](https://img.shields.io/badge/.NET-10-purple.svg)](https://dotnet.microsoft.com/)
 [![AOT Ready](https://img.shields.io/badge/AOT-Native-green.svg)](https://learn.microsoft.com/dotnet/core/deploying/native-aot)
 [![Derleme ve Test](https://github.com/imrankagan/elBariProject/actions/workflows/derleme-ve-test.yml/badge.svg)](https://github.com/imrankagan/elBariProject/actions/workflows/derleme-ve-test.yml)
@@ -22,8 +22,9 @@ sunmasıdır:
    AOT ile makine koduna derlenir; **C sürümü** ise RTOS ve bare-metal dahil derleyicisi
    olan her mimariye girer. İkisi bit bit aynı çıktı üretir.
 
-Kodun görüntülenmesi, değiştirilmesi veya kullanılması için geçerli bir lisans gereklidir.
-GitHub'daki görünürlük **sadece tanıtım amaçlıdır**.
+**Lisans:** Akademik ve eğitim amaçlı kullanım, inceleme ve atıf **serbesttir** — tez
+çalışmaları dâhil. Ticari kullanım ayrı bir lisans gerektirir; dağıtım ve yeniden
+yayımlama yasaktır. Ayrıntı: [LICENSE.txt](LICENSE.txt) · İletişim: imrankagant@gmail.com
 
 ## 📁 Proje Yapısı
 
@@ -1113,5 +1114,5 @@ Bu yazılım **"OLDUĞU GİBİ"** sağlanmaktadır; hiçbir garanti verilmez. Kr
 
 ---
 
-**© 2025 İmran Kağan. Tüm hakları saklıdır.**
-Proprietary and Confidential. Commercial License Required.
+**© 2025-2026 İmran Kağan. Tüm hakları saklıdır.**
+Akademik kullanım serbest · Ticari kullanım lisansa tabidir → [LICENSE.txt](LICENSE.txt)
