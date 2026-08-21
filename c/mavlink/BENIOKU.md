@@ -66,10 +66,31 @@ bütçesinden bağımsız** — gecikmeyi büyütmek paketleri büyütmez, yaln�
 
 ## ⚠️ Sınırlar — kullanmadan önce okuyun
 
-**1. CRC_EXTRA tablosu boştur.** Gerçek MAVLink CRC'si, mesaj adından ve alan
-türlerinden türetilen bir CRC_EXTRA baytı gerektirir. Bu tablo üretilmiş MAVLink
-başlıklarından doldurulmadan **gerçek bir otopilotla konuşulamaz.** Ölçüm için önemsizdir
-(CRC her hâlükârda 2 bayttır, boyut hesapları değişmez), entegrasyon için zorunludur.
+**1. CRC_EXTRA hesaplanıyor, ezberden yazılmıyor.** MAVLink her mesaj için, adından ve
+alan tanımlarından türetilen bir bayt taşır; amacı iki ucun *aynı* mesaj tanımını
+kullandığını garanti etmektir. [mav_sema.c](mav_sema.c) içindeki `mav_crc_extra()` bunu
+mavgen ile aynı algoritmayla üretir:
+
+```
+crc = X25("MESAJ_ADI ")
+her alan için (tel sırasında):
+    crc += "tür_adı " + "alan_adı "
+    alan gerçek bir diziyse: crc += dizi_uzunluğu (tek bayt)
+CRC_EXTRA = (crc & 0xFF) XOR (crc >> 8)
+```
+
+Sabit tablo yazmak yerine hesaplamanın sebebi: **yanlış bir CRC_EXTRA, paketlerin gerçek
+otopilotta sessizce reddedilmesine yol açar** — boş bir tablodan beterdir, çünkü hata
+görünmez. Hesaplama şemadaki alan adlarına bağlı olduğu için, şemayı kendi dialect
+sürümünüze göre düzeltince CRC de kendini düzeltir.
+
+`mav_olcum` başlarken hesaplanan değerleri bilinen referanslarla karşılaştırır ve
+uyumsuzluğu **yüksek sesle** bildirir. Yine de kendi `common.h`'inizdeki
+`MAVLINK_MESSAGE_CRCS` listesiyle bir kez doğrulayın.
+
+Şeması bulunmayan msgid'ler için CRC_EXTRA bilinemez; 0 kullanılır ve böyle bir mesaj
+gerçek otopilot tarafından reddedilir. Bu doğru davranıştır — tanımını bilmediğimiz bir
+mesajı doğrulanmış gibi göstermek daha kötü olurdu.
 
 **2. Şema tablosu elle yazılmıştır.** Alan düzenleri `common.xml`'in yaygın sürümüne
 göre girilmiştir. MAVLink v2 "message extension" özelliği mesajlara sonradan alan

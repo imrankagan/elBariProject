@@ -341,6 +341,85 @@ int main(int argc, char **argv)
     }
     printf("  Tum mesajlarda alan boyutlari yuk boyutunu tutuyor.\n\n");
 
+    /* --- 1b) CRC_EXTRA: hesaplanan degerler referansla ortusuyor mu --- */
+    {
+        /* Referans degerler MAVLink common dialect'inden bilinen
+         * CRC_EXTRA baytlaridir. Hesaplama BAGIMSIZ bir yoldan
+         * (mesaj adi + alan tanimlari) ayni sonuca variyorsa, sema
+         * tablosundaki alan adlari ve turleri de dogrulanmis olur.
+         *
+         * !!! Bu tablo yine de KENDI dialect surumunuzle karsilastirilmali:
+         *     uretilmis common.h icindeki MAVLINK_MESSAGE_CRCS listesi. */
+        static const struct { uint32_t msgid; uint8_t beklenen; } REFERANS[] =
+        {
+            {   0,  50 }, {   1, 124 }, {  24,  24 }, {  26, 170 },
+            {  30,  39 }, {  33, 104 }, {  36, 222 }, {  65, 118 },
+            {  74,  20 }, { 147, 154 }, { 241,  90 }
+        };
+        const int32_t REF_ADEDI =
+            (int32_t)(sizeof(REFERANS) / sizeof(REFERANS[0]));
+        int32_t sema_adedi = 0;
+        const mesaj_tanimi *sema = mav_sema_tablosu(&sema_adedi);
+        int32_t uyumsuz = 0;
+        int32_t k;
+
+        printf("--- CRC_EXTRA (semadan HESAPLANDI, ezberden yazilmadi) ---\n");
+        printf("  %-22s %10s %10s %s\n",
+               "mesaj", "hesaplanan", "referans", "durum");
+        printf("  --------------------------------------------------------\n");
+
+        for (k = 0; k < sema_adedi; k++)
+        {
+            uint8_t hesap = mav_crc_extra(&sema[k]);
+            int32_t j;
+            int32_t bulundu = 0;
+            uint8_t ref = 0u;
+
+            for (j = 0; j < REF_ADEDI; j++)
+            {
+                if (REFERANS[j].msgid == sema[k].msgid)
+                {
+                    ref = REFERANS[j].beklenen;
+                    bulundu = 1;
+                    break;
+                }
+            }
+
+            if (bulundu == 0)
+            {
+                printf("  %-22s %10u %10s %s\n",
+                       sema[k].ad, (unsigned)hesap, "-", "referans yok");
+            }
+            else if (hesap == ref)
+            {
+                printf("  %-22s %10u %10u %s\n",
+                       sema[k].ad, (unsigned)hesap, (unsigned)ref, "ORTUSTU");
+            }
+            else
+            {
+                printf("  %-22s %10u %10u %s\n",
+                       sema[k].ad, (unsigned)hesap, (unsigned)ref,
+                       "UYUMSUZ  <-- sema alan adlari/turleri hatali");
+                uyumsuz++;
+            }
+        }
+
+        if (uyumsuz == 0)
+        {
+            printf("\n  Tum degerler ortustu. Iki bagimsiz yol (alan\n");
+            printf("  tanimlarindan hesap ve bilinen referans) ayni sonuca\n");
+            printf("  vardigi icin sema tablosu da dogrulanmis oldu.\n");
+        }
+        else
+        {
+            printf("\n  %d UYUMSUZLUK. Sema tablosundaki alan adlari veya\n",
+                   (int)uyumsuz);
+            printf("  turleri kendi dialect surumunuzle ortusmuyor.\n");
+        }
+        printf("\n  Dogrulama: uretilmis common.h icindeki MAVLINK_MESSAGE_CRCS\n");
+        printf("  listesiyle karsilastirin.\n\n");
+    }
+
     /* --- 2) Veri --- */
     ham = dosya_oku(argv[1], &ham_boy);
     if (ham == NULL)

@@ -120,12 +120,33 @@ typedef enum
     ALAN_F32
 } alan_turu;
 
+/**
+ * Bir MAVLink alani.
+ *
+ * DIKKAT - "tekrar" alaninin IKI ayri anlami vardir ve CRC_EXTRA hesabi
+ * bu ikisini AYIRT ETMEK ZORUNDADIR:
+ *
+ *   dizi_mi = 1 : gercek MAVLink dizisi, orn. uint16_t voltages[10]
+ *                 XML'de TEK alandir. CRC hesabina dizi uzunlugu bayti
+ *                 girer.
+ *   dizi_mi = 0 : ayri ayri bildirilmis ARDISIK alanlar, orn.
+ *                 chan1_raw ... chan18_raw. XML'de 18 AYRI alandir.
+ *                 CRC hesabina her biri kendi adiyla girer, uzunluk
+ *                 bayti GIRMEZ.
+ *
+ * Bu ayrim yapilmazsa CRC_EXTRA sessizce yanlis cikar ve gercek bir
+ * otopilot paketleri reddeder.
+ */
 typedef struct
 {
-    const char *ad;
+    const char *ad;         /* tekil alan adi; desen kullanilirsa NULL      */
+    const char *ad_deseni;  /* ardisik alanlar icin, orn. "chan%d_raw"      */
+    int32_t     desen_bas;  /* desendeki ilk indeks (chan1 -> 1, clipping_0 -> 0) */
+    const char *mav_tur;    /* MAVLink tur adi, orn. "uint16_t" (CRC icin)  */
     alan_turu   tur;
-    int32_t     tekrar;   /* dizi alanlari icin eleman sayisi (1 = tekil) */
-    float       olcek;    /* F32 icin kuantalama olcegi (1/hassasiyet) */
+    int32_t     tekrar;     /* eleman sayisi (1 = tekil)                    */
+    int32_t     dizi_mi;    /* 1 = gercek dizi, 0 = ardisik ayri alanlar    */
+    float       olcek;      /* F32 icin kuantalama olcegi (1/hassasiyet)    */
 } alan_tanimi;
 
 typedef enum
@@ -170,6 +191,30 @@ int32_t mav_kanal_sayisi(const mesaj_tanimi *t);
  */
 int32_t mav_sema_dogrula(void (*bildir)(const char *ad, int32_t beklenen,
                                         int32_t bulunan));
+
+/**
+ * Bir mesajin CRC_EXTRA baytini HESAPLAR.
+ *
+ * MAVLink, her mesaj icin adindan ve alan tanimlarindan turetilen bir
+ * bayt tasir; bu bayt CRC'ye karistirilir. Amaci, iki ucun AYNI mesaj
+ * tanimini kullandigini garanti etmektir: alan eklenirse ya da turu
+ * degisirse CRC_EXTRA degisir ve eski yazilim paketi reddeder.
+ *
+ * Algoritma (mavgen ile ayni):
+ *   crc = X25("MESAJ_ADI ")
+ *   her alan icin (tel sirasinda):
+ *       crc += "tur_adi "  +  "alan_adi "
+ *       alan gercek bir diziyse: crc += dizi_uzunlugu (tek bayt)
+ *   CRC_EXTRA = (crc & 0xFF) XOR (crc >> 8)
+ *
+ * NOT: v2 "extension" alanlari hesaba GIRMEZ.
+ *
+ * Ezberden tablo yazmak yerine hesaplamanin sebebi: yanlis bir
+ * CRC_EXTRA, paketlerin gercek otopilotta SESSIZCE reddedilmesine yol
+ * acar. Hesaplama, semadaki alan adlariyla dogrudan bagli oldugu icin
+ * semayi duzeltince kendini duzeltir.
+ */
+uint8_t mav_crc_extra(const mesaj_tanimi *t);
 
 /**
  * MAVLink yukunu int32 kanal degerlerine cozer.

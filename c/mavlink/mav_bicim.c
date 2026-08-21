@@ -4,12 +4,16 @@
  * Yalnizca olcum icin gereken kadari uygulanmistir: cerceve yapisi,
  * yuk kirpma ve CRC hesabi.
  *
- * CRC_EXTRA UYARISI:
- *   Gercek MAVLink, CRC'nin sonuna mesaj adindan ve alan turlerinden
- *   turetilen bir CRC_EXTRA bayti ekler. O tablo uretilmis MAVLink
- *   basliklarindan alinmalidir; burada 0 kullanilir. Bu, BOYUT
- *   hesaplarini etkilemez (CRC her halukarda 2 bayttir) ama gercek bir
- *   otopilotla konusmak icin doldurulmasi ZORUNLUDUR.
+ * CRC_EXTRA:
+ *   Gercek MAVLink, CRC'nin sonuna mesaj adindan ve alan tanimlarindan
+ *   turetilen bir CRC_EXTRA bayti ekler. Bu bayt burada EZBERDEN
+ *   YAZILMAZ, semadan HESAPLANIR (bkz. mav_crc_extra). Boylece sema
+ *   duzeltilince CRC de kendini duzeltir.
+ *
+ *   Semasi bulunmayan msgid'ler icin CRC_EXTRA bilinemez; 0 kullanilir.
+ *   Boyle bir mesaj gercek bir otopilot tarafindan reddedilir - ama bu
+ *   dogru davranistir: tanimini bilmedigimiz bir mesaji dogrulanmis gibi
+ *   gostermek daha kotu olurdu.
  * ===================================================================== */
 
 #include "mav.h"
@@ -77,8 +81,13 @@ int32_t mav_cerceve_yaz(const mav_mesaj *m, uint8_t *cikti, int32_t kapasite)
         cikti[MAV_BASLIK + i] = m->yuk[i];
     }
 
-    /* CRC: STX haric baslik + yuk (+ gercekte CRC_EXTRA). */
+    /* CRC: STX haric baslik + yuk + CRC_EXTRA */
     crc = mav_crc16(&cikti[1], (MAV_BASLIK - 1) + kirpik, 0xFFFFu);
+    {
+        const mesaj_tanimi *st = mav_sema_bul(m->msgid);
+        uint8_t ekstra = (st != NULL) ? mav_crc_extra(st) : 0u;
+        crc = mav_crc16(&ekstra, 1, crc);
+    }
     cikti[MAV_BASLIK + kirpik]     = (uint8_t)(crc & 0xFFu);
     cikti[MAV_BASLIK + kirpik + 1] = (uint8_t)((crc >> 8) & 0xFFu);
 
@@ -107,17 +116,23 @@ int32_t mav_cerceve_oku(const uint8_t *girdi, int32_t boyut,
     toplam = MAV_EK_YUK + kirpik;
     if (toplam > boyut) { return -1; }
 
-    crc = mav_crc16(&girdi[1], (MAV_BASLIK - 1) + kirpik, 0xFFFFu);
-    beklenen = (uint16_t)((uint16_t)girdi[MAV_BASLIK + kirpik]
-                          | ((uint16_t)girdi[MAV_BASLIK + kirpik + 1] << 8));
-    if (crc != beklenen) { return -1; }
-
     cikti->sira    = girdi[4];
     cikti->sistem  = girdi[5];
     cikti->bilesen = girdi[6];
     cikti->msgid   = (uint32_t)girdi[7]
                      | ((uint32_t)girdi[8] << 8)
                      | ((uint32_t)girdi[9] << 16);
+
+    /* CRC dogrulamasi CRC_EXTRA'yi da icerir; bu yuzden msgid once okunur. */
+    crc = mav_crc16(&girdi[1], (MAV_BASLIK - 1) + kirpik, 0xFFFFu);
+    {
+        const mesaj_tanimi *st = mav_sema_bul(cikti->msgid);
+        uint8_t ekstra = (st != NULL) ? mav_crc_extra(st) : 0u;
+        crc = mav_crc16(&ekstra, 1, crc);
+    }
+    beklenen = (uint16_t)((uint16_t)girdi[MAV_BASLIK + kirpik]
+                          | ((uint16_t)girdi[MAV_BASLIK + kirpik + 1] << 8));
+    if (crc != beklenen) { return -1; }
 
     /* Kirpilan sifirlar geri konur: sema boyutuna kadar sifirla doldur. */
     tam = (sema_yuk_boyutu > kirpik) ? sema_yuk_boyutu : kirpik;

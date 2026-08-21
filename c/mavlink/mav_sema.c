@@ -39,111 +39,129 @@
  * ALAN TABLOLARI
  * ===================================================================== */
 
+/* Alan tanimi alanlari:
+ *   { ad, ad_deseni, desen_bas, mav_tur, tur, tekrar, dizi_mi, olcek } */
+
+#define TEKIL(ad, mtur, t, olc)  { (ad), NULL, 0, (mtur), (t), 1, 0, (olc) }
+#define DESEN(dsn, bas, mtur, t, n) { NULL, (dsn), (bas), (mtur), (t), (n), 0, 0.0f }
+#define DIZI(ad, mtur, t, n)     { (ad), NULL, 0, (mtur), (t), (n), 1, 0.0f }
+
 static const alan_tanimi A_HEARTBEAT[] = {
-    { "custom_mode",     ALAN_U32, 1, 0.0f },
-    { "type",            ALAN_U8,  1, 0.0f },
-    { "autopilot",       ALAN_U8,  1, 0.0f },
-    { "base_mode",       ALAN_U8,  1, 0.0f },
-    { "system_status",   ALAN_U8,  1, 0.0f },
-    { "mavlink_version", ALAN_U8,  1, 0.0f }
+    TEKIL("custom_mode",     "uint32_t", ALAN_U32, 0.0f),
+    TEKIL("type",            "uint8_t",  ALAN_U8,  0.0f),
+    TEKIL("autopilot",       "uint8_t",  ALAN_U8,  0.0f),
+    TEKIL("base_mode",       "uint8_t",  ALAN_U8,  0.0f),
+    TEKIL("system_status",   "uint8_t",  ALAN_U8,  0.0f),
+    TEKIL("mavlink_version", "uint8_t",  ALAN_U8,  0.0f)
 };
 
 static const alan_tanimi A_SYS_STATUS[] = {
-    { "sensors_present",   ALAN_U32, 1, 0.0f },
-    { "sensors_enabled",   ALAN_U32, 1, 0.0f },
-    { "sensors_health",    ALAN_U32, 1, 0.0f },
-    { "load",              ALAN_U16, 1, 0.0f },
-    { "voltage_battery",   ALAN_U16, 1, 0.0f },
-    { "current_battery",   ALAN_I16, 1, 0.0f },
-    { "drop_rate_comm",    ALAN_U16, 1, 0.0f },
-    { "errors_comm",       ALAN_U16, 1, 0.0f },
-    { "errors_count",      ALAN_U16, 4, 0.0f },
-    { "battery_remaining", ALAN_I8,  1, 0.0f }
+    TEKIL("onboard_control_sensors_present", "uint32_t", ALAN_U32, 0.0f),
+    TEKIL("onboard_control_sensors_enabled", "uint32_t", ALAN_U32, 0.0f),
+    TEKIL("onboard_control_sensors_health",  "uint32_t", ALAN_U32, 0.0f),
+    TEKIL("load",              "uint16_t", ALAN_U16, 0.0f),
+    TEKIL("voltage_battery",   "uint16_t", ALAN_U16, 0.0f),
+    TEKIL("current_battery",   "int16_t",  ALAN_I16, 0.0f),
+    TEKIL("drop_rate_comm",    "uint16_t", ALAN_U16, 0.0f),
+    TEKIL("errors_comm",       "uint16_t", ALAN_U16, 0.0f),
+    /* errors_count1..4: XML'de AYRI alanlar, dizi degil */
+    DESEN("errors_count%d", 1, "uint16_t", ALAN_U16, 4),
+    TEKIL("battery_remaining", "int8_t",   ALAN_I8,  0.0f)
 };
 
 static const alan_tanimi A_GPS_RAW_INT[] = {
-    { "time_usec",          ALAN_U64, 1, 0.0f },
-    { "lat",                ALAN_I32, 1, 0.0f },
-    { "lon",                ALAN_I32, 1, 0.0f },
-    { "alt",                ALAN_I32, 1, 0.0f },
-    { "eph",                ALAN_U16, 1, 0.0f },
-    { "epv",                ALAN_U16, 1, 0.0f },
-    { "vel",                ALAN_U16, 1, 0.0f },
-    { "cog",                ALAN_U16, 1, 0.0f },
-    { "fix_type",           ALAN_U8,  1, 0.0f },
-    { "satellites_visible", ALAN_U8,  1, 0.0f }
+    TEKIL("time_usec",          "uint64_t", ALAN_U64, 0.0f),
+    TEKIL("lat",                "int32_t",  ALAN_I32, 0.0f),
+    TEKIL("lon",                "int32_t",  ALAN_I32, 0.0f),
+    TEKIL("alt",                "int32_t",  ALAN_I32, 0.0f),
+    TEKIL("eph",                "uint16_t", ALAN_U16, 0.0f),
+    TEKIL("epv",                "uint16_t", ALAN_U16, 0.0f),
+    TEKIL("vel",                "uint16_t", ALAN_U16, 0.0f),
+    TEKIL("cog",                "uint16_t", ALAN_U16, 0.0f),
+    TEKIL("fix_type",           "uint8_t",  ALAN_U8,  0.0f),
+    TEKIL("satellites_visible", "uint8_t",  ALAN_U8,  0.0f)
 };
 
 static const alan_tanimi A_SCALED_IMU[] = {
-    { "time_boot_ms", ALAN_U32, 1, 0.0f },
-    { "acc",          ALAN_I16, 3, 0.0f },
-    { "gyro",         ALAN_I16, 3, 0.0f },
-    { "mag",          ALAN_I16, 3, 0.0f }
+    TEKIL("time_boot_ms", "uint32_t", ALAN_U32, 0.0f),
+    TEKIL("xacc",  "int16_t", ALAN_I16, 0.0f),
+    TEKIL("yacc",  "int16_t", ALAN_I16, 0.0f),
+    TEKIL("zacc",  "int16_t", ALAN_I16, 0.0f),
+    TEKIL("xgyro", "int16_t", ALAN_I16, 0.0f),
+    TEKIL("ygyro", "int16_t", ALAN_I16, 0.0f),
+    TEKIL("zgyro", "int16_t", ALAN_I16, 0.0f),
+    TEKIL("xmag",  "int16_t", ALAN_I16, 0.0f),
+    TEKIL("ymag",  "int16_t", ALAN_I16, 0.0f),
+    TEKIL("zmag",  "int16_t", ALAN_I16, 0.0f)
 };
 
 /* Yonelim acilari: 0.001 rad (~0.06 derece) fazlasiyla yeterlidir. */
 static const alan_tanimi A_ATTITUDE[] = {
-    { "time_boot_ms", ALAN_U32, 1,    0.0f },
-    { "roll",         ALAN_F32, 1, 1000.0f },
-    { "pitch",        ALAN_F32, 1, 1000.0f },
-    { "yaw",          ALAN_F32, 1, 1000.0f },
-    { "rollspeed",    ALAN_F32, 1, 1000.0f },
-    { "pitchspeed",   ALAN_F32, 1, 1000.0f },
-    { "yawspeed",     ALAN_F32, 1, 1000.0f }
+    TEKIL("time_boot_ms", "uint32_t", ALAN_U32,    0.0f),
+    TEKIL("roll",         "float",    ALAN_F32, 1000.0f),
+    TEKIL("pitch",        "float",    ALAN_F32, 1000.0f),
+    TEKIL("yaw",          "float",    ALAN_F32, 1000.0f),
+    TEKIL("rollspeed",    "float",    ALAN_F32, 1000.0f),
+    TEKIL("pitchspeed",   "float",    ALAN_F32, 1000.0f),
+    TEKIL("yawspeed",     "float",    ALAN_F32, 1000.0f)
 };
 
 static const alan_tanimi A_GLOBAL_POSITION_INT[] = {
-    { "time_boot_ms", ALAN_U32, 1, 0.0f },
-    { "lat",          ALAN_I32, 1, 0.0f },
-    { "lon",          ALAN_I32, 1, 0.0f },
-    { "alt",          ALAN_I32, 1, 0.0f },
-    { "relative_alt", ALAN_I32, 1, 0.0f },
-    { "vx",           ALAN_I16, 1, 0.0f },
-    { "vy",           ALAN_I16, 1, 0.0f },
-    { "vz",           ALAN_I16, 1, 0.0f },
-    { "hdg",          ALAN_U16, 1, 0.0f }
+    TEKIL("time_boot_ms", "uint32_t", ALAN_U32, 0.0f),
+    TEKIL("lat",          "int32_t",  ALAN_I32, 0.0f),
+    TEKIL("lon",          "int32_t",  ALAN_I32, 0.0f),
+    TEKIL("alt",          "int32_t",  ALAN_I32, 0.0f),
+    TEKIL("relative_alt", "int32_t",  ALAN_I32, 0.0f),
+    TEKIL("vx",           "int16_t",  ALAN_I16, 0.0f),
+    TEKIL("vy",           "int16_t",  ALAN_I16, 0.0f),
+    TEKIL("vz",           "int16_t",  ALAN_I16, 0.0f),
+    TEKIL("hdg",          "uint16_t", ALAN_U16, 0.0f)
 };
 
 static const alan_tanimi A_SERVO_OUTPUT_RAW[] = {
-    { "time_usec", ALAN_U32, 1, 0.0f },
-    { "servo_raw", ALAN_U16, 8, 0.0f },
-    { "port",      ALAN_U8,  1, 0.0f }
+    TEKIL("time_usec", "uint32_t", ALAN_U32, 0.0f),
+    /* servo1_raw..servo8_raw: XML'de AYRI alanlar */
+    DESEN("servo%d_raw", 1, "uint16_t", ALAN_U16, 8),
+    TEKIL("port",      "uint8_t",  ALAN_U8,  0.0f)
 };
 
 static const alan_tanimi A_RC_CHANNELS[] = {
-    { "time_boot_ms", ALAN_U32, 1,  0.0f },
-    { "chan_raw",     ALAN_U16, 18, 0.0f },
-    { "chancount",    ALAN_U8,  1,  0.0f },
-    { "rssi",         ALAN_U8,  1,  0.0f }
+    TEKIL("time_boot_ms", "uint32_t", ALAN_U32, 0.0f),
+    /* chan1_raw..chan18_raw: XML'de AYRI alanlar */
+    DESEN("chan%d_raw", 1, "uint16_t", ALAN_U16, 18),
+    TEKIL("chancount",    "uint8_t",  ALAN_U8,  0.0f),
+    TEKIL("rssi",         "uint8_t",  ALAN_U8,  0.0f)
 };
 
 static const alan_tanimi A_VFR_HUD[] = {
-    { "airspeed",    ALAN_F32, 1, 100.0f },
-    { "groundspeed", ALAN_F32, 1, 100.0f },
-    { "alt",         ALAN_F32, 1, 100.0f },
-    { "climb",       ALAN_F32, 1, 100.0f },
-    { "heading",     ALAN_I16, 1,   0.0f },
-    { "throttle",    ALAN_U16, 1,   0.0f }
+    TEKIL("airspeed",    "float",    ALAN_F32, 100.0f),
+    TEKIL("groundspeed", "float",    ALAN_F32, 100.0f),
+    TEKIL("alt",         "float",    ALAN_F32, 100.0f),
+    TEKIL("climb",       "float",    ALAN_F32, 100.0f),
+    TEKIL("heading",     "int16_t",  ALAN_I16,   0.0f),
+    TEKIL("throttle",    "uint16_t", ALAN_U16,   0.0f)
 };
 
 static const alan_tanimi A_BATTERY_STATUS[] = {
-    { "current_consumed",  ALAN_I32, 1,  0.0f },
-    { "energy_consumed",   ALAN_I32, 1,  0.0f },
-    { "temperature",       ALAN_I16, 1,  0.0f },
-    { "voltages",          ALAN_U16, 10, 0.0f },
-    { "current_battery",   ALAN_I16, 1,  0.0f },
-    { "id",                ALAN_U8,  1,  0.0f },
-    { "battery_function",  ALAN_U8,  1,  0.0f },
-    { "type",              ALAN_U8,  1,  0.0f },
-    { "battery_remaining", ALAN_I8,  1,  0.0f }
+    TEKIL("current_consumed",  "int32_t",  ALAN_I32, 0.0f),
+    TEKIL("energy_consumed",   "int32_t",  ALAN_I32, 0.0f),
+    TEKIL("temperature",       "int16_t",  ALAN_I16, 0.0f),
+    /* voltages[10]: GERCEK dizi - CRC'ye uzunluk bayti girer */
+    DIZI("voltages", "uint16_t", ALAN_U16, 10),
+    TEKIL("current_battery",   "int16_t",  ALAN_I16, 0.0f),
+    TEKIL("id",                "uint8_t",  ALAN_U8,  0.0f),
+    TEKIL("battery_function",  "uint8_t",  ALAN_U8,  0.0f),
+    TEKIL("type",              "uint8_t",  ALAN_U8,  0.0f),
+    TEKIL("battery_remaining", "int8_t",   ALAN_I8,  0.0f)
 };
 
 static const alan_tanimi A_VIBRATION[] = {
-    { "time_usec",   ALAN_U64, 1,    0.0f },
-    { "vibration_x", ALAN_F32, 1, 1000.0f },
-    { "vibration_y", ALAN_F32, 1, 1000.0f },
-    { "vibration_z", ALAN_F32, 1, 1000.0f },
-    { "clipping",    ALAN_U32, 3,    0.0f }
+    TEKIL("time_usec",   "uint64_t", ALAN_U64,    0.0f),
+    TEKIL("vibration_x", "float",    ALAN_F32, 1000.0f),
+    TEKIL("vibration_y", "float",    ALAN_F32, 1000.0f),
+    TEKIL("vibration_z", "float",    ALAN_F32, 1000.0f),
+    /* clipping_0..clipping_2: XML'de AYRI alanlar */
+    DESEN("clipping_%d", 0, "uint32_t", ALAN_U32, 3)
 };
 
 #define ALAN_ADEDI(a) ((int32_t)(sizeof(a) / sizeof((a)[0])))
@@ -275,6 +293,137 @@ int32_t mav_sema_dogrula(void (*bildir)(const char *ad, int32_t beklenen,
         }
     }
     return hata;
+}
+
+/* =====================================================================
+ * CRC_EXTRA HESABI
+ * ---------------------------------------------------------------------
+ * mavgen ile ayni algoritma. Ezberden tablo yazmak yerine hesaplamanin
+ * sebebi: yanlis bir CRC_EXTRA, paketlerin gercek otopilotta SESSIZCE
+ * reddedilmesine yol acar - bos bir tablodan daha kotudur, cunku hata
+ * gorunmez.
+ *
+ * Hesaplama semadaki alan adlariyla dogrudan bagli oldugu icin, semayi
+ * kendi dialect surumunuze gore duzeltince CRC_EXTRA kendini duzeltir.
+ * ===================================================================== */
+
+static uint16_t crc_metin(uint16_t crc, const char *s)
+{
+    while (*s != '\0')
+    {
+        uint8_t b = (uint8_t)*s;
+        crc = mav_crc16(&b, 1, crc);
+        s++;
+    }
+    return crc;
+}
+
+/** Kucuk pozitif tamsayiyi metne cevirir (snprintf'siz, tasinabilir). */
+static void sayi_yaz(char *tampon, int32_t boyut, int32_t deger)
+{
+    char ters[12];
+    int32_t n = 0;
+    int32_t i;
+
+    if (deger == 0) { ters[n] = '0'; n++; }
+    while ((deger > 0) && (n < 11))
+    {
+        ters[n] = (char)('0' + (deger % 10));
+        deger /= 10;
+        n++;
+    }
+    for (i = 0; (i < n) && (i < (boyut - 1)); i++)
+    {
+        tampon[i] = ters[(n - 1) - i];
+    }
+    tampon[i] = '\0';
+}
+
+/** "chan%d_raw" gibi bir deseni indeksle doldurur. */
+static void desen_uygula(char *cikti, int32_t boyut,
+                         const char *desen, int32_t indeks)
+{
+    int32_t o = 0;
+    int32_t i = 0;
+
+    while ((desen[i] != '\0') && (o < (boyut - 1)))
+    {
+        if ((desen[i] == '%') && (desen[i + 1] == 'd'))
+        {
+            char sayi[12];
+            int32_t j = 0;
+
+            sayi_yaz(sayi, (int32_t)sizeof(sayi), indeks);
+            while ((sayi[j] != '\0') && (o < (boyut - 1)))
+            {
+                cikti[o] = sayi[j];
+                o++;
+                j++;
+            }
+            i += 2;
+        }
+        else
+        {
+            cikti[o] = desen[i];
+            o++;
+            i++;
+        }
+    }
+    cikti[o] = '\0';
+}
+
+uint8_t mav_crc_extra(const mesaj_tanimi *t)
+{
+    uint16_t crc = 0xFFFFu;
+    int32_t  i;
+
+    if (t == NULL) { return 0u; }
+
+    crc = crc_metin(crc, t->ad);
+    crc = crc_metin(crc, " ");
+
+    for (i = 0; i < t->alan_sayisi; i++)
+    {
+        const alan_tanimi *a = &t->alanlar[i];
+
+        if (a->dizi_mi != 0)
+        {
+            /* Gercek dizi: TEK alan, sonunda uzunluk bayti. */
+            uint8_t uzunluk = (uint8_t)a->tekrar;
+
+            crc = crc_metin(crc, a->mav_tur);
+            crc = crc_metin(crc, " ");
+            crc = crc_metin(crc, a->ad);
+            crc = crc_metin(crc, " ");
+            crc = mav_crc16(&uzunluk, 1, crc);
+        }
+        else if (a->ad_deseni != NULL)
+        {
+            /* Ardisik AYRI alanlar: her biri kendi adiyla girer. */
+            int32_t r;
+
+            for (r = 0; r < a->tekrar; r++)
+            {
+                char ad[64];
+
+                desen_uygula(ad, (int32_t)sizeof(ad), a->ad_deseni,
+                             a->desen_bas + r);
+                crc = crc_metin(crc, a->mav_tur);
+                crc = crc_metin(crc, " ");
+                crc = crc_metin(crc, ad);
+                crc = crc_metin(crc, " ");
+            }
+        }
+        else
+        {
+            crc = crc_metin(crc, a->mav_tur);
+            crc = crc_metin(crc, " ");
+            crc = crc_metin(crc, a->ad);
+            crc = crc_metin(crc, " ");
+        }
+    }
+
+    return (uint8_t)((crc & 0xFFu) ^ ((crc >> 8) & 0xFFu));
 }
 
 /* =====================================================================
