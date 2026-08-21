@@ -11,3 +11,12 @@
 # Kiyas kosum ciktilari (dondurulmus kopya belgeler/ altindadir)
 kiyas/kiyas_sonuclari.csv
 kiyas/son_kosu.txt
+
+# Ucus logu turevleri.
+# ALFA veri seti acildiginda 12,5 GB'dir; depoya GIRMEZ. Ondan turetilen
+# fikstuurler de burada uretilir ve gerekirse SECILEREK testverisi/
+# altina tasinir - kaynak ve lisans notuyla birlikte.
+veri/*.bin
+veri/alfa_*
+veri/*.BIN
+veri/*.log
