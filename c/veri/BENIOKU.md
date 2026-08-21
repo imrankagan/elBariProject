@@ -102,6 +102,10 @@ için geçerlidir; burası kapsam dışıdır.
 
 ## Durum
 
-Ayrıştırıcı derleniyor, **gerçek log ile henüz sınanmadı.** İlk `.bin` geldiğinde
-önce `--dok` ile içerik dökülmeli, alan adlarının beklenenle örtüştüğü doğrulanmalı,
-sonra fikstürler üretilmelidir.
+**Gerçek log ile sınandı.** ALFA `2018-07-30 16-13-40.bin` (80 MB, ArduPlane 3.9.0beta1):
+53 kayıt tipi, ~1,9 milyon kayıt, **senkron kaybı yok** (atlanan bayt = 0). Alan adları
+beklenenle örtüşüyor — değiştirilmiş ArduPlane sürümü standart etiketleri koruyor.
+
+Tek sapma: bu logda **`BAT` kaydı yok**; batarya `POWR` (Vcc, VServo) olarak tutulmuş.
+`alfa_bat.bin` bu yüzden üretilmez ve sebebi yazdırılır. Batarya fikstürü isteniyorsa
+çıkarım tablosuna `POWR` eklenmelidir.

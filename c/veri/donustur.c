@@ -190,6 +190,7 @@ static void cikar(const uint8_t *ham, int64_t boyut, const cikarim *c)
     const df_tanim *t;
     const uint8_t *g;
     const df_tanim *hedef;
+    uint8_t         hedef_tip;
     int32_t alan_indeksi[MAKS_KANAL];
     int32_t kanal = 0;
     long    kayit = 0;
@@ -222,11 +223,17 @@ static void cikar(const uint8_t *ham, int64_t boyut, const cikarim *c)
         kanal++;
     }
 
+    /* Tipi KOPYALA. hedef, o.tanimlar[] icine isaret eder; asagidaki
+     * df_kur cagrisi okuyucuyu sifirlayarak o tanimi da siler. Isaretciyi
+     * sifirlamadan sonra okumak, tanim FMT'lerin bastan taranmasiyla
+     * tesadufen geri dolduguna guvenmek olurdu. */
+    hedef_tip = hedef->tip;
+
     /* 2) Kayit sayisini say */
     df_kur(&o, ham, boyut);
     while (df_sonraki(&o, &t, &g) != 0)
     {
-        if (t->tip == hedef->tip) { kayit++; }
+        if (t->tip == hedef_tip) { kayit++; }
     }
     if (kayit == 0)
     {
@@ -243,7 +250,7 @@ static void cikar(const uint8_t *ham, int64_t boyut, const cikarim *c)
     df_kur(&o, ham, boyut);
     while (df_sonraki(&o, &t, &g) != 0)
     {
-        if (t->tip != hedef->tip) { continue; }
+        if (t->tip != hedef_tip) { continue; }
         if ((eleman + kanal) > kapasite) { break; }
 
         for (i = 0; i < kanal; i++)
