@@ -36,7 +36,7 @@ KIYAS_KAYNAK = kiyas/onisleme.c kiyas/kodekler.c kiyas/sprintz.c
 MAV_KAYNAK = mavlink/mav_bicim.c mavlink/mav_sema.c mavlink/mav_kademe.c \
              mavlink/mav_uretici.c
 
-PROGRAMLAR = dogrulama olcum fuzz deger_fuzz uygunluk kapsamli kiyas kiyas-oztest              mav_olcum
+PROGRAMLAR = dogrulama olcum fuzz deger_fuzz kayip uygunluk kapsamli kiyas              kiyas-oztest mav_olcum
 
 .PHONY: all sanitize test temizle
 
@@ -55,6 +55,11 @@ fuzz: test/fuzz.c $(KAYNAK)
 # fuzz.c COZUCU saglamligini sinar; bu ise kodlayicinin kabul ettigi her
 # girdinin kayipsiz geri geldigini sinar. Ikisi ayri boslugu kapatir.
 deger_fuzz: test/deger_fuzz.c $(KAYNAK)
+	$(CC) $(CFLAGS) -o $@ $^
+
+# Paket kaybi altinda kurtarma supurmesi: cerceve boyutu x kayip orani.
+# Calistirma: ./kayip ../testverisi/gercek_gps.bin 250
+kayip: test/kayip.c $(KAYNAK)
 	$(CC) $(CFLAGS) -o $@ $^
 
 uygunluk: test/uygunluk.c $(KAYNAK)

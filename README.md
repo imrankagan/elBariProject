@@ -58,7 +58,7 @@ testverisi/      gerçek GPS verisi + dondurulmuş uygunluk vektörleri
 | [c/kiyas/](c/kiyas/) | ElBâri'yi **kendi ailesiyle** ölçen kıyas takımı ([BENIOKU](c/kiyas/BENIOKU.md)) |
 | [c/mavlink/](c/mavlink/) | **İki kademeli MAVLink vekili** — canlı telemetride sıkıştırma ([BENIOKU](c/mavlink/BENIOKU.md)) |
 | [c/veri/](c/veri/) | **ArduPilot DataFlash log okuyucusu** — gerçek uçuş logundan ölçüm fikstürü üretir ([BENIOKU](c/veri/BENIOKU.md)) |
-| [belgeler/](belgeler/) | [Biçim spesifikasyonu](belgeler/BICIM_SPESIFIKASYONU.md) (ICD), [ölçüm sonuçları](belgeler/OLCUM_SONUCLARI.md), [tamsayı kodek kıyası](belgeler/KIYAS_TAMSAYI_KODEKLER.md), [MAVLink vekili ölçümü](belgeler/MAVLINK_VEKIL.md), [MISRA uyum matrisi](belgeler/MISRA_UYUM.md), [akış şemaları](belgeler/AKIS_SEMASI.md) |
+| [belgeler/](belgeler/) | [Biçim spesifikasyonu](belgeler/BICIM_SPESIFIKASYONU.md) (ICD), [ölçüm sonuçları](belgeler/OLCUM_SONUCLARI.md), [tamsayı kodek kıyası](belgeler/KIYAS_TAMSAYI_KODEKLER.md), [MAVLink vekili ölçümü](belgeler/MAVLINK_VEKIL.md), [kayıp dayanıklılığı süpürmesi](belgeler/KAYIP_DAYANIKLILIK.md), [MISRA uyum matrisi](belgeler/MISRA_UYUM.md), [akış şemaları](belgeler/AKIS_SEMASI.md) |
 | [testverisi/](testverisi/) | `gercek_gps.bin` (24.642 gerçek kayıt), `vektorler.txt` (28 uygunluk vektörü) |
 
 ## 🧱 Mimari — Üç Katman
@@ -396,6 +396,33 @@ CRC32 korumalı bağımsız çerçevelere böler. Hata yayılımı tek çerçeve
 
 Sağdaki sütun meselenin özü: klasik yaklaşımda **tek bir paket düşerse her şey gider**.
 Çerçeveli yaklaşımda kayıp lineerdir — ne düştüyse o kadar.
+
+### Çerçeve boyutu kaç olmalı? — süpürüldü
+
+Yukarıdaki tablo **tek bir işletim noktasıdır** (100 kayıt/çerçeve). Çerçeve boyutu ×
+kayıp oranı süpürmesi ayrı bir raporda:
+**[belgeler/KAYIP_DAYANIKLILIK.md](belgeler/KAYIP_DAYANIKLILIK.md)**.
+
+Optimum, oranın ve kurtarmanın **çarpımındadır** — gönderilen her bayta karşılık alıcıya
+ulaşan ham veri:
+
+| Kayıp | Yönelim verisinde optimum | Etkin oran |
+| ---: | ---: | ---: |
+| %1 | 1000 kayıt/çerçeve | 16,09x |
+| %5 | 500 | 14,14x |
+| %10 | 500 | 12,65x |
+| %25 | 200 | 9,05x |
+
+Üç bulgu:
+
+1. **Optimum, kayıp yükseldikçe küçülür.** Büyük çerçeve MTU'da parçalanır ve ancak tüm
+   parçaları ulaşırsa çözülür; hayatta kalma olasılığı paket sayısıyla üstel düşer.
+2. **Patlamalı kayıp bağımsız kayıptan iyidir.** %25 kayıpta 500 kayıt/çerçeve:
+   bağımsız 8,65x, 10 paketlik patlamalarda **11,40x**. Patlamalar hasarı az sayıda
+   çerçevede yoğunlaştırır; çerçeveler zaten bağımsız olduğu için toplam hasar azalır.
+3. **Çerçeve kayıtla değil, baytla ölçülmeli.** Üç veri setinde optimum kayıt sayısı
+   50-1000 arasında savruluyor, ama optimum **paket/çerçeve** oranı %10 kayıpta
+   1,8-2,3 bandında sabit kalıyor. Sabit kayıt sayısı yanlış değişken.
 
 **Bozulma tespiti:** 247 çerçeveye tek-bit bozulma enjekte edildi; **247'sinin tamamı
 CRC ile yakalandı**, sessizce kabul edilen sıfır.
