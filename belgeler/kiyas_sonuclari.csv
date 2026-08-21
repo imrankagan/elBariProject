@@ -1,0 +1,27 @@
+senaryo,kodek,referans,bayt,oran,enc_mbsn,dec_mbsn,dogru,pareto_enc,pareto_dec
+kanal-ayrimli,VByte (LEB128),varint temel cizgisi,93540,3.1613,2911.0,1699.9,1,1,0
+kanal-ayrimli,StreamVByte,Lemire & Kurz 2017,104855,2.8201,1919.7,1760.8,1,0,0
+kanal-ayrimli,Simple8b,Anh & Moffat 2010,63885,4.6287,369.1,1954.1,1,0,1
+kanal-ayrimli,BP128,Lemire & Boytsov 2015,81130,3.6448,573.6,1138.5,1,0,0
+kanal-ayrimli,OptPFD (PFOR+yama),Zukowski 2006 / Yan 2009,64807,4.5628,262.8,1161.7,1,0,0
+kanal-ayrimli,Sprintz-Delta,Blalock ve ark. 2018,63321,4.6699,464.1,1060.3,1,0,0
+kanal-ayrimli,ElBari (kanal),bu calisma,59695,4.9536,1226.5,1421.5,1,1,1
+kanal-ayrimli,ElBari (cerceve100),bu calisma - kayip dayanikli,68844,4.2953,543.7,859.1,1,0,0
+kanal-ayrimsiz,VByte (LEB128),varint temel cizgisi,344993,0.8571,1543.2,1143.9,1,0,0
+kanal-ayrimsiz,StreamVByte,Lemire & Kurz 2017,314191,0.9412,1215.5,1284.5,1,0,0
+kanal-ayrimsiz,Simple8b,Anh & Moffat 2010,591405,0.5000,29.0,1200.1,1,0,0
+kanal-ayrimsiz,BP128,Lemire & Boytsov 2015,296269,0.9981,240.8,797.6,1,0,0
+kanal-ayrimsiz,OptPFD (PFOR+yama),Zukowski 2006 / Yan 2009,296846,0.9962,155.5,794.0,1,0,0
+kanal-ayrimsiz,Sprintz-Delta,Blalock ve ark. 2018,303691,0.9737,215.4,756.5,1,0,0
+kanal-ayrimsiz,ElBari (kanal),bu calisma,295712,1.0000,3382.9,3245.8,1,1,1
+kanal-ayrimsiz,ElBari (cerceve100),bu calisma - kayip dayanikli,313464,0.9433,419.2,472.8,1,0,0
+cerceve-supurme,ElBari kpc=2,bu calisma,596564,0.4957,0.0,0.0,1,0,0
+cerceve-supurme,ElBari kpc=5,bu calisma,302147,0.9787,0.0,0.0,1,0,0
+cerceve-supurme,ElBari kpc=10,bu calisma,176888,1.6717,0.0,0.0,1,0,0
+cerceve-supurme,ElBari kpc=20,bu calisma,117037,2.5266,0.0,0.0,1,0,0
+cerceve-supurme,ElBari kpc=25,bu calisma,104838,2.8206,0.0,0.0,1,0,0
+cerceve-supurme,ElBari kpc=50,bu calisma,79928,3.6996,0.0,0.0,1,0,0
+cerceve-supurme,ElBari kpc=100,bu calisma,68844,4.2953,0.0,0.0,1,0,0
+cerceve-supurme,ElBari kpc=200,bu calisma,63321,4.6699,0.0,0.0,1,0,0
+cerceve-supurme,ElBari kpc=500,bu calisma,61207,4.8312,0.0,0.0,1,0,0
+cerceve-supurme,ElBari kpc=1000,bu calisma,59730,4.9507,0.0,0.0,1,0,0

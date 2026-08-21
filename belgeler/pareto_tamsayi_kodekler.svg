@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 400" width="940" height="400" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+  <style>
+    .baslik { font-size: 14px; font-weight: 600; fill: #24292f; }
+    .eksen  { stroke: #8c959f; stroke-width: 1; }
+    .izgara { stroke: #d0d7de; stroke-width: 1; stroke-dasharray: 2 3; }
+    .etiket { font-size: 11px; fill: #57606a; }
+    .nokta  { font-size: 11px; fill: #24292f; }
+    .vurgu  { font-size: 11px; font-weight: 600; fill: #24292f; }
+    .cephe  { stroke: #8c959f; stroke-width: 1.5; stroke-dasharray: 5 4; fill: none; }
+    @media (prefers-color-scheme: dark) {
+      .baslik { fill: #e6edf3; }
+      .eksen  { stroke: #6e7681; }
+      .izgara { stroke: #30363d; }
+      .etiket { fill: #8d96a0; }
+      .nokta  { fill: #e6edf3; }
+      .vurgu  { fill: #e6edf3; }
+      .cephe  { stroke: #6e7681; }
+    }
+  </style>
+
+  <!-- ================= SOL PANEL: oran - encode ================= -->
+  <g>
+    <text class="baslik" x="60" y="22">Oran - kodlama hizi</text>
+
+    <!-- izgara + y ekseni etiketleri -->
+    <line class="izgara" x1="60" y1="300" x2="400" y2="300"/>
+    <line class="izgara" x1="60" y1="250" x2="400" y2="250"/>
+    <line class="izgara" x1="60" y1="200" x2="400" y2="200"/>
+    <line class="izgara" x1="60" y1="150" x2="400" y2="150"/>
+    <line class="izgara" x1="60" y1="100" x2="400" y2="100"/>
+    <line class="izgara" x1="60" y1="50"  x2="400" y2="50"/>
+    <text class="etiket" x="52" y="304" text-anchor="end">2.5x</text>
+    <text class="etiket" x="52" y="254" text-anchor="end">3.0x</text>
+    <text class="etiket" x="52" y="204" text-anchor="end">3.5x</text>
+    <text class="etiket" x="52" y="154" text-anchor="end">4.0x</text>
+    <text class="etiket" x="52" y="104" text-anchor="end">4.5x</text>
+    <text class="etiket" x="52" y="54"  text-anchor="end">5.0x</text>
+
+    <!-- eksenler -->
+    <line class="eksen" x1="60" y1="40" x2="60" y2="310"/>
+    <line class="eksen" x1="60" y1="310" x2="400" y2="310"/>
+
+    <!-- x ekseni (log) -->
+    <text class="etiket" x="60"  y="326" text-anchor="middle">200</text>
+    <text class="etiket" x="111" y="326" text-anchor="middle">300</text>
+    <text class="etiket" x="175" y="326" text-anchor="middle">500</text>
+    <text class="etiket" x="262" y="326" text-anchor="middle">1000</text>
+    <text class="etiket" x="349" y="326" text-anchor="middle">2000</text>
+    <text class="etiket" x="230" y="345" text-anchor="middle">encode MB/sn (log olcek)</text>
+
+    <!-- Pareto cephesi: VByte -> ElBari -->
+    <path class="cephe" d="M 382 234 L 285 55"/>
+
+    <!-- noktalar -->
+    <circle cx="336" cy="268" r="5" fill="#ec4899"/>
+    <text class="nokta" x="330" y="272" text-anchor="end">StreamVByte</text>
+
+    <circle cx="382" cy="234" r="5" fill="#6b7280"/>
+    <text class="nokta" x="376" y="238" text-anchor="end">VByte</text>
+
+    <circle cx="188" cy="186" r="5" fill="#8b5cf6"/>
+    <text class="nokta" x="196" y="190">BP128</text>
+
+    <circle cx="184" cy="120" r="5" fill="#3b82f6" fill-opacity="0.35" stroke="#3b82f6" stroke-width="1.5"/>
+    <text class="nokta" x="192" y="124">ElBari (cerceve)</text>
+
+    <circle cx="93" cy="94" r="5" fill="#10b981"/>
+    <text class="nokta" x="93" y="112" text-anchor="middle">OptPFD</text>
+
+    <circle cx="135" cy="87" r="5" fill="#f59e0b"/>
+    <text class="nokta" x="129" y="91" text-anchor="end">Simple8b</text>
+
+    <circle cx="165" cy="83" r="5" fill="#ef4444"/>
+    <text class="nokta" x="159" y="74" text-anchor="middle">Sprintz</text>
+
+    <circle cx="285" cy="55" r="7" fill="#3b82f6"/>
+    <text class="vurgu" x="295" y="59">ElBari (kanal)</text>
+  </g>
+
+  <!-- ================= SAG PANEL: oran - decode ================= -->
+  <g transform="translate(460,0)">
+    <text class="baslik" x="60" y="22">Oran - cozme hizi</text>
+
+    <line class="izgara" x1="60" y1="300" x2="400" y2="300"/>
+    <line class="izgara" x1="60" y1="250" x2="400" y2="250"/>
+    <line class="izgara" x1="60" y1="200" x2="400" y2="200"/>
+    <line class="izgara" x1="60" y1="150" x2="400" y2="150"/>
+    <line class="izgara" x1="60" y1="100" x2="400" y2="100"/>
+    <line class="izgara" x1="60" y1="50"  x2="400" y2="50"/>
+    <text class="etiket" x="52" y="304" text-anchor="end">2.5x</text>
+    <text class="etiket" x="52" y="254" text-anchor="end">3.0x</text>
+    <text class="etiket" x="52" y="204" text-anchor="end">3.5x</text>
+    <text class="etiket" x="52" y="154" text-anchor="end">4.0x</text>
+    <text class="etiket" x="52" y="104" text-anchor="end">4.5x</text>
+    <text class="etiket" x="52" y="54"  text-anchor="end">5.0x</text>
+
+    <line class="eksen" x1="60" y1="40" x2="60" y2="310"/>
+    <line class="eksen" x1="60" y1="310" x2="400" y2="310"/>
+
+    <text class="etiket" x="60"  y="326" text-anchor="middle">800</text>
+    <text class="etiket" x="143" y="326" text-anchor="middle">1000</text>
+    <text class="etiket" x="211" y="326" text-anchor="middle">1200</text>
+    <text class="etiket" x="293" y="326" text-anchor="middle">1500</text>
+    <text class="etiket" x="400" y="326" text-anchor="middle">2000</text>
+    <text class="etiket" x="230" y="345" text-anchor="middle">decode MB/sn (log olcek)</text>
+
+    <!-- Pareto cephesi: Simple8b -> ElBari -->
+    <path class="cephe" d="M 366 87 L 262 55"/>
+
+    <circle cx="333" cy="268" r="5" fill="#ec4899"/>
+    <text class="nokta" x="327" y="272" text-anchor="end">StreamVByte</text>
+
+    <circle cx="320" cy="234" r="5" fill="#6b7280"/>
+    <text class="nokta" x="314" y="238" text-anchor="end">VByte</text>
+
+    <circle cx="171" cy="186" r="5" fill="#8b5cf6"/>
+    <text class="nokta" x="179" y="190">BP128</text>
+
+    <circle cx="83" cy="120" r="5" fill="#3b82f6" fill-opacity="0.35" stroke="#3b82f6" stroke-width="1.5"/>
+    <text class="nokta" x="91" y="124">ElBari (cerceve)</text>
+
+    <circle cx="179" cy="94" r="5" fill="#10b981"/>
+    <text class="nokta" x="179" y="112" text-anchor="middle">OptPFD</text>
+
+    <circle cx="366" cy="87" r="5" fill="#f59e0b"/>
+    <text class="nokta" x="359" y="91" text-anchor="end">Simple8b</text>
+
+    <circle cx="159" cy="83" r="5" fill="#ef4444"/>
+    <text class="nokta" x="159" y="74" text-anchor="middle">Sprintz</text>
+
+    <circle cx="262" cy="55" r="7" fill="#3b82f6"/>
+    <text class="vurgu" x="272" y="59">ElBari (kanal)</text>
+  </g>
+
+  <!-- ================= ALT NOT ================= -->
+  <text class="etiket" x="60" y="378">Gercek GPS verisi, 24.642 kayit x 3 kanal, 295.704 bayt ham. Tum kodekler skaler C, MSVC /O2, ayni makine.</text>
+  <text class="etiket" x="60" y="393">Kesikli cizgi = Pareto cephesi. Rakipler yayinlanmis bicimlerden yeniden yazilmistir; hiz degerleri onlar icin ALT SINIRDIR.</text>
+</svg>

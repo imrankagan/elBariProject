@@ -7,3 +7,7 @@
 # Statik analiz artiklari
 *.nativecodeanalysis.xml
 *.sarif
+
+# Kiyas kosum ciktilari (dondurulmus kopya belgeler/ altindadir)
+kiyas/kiyas_sonuclari.csv
+kiyas/son_kosu.txt
