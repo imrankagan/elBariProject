@@ -22,6 +22,12 @@ sunmasıdır:
    AOT ile makine koduna derlenir; **C sürümü** ise RTOS ve bare-metal dahil derleyicisi
    olan her mimariye girer. İkisi bit bit aynı çıktı üretir.
 
+**Ölçüm tabanı — hepsi gerçek veri.** OpenStreetMap GPS iz arşivi ve
+[ALFA veri setinden](https://theairlab.org/alfa-dataset/) gerçek bir ArduPilot uçuş logu
+(yönelim, IMU, GPS, servo, kumanda, titreşim). Canlı telemetri senaryosu ayrıca
+[iki kademeli bir MAVLink vekiliyle](belgeler/MAVLINK_VEKIL.md) ölçülür. Sentetik veri
+yalnızca kenar durum testlerinde kullanılır.
+
 **Lisans:** Akademik ve eğitim amaçlı kullanım, inceleme ve atıf **serbesttir** — tez
 çalışmaları dâhil. Ticari kullanım ayrı bir lisans gerektirir; dağıtım ve yeniden
 yayımlama yasaktır. Ayrıntı: [LICENSE.txt](LICENSE.txt) · İletişim: imrankagant@gmail.com
@@ -31,13 +37,15 @@ yayımlama yasaktır. Ayrıntı: [LICENSE.txt](LICENSE.txt) · İletişim: imran
 ```
 kaynak/          C# kaynak kodu (5 dosya, üç katman + float)
 c/               C sürümü — bağımsız, bağımlılıksız
-  src/             kütüphane kaynağı
+  src/             kütüphane kaynağı (~2.500 satır)
   test/            doğrulama, ölçüm, fuzz, uygunluk
   kiyas/           tamsayı kodek ailesiyle karşılaştırma (Simple8b, Sprintz, ...)
+  mavlink/         iki kademeli MAVLink vekili ve ölçümü
+  veri/            ArduPilot DataFlash log okuyucusu → ölçüm fikstürleri
   Makefile         Linux/macOS derleme
   derle.bat        Windows derleme (MSVC)
 benchmark/       .NET test ve ölçüm paketi (32 senaryo)
-belgeler/        BICIM_SPESIFIKASYONU.md (ICD), MISRA_UYUM.md, AKIS_SEMASI.md
+belgeler/        biçim spesifikasyonu (ICD), ölçüm raporları, MISRA uyum matrisi
 testverisi/      gerçek GPS verisi + dondurulmuş uygunluk vektörleri
 .github/         sürekli tümleştirme iş akışı
 ```
@@ -49,8 +57,9 @@ testverisi/      gerçek GPS verisi + dondurulmuş uygunluk vektörleri
 | [benchmark/](benchmark/) | Test senaryoları, veri üreticileri, ölçüm koşucusu |
 | [c/kiyas/](c/kiyas/) | ElBâri'yi **kendi ailesiyle** ölçen kıyas takımı ([BENIOKU](c/kiyas/BENIOKU.md)) |
 | [c/mavlink/](c/mavlink/) | **İki kademeli MAVLink vekili** — canlı telemetride sıkıştırma ([BENIOKU](c/mavlink/BENIOKU.md)) |
+| [c/veri/](c/veri/) | **ArduPilot DataFlash log okuyucusu** — gerçek uçuş logundan ölçüm fikstürü üretir ([BENIOKU](c/veri/BENIOKU.md)) |
 | [belgeler/](belgeler/) | [Biçim spesifikasyonu](belgeler/BICIM_SPESIFIKASYONU.md) (ICD), [ölçüm sonuçları](belgeler/OLCUM_SONUCLARI.md), [tamsayı kodek kıyası](belgeler/KIYAS_TAMSAYI_KODEKLER.md), [MAVLink vekili ölçümü](belgeler/MAVLINK_VEKIL.md), [MISRA uyum matrisi](belgeler/MISRA_UYUM.md), [akış şemaları](belgeler/AKIS_SEMASI.md) |
-| [testverisi/](testverisi/) | `gercek_gps.bin` (24.642 gerçek kayıt), `vektorler.txt` (27 uygunluk vektörü) |
+| [testverisi/](testverisi/) | `gercek_gps.bin` (24.642 gerçek kayıt), `vektorler.txt` (28 uygunluk vektörü) |
 
 ## 🧱 Mimari — Üç Katman
 
@@ -94,7 +103,8 @@ kanal kendi içinde düzgün delta üretir.
 
 ## ✨ Özellikler
 
-- **Kayıpsız Sıkıştırma** — 1600+ test ve fuzz turu ile doğrulandı, %100 veri bütünlüğü
+- **Kayıpsız Sıkıştırma** — 28 dondurulmuş uygunluk vektörü, 32 senaryoluk .NET takımı ve
+  CI'da her push'ta 300.000 turluk fuzz ile doğrulanır
 - **Zero-Allocation** — `Span<T>` tabanlı; çalışma alanı çağıran tarafından verilir
   (ölçüldü: 100 encode+decode turunda **0 bayt** heap tahsisatı)
 - **Çok Mimarili SIMD**:
@@ -102,7 +112,8 @@ kanal kendi içinde düzgün delta üretir.
   - 🧩 **ARM**: NEON (4×32-bit paralel) — kod mevcut, gerçek ARM donanımında henüz
     benchmark edilmedi
   - ✅ **Eski işlemciler**: Scalar fallback (her zaman çalışır)
-- **Adaptif Bit-Width** — blok başına 2/4/8/16 bit, aykırı değerler için 32 bit
+- **Adaptif Bit-Width** — blok başına 8 mod (0/2/3/4/5/8/10/16 bit, biçim sürümü 2),
+  aykırı değerler için 32 bit
 - **Kanal Başına Adaptif Fark Derecesi** — düzgün kanallar (sabit hızlı GPS) ikinci
   derece farkı, gürültülü kanallar birinci dereceyi seçer
 - **Paket Kaybı Dayanıklılığı** — bağımsız çerçeveler + CRC32
@@ -314,19 +325,20 @@ Rakipler iki uçtan birinde: ya hızlı ama zayıf oran (LZ4 1.29x, Zstd-1 1.61x
 ama çok yavaş (Brotli-q11 3.59x @ 1 MB/sn, Zstd-19 3.03x @ 8 MB/sn). **Hem 3x üzeri oran
 hem 800+ MB/sn hızı** aynı anda veren tek yöntem ElBâri'dir.
 
-**3. Biçim sürümü 2 ile oran liderliği de alındı.**
-Sürüm 1'de en yüksek oran bizde değildi: Brotli-q11 kanal-ayrılmış veride **3.88x** ile
-ElBâri'yi (3.56x) geçiyordu. Sürüm 2'deki bit genişliği tablosu genişletmesinden sonra
-ElBâri **4.95x** ile bu değeri de aştı — üstelik Brotli'den **~800 kat hızlı** encode
-ederek.
+**3. Biçim sürümü 2, bu tablodaki oran liderliğini de aldı.**
+Sürüm 1'de Brotli-q11 kanal-ayrılmış veride **3.88x** ile ElBâri'yi (3.56x) geçiyordu.
+Sürüm 2'deki bit genişliği tablosu genişletmesinden sonra ElBâri **4.95x** ile bu değeri
+de aştı — üstelik Brotli'den **~800 kat hızlı** encode ederek. Bu liderlik **yalnızca
+genel amaçlı sıkıştırıcılar arasında** geçerlidir; doğru aile için Karşılaştırma 1.
 
 Yani **bu tablodaki genel amaçlı sıkıştırıcılar arasında** ElBâri hem en yüksek orana
 hem de (LZ4 dışında) en yüksek hıza sahip. LZ4 açmada daha hızlı ama oranı 1.29x — üç
 buçuk kat geride.
 
 > ⚠️ **Bu üstünlük yalnızca bu tablo için geçerlidir.** Doğru rakip ailesiyle
-> (Simple8b, OptPFD, Sprintz) ölçüldüğünde fark %6-9 bandına iniyor ve çerçeveleme
-> açıkken ElBâri oran liderliğini kaybediyor — bkz.
+> (Simple8b, OptPFD, Sprintz) ölçüldüğünde fark daralıyor, veri setine göre işaret bile
+> değiştiriyor (konum +%3…+%6, yönelim/IMU −%2…−%7, tekrarlı PWM −%25…−%46) ve
+> çerçeveleme açıkken ElBâri oran liderliğini kaybediyor — bkz.
 > [belgeler/KIYAS_TAMSAYI_KODEKLER.md](belgeler/KIYAS_TAMSAYI_KODEKLER.md).
 
 **4. "Ön işlemeyi biz de yaparız" itirazı ölçüldü.**
@@ -452,8 +464,9 @@ ve üçü de .NET sürümünü dışarıda bırakır:
    çalıştırmaz. C her yere girer.
 2. **Sertifikasyon** — DO-178C gibi havacılık standartları için C'nin olgun araç zinciri
    (nitelikli derleyici, statik analiz) vardır; .NET için pratikte yoktur.
-3. **Denetim** — müşterinin güvenlik ekibi ~1.200 satır C'yi satır satır okuyabilir;
-   içinde runtime gömülü birkaç MB'lık bir ikiliyi okuyamaz. Savunmada bu belirleyicidir.
+3. **Denetim** — müşterinin güvenlik ekibi ~2.500 satırlık C kütüphanesini satır satır
+   okuyabilir; içinde runtime gömülü birkaç MB'lık bir ikiliyi okuyamaz. Savunmada bu
+   belirleyicidir.
 
 Ek olarak C'nin **kararlı ABI**'si sayesinde kütüphaneyi her dil bağlayabilir
 (C#, Python, Rust, MATLAB, C++).
@@ -549,7 +562,7 @@ int32_t durum = elbari_cerceve_oku(gelen_paket, gelen_boyut, kanal,
 | MISRA C:2012 uyum incelemesi | ✅ Elle yapıldı, belgelendi ([MISRA_UYUM.md](belgeler/MISRA_UYUM.md)) |
 | MISRA C:2012 **araç taraması** | ✅ Cppcheck MISRA eklentisi, **iki sürümde** (2.21.0 + 2.13.0) — kayıtlı sapmalar dışında 0 bulgu, CI'da her push'ta |
 | MSVC `/Wall /analyze` statik analiz | ✅ 0 bulgu |
-| Sağlamlık (fuzz) testi | ✅ 400.000 tur, 0 tampon taşması |
+| Sağlamlık (fuzz) testi | ✅ CI'da 300.000 tur + sanitizer'lı 50.000 tur, 0 tampon taşması |
 | Sertifikalı MISRA aracıyla doğrulama | ⏳ Yapılmadı — müşteri/program gerektirdiğinde |
 | GCC / Clang derleme | ✅ CI'da her push'ta (Linux) |
 | ASan + UBSan (çalışma zamanı) | ✅ CI'da temiz |
@@ -623,7 +636,7 @@ Araç taraması **süs değil, iş gördü** — altı gerçek bulgu düzeltildi
 | 17.8 | `deger >>= 1` parametreyi değiştiriyordu | Yerel kopya |
 | 2.5 / 8.9 | Kullanılmayan makrolar, gereksiz dosya kapsamı | Temizlendi |
 
-Bunların **hiçbiri bit akışını değiştirmedi**: her adımda 27 uygunluk vektörü ve .NET ile
+Bunların **hiçbiri bit akışını değiştirmedi**: her adımda uygunluk vektörleri ve .NET ile
 59.695 baytlık birebir karşılaştırma tekrar çalıştırılarak doğrulandı.
 
 > 12.2 düzeltmesi öğreticidir: "araç anlamıyor, biz biliyoruz" demek yerine kaydırma
@@ -701,28 +714,34 @@ Telemetri çözücüsü kayıplı ve **düşmanca** bir telsiz ortamından veri 
 açmayan **sessiz taşmaları** da yakalar. Üreteç deterministiktir — bulunan her hata
 birebir yeniden üretilebilir.
 
-**Sonuç (400.000 tur):**
+**Sonuç (300.000 tur — CI'nın koştuğu sayı):**
 
 | Ölçüt | Sonuç |
 | --- | --- |
 | **Tampon taşması** | **0** |
 | Süreç çökmesi | Yok |
-| Bozulmuş çerçevelerin reddi | **%100.00** (99.790 / 99.790) |
+| Bozulmuş çerçevelerin reddi | **%100.00** (59.792 / 59.792) |
 
 Katman kırılımı:
 
 | Katman | Kabul | Red | Bütünlük kontrolü |
 | --- | ---: | ---: | --- |
-| Çekirdek | **17** | 100.568 | Yapısal tüketim kontrolü |
-| Kanal | **0** | 199.625 | Başlık tutarlılık kontrolü |
-| Çerçeve (bozulmuş) | **0** | 99.790 | **CRC32** |
+| Çekirdek | **6** | 60.701 | Yapısal tüketim kontrolü |
+| Kanal | **0** | 119.561 | Başlık tutarlılık kontrolü |
+| Çerçeve (bozulmuş) | **0** | 59.792 | **CRC32** |
+| Float XOR | **5.847** | 54.093 | Sağlama toplamı yok — bkz. aşağıdaki not |
+
+> **Float XOR'un kabul oranı neden yüksek?** O katmanda bütünlük kontrolü yoktur ve bit
+> deseni akışında hemen her bayt dizisi geçerli bir float dizisi olarak çözülebilir.
+> Tasarım gereğidir: bütünlük garantisi isteyen çerçeve katmanını kullanmalıdır.
 
 > **Yapısal tüketim kontrolü — sağlama toplamı olmadan çöpü elemek.**
 > Geçerli bir sıkıştırılmış akış girdinin **tamamını** tüketir: kodlayıcı tam olarak
 > gerektiği kadar bayt yazar, çözücü de tam olarak o kadarını okur. Geriye artık
 > kalmışsa girdi bu kodlayıcıdan çıkmamıştır. Maliyeti **tek bir karşılaştırmadır**.
 >
-> Etkisi ölçüldü: çekirdeğin kabul ettiği çöp girdi **88.963 → 17** (%99,98 azalma).
+> Etkisi ölçüldü (400.000 turluk ayrı bir koşuda): çekirdeğin kabul ettiği çöp girdi
+> **88.963 → 17** (%99,98 azalma).
 > Bu, sağlama toplamının yerini tutmaz — tam bütünlük için çerçeve katmanı gerekir —
 > ama tuzağın büyük kısmını kapatır.
 >
@@ -952,9 +971,9 @@ ve doğrulama sırası.
 
 ### Dondurulmuş uygunluk vektörleri
 
-[`testverisi/vektorler.txt`](testverisi/vektorler.txt) — 18 referans vektör. Her bit
-genişliğini (2/4/8/16), aykırı değerleri, kısmi blokları, ikinci derece farkı, ham
-geçişi ve çerçeve başlığını kapsar.
+[`testverisi/vektorler.txt`](testverisi/vektorler.txt) — 28 referans vektör. Bit genişliği
+tablosunu, aykırı değerleri, kısmi blokları, ikinci derece farkı, ham geçişi, çerçeve
+başlığını, float kuantalamasını ve XOR katmanını kapsar.
 
 Bir implementasyon uyumlu sayılır **ancak ve ancak**:
 
@@ -964,7 +983,7 @@ Bir implementasyon uyumlu sayılır **ancak ve ancak**:
 | Implementasyon | Uygunluk |
 | --- | --- |
 | C# (.NET 10) | ✅ Referans — vektörler bundan üretildi |
-| C (C99/C17) | ✅ **18 vektör, 36 kontrol, 0 hata** |
+| C (C99/C17) | ✅ **28 vektör, 56 kontrol, 0 hata** |
 
 ```bash
 c\derle.bat
@@ -1018,10 +1037,17 @@ Success Rate: 100.0%
 
 ### Kayıpsızlık doğrulaması
 
-Her iki katman için **1.617 test** (14 hedefli senaryo + 1.600 tur rastgele fuzz)
-çalıştırıldı; **tamamı kayıpsız**. Çerçeveler ters sırada ve birbirinden bağımsız
+.NET tarafında her iki katman için **1.617 test** (14 hedefli senaryo + 1.600 tur rastgele
+fuzz) çalıştırıldı; **tamamı kayıpsız**. Çerçeveler ters sırada ve birbirinden bağımsız
 çözülebiliyor. Kenar durumlar dahil: tek eleman, eksik kayıt, `K=255`,
-`int.MinValue/MaxValue`, tümü sıfır, saf rastgele veri.
+`int.MinValue/MaxValue`, tümü sıfır, saf rastgele veri. C tarafındaki fuzz ayrıdır ve
+CI'da 300.000 tur koşar.
+
+> ⚠️ **Bilinen boşluk.** Fuzz turlarının hepsi **çözücü** sağlamlığını sınar: bozuk girdiyi
+> çözücüye verir. Rastgele *değerleri* kodlayıp geri okuyan bir tur yoktur. Tam olarak
+> 2³¹'lik farkta oluşan kayıpsızlık hatası bu yüzden ne uygunluk vektörlerine ne fuzz'a
+> takıldı — ancak gerçek uçuş verisiyle yakalandı. Ayrıntı:
+> [belgeler/MAVLINK_VEKIL.md §5](belgeler/MAVLINK_VEKIL.md).
 
 ## 🔐 Kod Koruma
 
@@ -1034,11 +1060,13 @@ ElBâri'nin koruması **Native AOT temellidir** — abartılı runtime hileleri 
 | **Reflection Disabled** | `IlcDisableReflection=true` | Runtime type inspection kapalı |
 | **Full Trimming** | IL trimmer | Kullanılmayan metadata çıkarılır |
 
-> **Not:** Önceki sürümlerde bulunan runtime "Anti-Tamper / Anti-Debug" katmanı ve
-> Obfuscar build pipeline'ı kaldırılmıştır. `Debugger.IsAttached` / assembly-hash
-> kontrolü gibi teknikler .NET 6+ / Native AOT bağlamında güvenilir koruma sağlamıyor;
-> Obfuscar ise hiç kurulmamıştı ve IL'i karıştırdığı için Native AOT'un ürettiği makine
-> koduna bir katkısı olmuyordu. Gerçek koruma Native AOT + trimming + sembolsüz derlemedir.
+> **Not:** Runtime "Anti-Tamper / Anti-Debug" katmanı kaldırılmıştır; `Debugger.IsAttached`
+> / assembly-hash kontrolü gibi teknikler Native AOT bağlamında güvenilir koruma sağlamıyor.
+> Gerçek koruma Native AOT + trimming + sembolsüz derlemedir.
+>
+> Bu bölüm **yalnızca C# sürümünü** ilgilendirir. C sürümü kaynak olarak dağıtılır ve
+> okunabilir olması **amaçlanmıştır** — denetlenebilirlik onun varlık sebebidir
+> (bkz. *C Sürümü → Neden var?*).
 
 ## 🚁 İHA ve Gömülü Sistem Uyumluluğu
 
@@ -1114,15 +1142,18 @@ onu **bağımlılıksız, tahsisatsız, AOT-hazır ve kayıplı-link-dayanıklı
 telemetri kodeki olarak paketlemesidir.
 
 **Bu katkı ölçüldü.** Aynı ailenin üyeleriyle (Simple8b, BP128, OptPFD, Sprintz-Delta)
-yan yana koyulduğunda ElBâri'nin oran farkı **%6-9 bandındadır**; çerçeveleme açıkken
-ise oran liderliği Sprintz'e geçer. Ayrıntı ve dürüst sınırlar:
+yedi veri setinde yan yana koyulduğunda ElBâri konum verisinde **+%3…+%6 önde**,
+yönelim/IMU/titreşimde **%2-7 geride**, tekrarlı PWM kanallarında **%25-46 geride**
+kalıyor; çerçeveleme açıkken oran liderliği Sprintz'e geçer. Ayrıntı ve dürüst sınırlar:
 **[belgeler/KIYAS_TAMSAYI_KODEKLER.md](belgeler/KIYAS_TAMSAYI_KODEKLER.md)**.
 
 ## ⚠️ Patent ve IP Notu
 
 Kullanılan teknikler (delta encoding, bit packing, variable bit-width, PFOR patching)
-onlarca yıldır halka açık ve yayınlanmıştır; bilinen bir patent ihlali içermez. Yayınlanmış
-akademik teknikler prior art oluşturduğu için bu implementasyon patent açısından güvenlidir.
+onlarca yıldır halka açık ve yayınlanmıştır ve literatürde prior art oluşturur.
+
+Bu bir **hukukî görüş değildir** ve patent taraması yapılmamıştır. Ticari dağıtım öncesinde
+yetkin bir tarafça inceleme yapılması gerekir.
 
 ## ⚠️ Sorumluluk Reddi
 
