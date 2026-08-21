@@ -29,7 +29,14 @@ SAN_BAYRAK = -std=c17 -O1 -g -fno-omit-frame-pointer \
 KAYNAK = src/elbari.c src/elbari_kanal.c src/elbari_cerceve.c \
          src/elbari_float.c src/elbari_float_xor.c
 
-PROGRAMLAR = dogrulama olcum fuzz uygunluk kapsamli
+# Rakip tamsayi kodekleri (olcum kodu; kutuphaneye girmez, MISRA kapsami disi)
+KIYAS_KAYNAK = kiyas/onisleme.c kiyas/kodekler.c kiyas/sprintz.c
+
+# Iki kademeli MAVLink vekili (olcum ve referans uygulama)
+MAV_KAYNAK = mavlink/mav_bicim.c mavlink/mav_sema.c mavlink/mav_kademe.c \
+             mavlink/mav_uretici.c
+
+PROGRAMLAR = dogrulama olcum fuzz uygunluk kapsamli kiyas kiyas-oztest mav_olcum
 
 .PHONY: all sanitize test temizle
 
@@ -50,6 +57,20 @@ uygunluk: test/uygunluk.c $(KAYNAK)
 kapsamli: test/kapsamli.c $(KAYNAK)
 	$(CC) $(CFLAGS) -o $@ $^
 
+# ElBari'yi kendi ailesiyle (Simple8b, BP128, OptPFD, Sprintz, ...) olcer.
+# Calistirma: ./kiyas ../testverisi/gercek_gps.bin 200
+kiyas: kiyas/kiyas.c $(KIYAS_KAYNAK) $(KAYNAK)
+	$(CC) $(CFLAGS) -o $@ $^
+
+# Rakip uygulamalarin kenar durum dogrulamasi. Dis veri istemez.
+kiyas-oztest: kiyas/oztest.c $(KIYAS_KAYNAK)
+	$(CC) $(CFLAGS) -o $@ $^
+
+# Iki kademeli MAVLink vekili olcumu.
+# Calistirma: ./mav_olcum ../testverisi/gercek_gps.bin 300
+mav_olcum: mavlink/mav_olcum.c $(MAV_KAYNAK) $(KAYNAK)
+	$(CC) $(CFLAGS) -o $@ $^
+
 # Denetleyicili surumler ayri isimle uretilir; normal surumlerin
 # uzerine yazilmaz.
 sanitize: uygunluk-san fuzz-san
@@ -62,9 +83,10 @@ fuzz-san: test/fuzz.c $(KAYNAK)
 
 # Uygunluk vektorleri depoda oldugu icin bu test bagimsiz calisir.
 # Fuzz de dis veri istemez.
-test: uygunluk fuzz
+test: uygunluk fuzz kiyas-oztest
 	./uygunluk ../testverisi/vektorler.txt
 	./fuzz 200000
+	./kiyas-oztest
 
 temizle:
 	rm -f $(PROGRAMLAR) uygunluk-san fuzz-san *.o

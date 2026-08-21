@@ -32,6 +32,7 @@ kaynak/          C# kaynak kodu (5 dosya, üç katman + float)
 c/               C sürümü — bağımsız, bağımlılıksız
   src/             kütüphane kaynağı
   test/            doğrulama, ölçüm, fuzz, uygunluk
+  kiyas/           tamsayı kodek ailesiyle karşılaştırma (Simple8b, Sprintz, ...)
   Makefile         Linux/macOS derleme
   derle.bat        Windows derleme (MSVC)
 benchmark/       .NET test ve ölçüm paketi (32 senaryo)
@@ -45,7 +46,9 @@ testverisi/      gerçek GPS verisi + dondurulmuş uygunluk vektörleri
 | [kaynak/](kaynak/) | `ElBâri.cs` (çekirdek), `ElBâriKanal.cs`, `ElBâriÇerçeve.cs`, `ElBâriFloat.cs`, `ElBâriFloatXor.cs` |
 | [c/](c/) | Aynı üç katmanın C sürümü — RTOS ve bare-metal hedefleri için ([BENIOKU](c/BENIOKU.md)) |
 | [benchmark/](benchmark/) | Test senaryoları, veri üreticileri, ölçüm koşucusu |
-| [belgeler/](belgeler/) | [Biçim spesifikasyonu](belgeler/BICIM_SPESIFIKASYONU.md) (ICD), [ölçüm sonuçları](belgeler/OLCUM_SONUCLARI.md), [MISRA uyum matrisi](belgeler/MISRA_UYUM.md), [akış şemaları](belgeler/AKIS_SEMASI.md) |
+| [c/kiyas/](c/kiyas/) | ElBâri'yi **kendi ailesiyle** ölçen kıyas takımı ([BENIOKU](c/kiyas/BENIOKU.md)) |
+| [c/mavlink/](c/mavlink/) | **İki kademeli MAVLink vekili** — canlı telemetride sıkıştırma ([BENIOKU](c/mavlink/BENIOKU.md)) |
+| [belgeler/](belgeler/) | [Biçim spesifikasyonu](belgeler/BICIM_SPESIFIKASYONU.md) (ICD), [ölçüm sonuçları](belgeler/OLCUM_SONUCLARI.md), [tamsayı kodek kıyası](belgeler/KIYAS_TAMSAYI_KODEKLER.md), [MAVLink vekili ölçümü](belgeler/MAVLINK_VEKIL.md), [MISRA uyum matrisi](belgeler/MISRA_UYUM.md), [akış şemaları](belgeler/AKIS_SEMASI.md) |
 | [testverisi/](testverisi/) | `gercek_gps.bin` (24.642 gerçek kayıt), `vektorler.txt` (27 uygunluk vektörü) |
 
 ## 🧱 Mimari — Üç Katman
@@ -83,6 +86,10 @@ kanal kendi içinde düzgün delta üretir.
 
 > Ölçülmüş etki (gerçek GPS verisi): kanal ayrımı **olmadan REDDEDİLİYOR** → kanal
 > ayrımı **ile 4.95x**. Yani birincil hedef veri tipi ancak bu katmanla çalışıyor.
+>
+> Bu ElBâri'ye özgü bir zayıflık değil: kanal ayrımı olmadan **tamsayı kodek ailesinin
+> tamamı** çöküyor (BP128 1.00x, Sprintz 0.97x, Simple8b 0.50x — veriyi ikiye katlıyor).
+> Ölçüm: [belgeler/KIYAS_TAMSAYI_KODEKLER.md](belgeler/KIYAS_TAMSAYI_KODEKLER.md).
 
 ## ✨ Özellikler
 
@@ -127,9 +134,16 @@ kanal kendi içinde düzgün delta üretir.
 | encode | ~22M kayıt/sn | 224 MB/sn | 4.5 µs |
 | decode | ~53M kayıt/sn | 245 MB/sn | 1.9 µs (CRC dahil) |
 
-Çerçeveleme, dayanıklılık karşılığında oranı hafifçe (4.95x → 4.30x) ve encode hızını
-düşürür (küçük bloklar + kanal başına heuristik + CRC). Buna karşılık kayıplı linkte
+Çerçeveleme, dayanıklılık karşılığında oranı (4.95x → 4.30x) ve encode hızını düşürür
+(küçük bloklar + kanal başına heuristik + CRC). Buna karşılık kayıplı linkte
 çalışabilirlik kazanılır.
+
+> ⚠️ **Ama bu 4.30x rakamı gerçekçi bir çalışma noktası değil.** 100 kayıt/çerçeve,
+> 10 Hz telemetride **10 saniyelik tamponlama** demektir ve en büyük çerçeve **572 bayt**
+> — tipik SiK radyo yükünün iki katından fazla. Hem tek pakete sığan hem gecikmesi kabul
+> edilebilir nokta **25 kayıt/çerçeve** ve orada oran **2.82x**. Yani çerçevelemenin
+> gerçek maliyeti %13 değil, **%43**. Süpürme tablosu:
+> [belgeler/KIYAS_TAMSAYI_KODEKLER.md §5](belgeler/KIYAS_TAMSAYI_KODEKLER.md).
 
 ### Tahsisat
 
@@ -167,7 +181,67 @@ bakılırsa ihtiyacın **~138.000 katı** kapasite var.
 Optimizasyon çabası hıza değil, orana ve dayanıklılığa harcanmalıdır. Elle SIMD eklemek
 %0,0007'yi %0,0004 yapar — ölçülebilir ama anlamsız bir kazanç.
 
-## ⚖️ Karşılaştırma — Zstd / LZ4 / Brotli / Deflate
+## ⚖️ Karşılaştırma 1 — Kendi ailesi (tamsayı kodekleri)
+
+> 📈 **Tam rapor: [belgeler/KIYAS_TAMSAYI_KODEKLER.md](belgeler/KIYAS_TAMSAYI_KODEKLER.md)** ·
+> ölçüm kodu: [c/kiyas/](c/kiyas/)
+
+ElBâri kendini **PFOR-Delta ailesinin bir uygulaması** olarak tanımlıyor (bkz. *Algoritma
+Detayları*). O halde asıl rakip zstd değil, **aynı ailenin diğer üyeleridir.** Aşağıdaki
+ölçüm bu boşluğu kapatıyor — ve iddiayı küçültüyor.
+
+> **Metodoloji:** Aynı gerçek GPS verisi, aynı makine, aynı derleyici ve bayraklar
+> (`/std:c17 /O2`), 200 tur. **Tüm kodekler skaler C — ElBâri dahil, SIMD yok.**
+> Rakiplere kanal ayrımı + fark + zigzag ön işlemesi bedava verildi ve bu süre onların
+> encode süresine dahildir. Her kodek tam tur doğrulamasından geçti.
+
+| Kodek | Kaynak | Bayt | Oran | bit/değer | encode | decode |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| **ElBâri (kanal)** | bu çalışma | **59.695** | **4.95x** | **6.46** | 1.200 MB/sn | 1.380 MB/sn |
+| Sprintz-Delta | Blalock ve ark. 2018 | 63.321 | 4.67x | 6.85 | 463 MB/sn | 1.045 MB/sn |
+| Simple8b | Anh & Moffat 2010 | 63.885 | 4.63x | 6.91 | 364 MB/sn | 1.824 MB/sn |
+| OptPFD (PFOR+yama) | Zukowski 2006 / Yan 2009 | 64.807 | 4.56x | 7.01 | 260 MB/sn | 1.103 MB/sn |
+| ElBâri (çerçeve, 100) | bu çalışma | 68.844 | 4.30x | 7.45 | 538 MB/sn | 851 MB/sn |
+| BP128 | Lemire & Boytsov 2015 | 81.130 | 3.64x | 8.78 | 556 MB/sn | 1.078 MB/sn |
+| VByte (LEB128) | varint temel çizgisi | 93.540 | 3.16x | 10.12 | 2.599 MB/sn | 1.612 MB/sn |
+| StreamVByte | Lemire & Kurz 2017 | 104.855 | 2.82x | 11.35 | 1.803 MB/sn | 1.671 MB/sn |
+
+![Pareto sınırı — oran, hız](belgeler/pareto_tamsayi_kodekler.svg)
+
+> ### ⚠️ Hız sütununu okumadan önce
+>
+> Rakip kodekler **yazarlarının kütüphaneleri değildir**; yayınlanmış biçim
+> tanımlarından yeniden yazılmış skaler C uygulamalarıdır.
+> **Oran taşınabilirdir** (biçimden gelir, uygulamadan değil) — **hız değildir.**
+> FastPFor ve StreamVByte'ın SIMD sürümleri buradakinden kat kat hızlıdır; hız sütunu
+> rakipler için bir **alt sınırdır.** Bu yüzden burada "ElBâri daha hızlı" iddiası
+> **kurulmuyor.**
+
+### Bu ölçümün üç bulgusu
+
+**1. Katkı gerçek ama küçük — tek haneli yüzde.**
+Doğru aileyle ölçüldüğünde ElBâri'nin oran üstünlüğü Sprintz'e karşı **%6,1**,
+Simple8b'ye karşı %7,0, OptPFD'ye karşı %8,6. Genel amaçlı sıkıştırıcılara karşı
+görülen "üç kat" farkın gerçek ailedeki karşılığı budur. Beklenen sonuç: ElBâri zaten
+aynı fikirleri kullanıyor.
+
+**2. Çerçeveleme açılınca oran liderliği kayboluyor.**
+Paket kaybı dayanıklılığı devredeyken ElBâri **4.30x** ile Sprintz'in (**4.67x**)
+%8 altına düşüyor. Yani projenin ayırt edici özelliği, oran üstünlüğünün tamamını
+yiyor. Savunulabilir iddia "en yüksek oran" değil, **"ailede kayıplı linkte
+çalışabilen tek üye"** — tablodaki diğer yedi kodeğin hiçbirinde paket kaybı
+dayanıklılığı yok.
+
+**3. Kanal ayrımı argümanı saman adam değilmiş.**
+Kanal ayrımı olmadan ailenin **tamamı** çöküyor: BP128 1.00x, Sprintz 0.97x,
+VByte 0.86x, Simple8b **0.50x** (veriyi ikiye katlıyor). Bu, ElBâri'ye özgü bir
+zayıflık değil, problem sınıfının zorunlu ön koşulu.
+
+## ⚖️ Karşılaştırma 2 — Genel amaçlı sıkıştırıcılar (Zstd / LZ4 / Brotli / Deflate)
+
+> Bunlar **doğru rakip ailesi değildir** (bkz. Karşılaştırma 1). Buraya, telemetriye
+> genel amaçlı bir sıkıştırıcı yapıştırmanın yaygın bir refleks olması nedeniyle
+> konulmuştur: o refleksin ne kadar pahalı olduğunu gösterir.
 
 > **Metodoloji:** Aynı makinede, aynı gerçek GPS verisiyle (295.704 B ham), 20 tur ısınma
 > + 200 tur ölçüm. Rakipler resmî .NET paketleriyle çalıştırıldı:
@@ -222,8 +296,14 @@ ElBâri'yi (3.56x) geçiyordu. Sürüm 2'deki bit genişliği tablosu genişletm
 ElBâri **4.95x** ile bu değeri de aştı — üstelik Brotli'den **~800 kat hızlı** encode
 ederek.
 
-Yani bu veri setinde ElBâri hem **en yüksek orana** hem de (LZ4 dışında) **en yüksek
-hıza** sahip. LZ4 açmada daha hızlı ama oranı 1.29x — üç buçuk kat geride.
+Yani **bu tablodaki genel amaçlı sıkıştırıcılar arasında** ElBâri hem en yüksek orana
+hem de (LZ4 dışında) en yüksek hıza sahip. LZ4 açmada daha hızlı ama oranı 1.29x — üç
+buçuk kat geride.
+
+> ⚠️ **Bu üstünlük yalnızca bu tablo için geçerlidir.** Doğru rakip ailesiyle
+> (Simple8b, OptPFD, Sprintz) ölçüldüğünde fark %6-9 bandına iniyor ve çerçeveleme
+> açıkken ElBâri oran liderliğini kaybediyor — bkz.
+> [belgeler/KIYAS_TAMSAYI_KODEKLER.md](belgeler/KIYAS_TAMSAYI_KODEKLER.md).
 
 **4. "Ön işlemeyi biz de yaparız" itirazı ölçüldü.**
 Kuantalama ve kanal ayrımı, herkesin yapabileceği ön işlemlerdir. Bu yüzden ikisi de
@@ -1008,6 +1088,11 @@ Bu kombinasyon literatürde **PFOR-Delta** olarak bilinir (Zukowski ve ark., 200
 Lemire & Boytsov'un SIMD çalışmaları). ElBâri'nin katkısı algoritmanın kendisi değil,
 onu **bağımlılıksız, tahsisatsız, AOT-hazır ve kayıplı-link-dayanıklı** bir .NET
 telemetri kodeki olarak paketlemesidir.
+
+**Bu katkı ölçüldü.** Aynı ailenin üyeleriyle (Simple8b, BP128, OptPFD, Sprintz-Delta)
+yan yana koyulduğunda ElBâri'nin oran farkı **%6-9 bandındadır**; çerçeveleme açıkken
+ise oran liderliği Sprintz'e geçer. Ayrıntı ve dürüst sınırlar:
+**[belgeler/KIYAS_TAMSAYI_KODEKLER.md](belgeler/KIYAS_TAMSAYI_KODEKLER.md)**.
 
 ## ⚠️ Patent ve IP Notu
 
