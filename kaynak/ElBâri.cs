@@ -217,14 +217,24 @@ namespace ElBâri
         {
             for (int j = 0; j < deltalar.Length; j++)
             {
-                int m = MutlakDeger(deltalar[j]); // Taşma-güvenli mutlak değer
+                // Büyüklük 64 BİTTE ölçülür. 32 bitlik mutlak değer
+                // int.MinValue için negatif kalır (sarar); o durumda
+                // aşağıdaki iki karşılaştırma da sessizce başarısız olur:
+                // fark ne aykırı işaretlenir ne de blok bit genişliğini
+                // yükseltir, sonra dar maskeyle paketlenip ÜST BİTİNİ
+                // KAYBEDER. Tam olarak 2^31'lik bir fark — örn. işareti
+                // değişen ama büyüklüğü aynı kalan bir float bit deseni
+                // (+0.001f -> -0.001f) — kayıpsızlığı bu yolla bozuyordu.
+                // C sürümündeki elbari.c ile birebir aynı düzeltme.
+                long m = Math.Abs((long)deltalar[j]);
                 if (m > AYKIRI_ESIK)
                 {
                     aykiriMaske |= (byte)(1 << (j + kayma));
                 }
                 else if (m > maksMutlak)
                 {
-                    maksMutlak = m;
+                    // Bu dalda m <= AYKIRI_ESIK; daralma güvenli.
+                    maksMutlak = (int)m;
                 }
             }
         }

@@ -323,15 +323,25 @@ int32_t elbari_kabid(const int32_t *ham_veri,
         {
             int32_t fark = elbari_ic_fark(ham_veri[veri_indeksi + j],
                                           ham_veri[veri_indeksi + j - 1]);
-            int32_t m = elbari_ic_mutlak_deger(fark);
+            /* Buyukluk 64 BITTE olculur. 32 bitlik mutlak deger INT32_MIN
+             * icin negatif kalir (bkz. elbari_ic_mutlak_deger notu); o
+             * durumda asagidaki iki karsilastirma da sessizce basarisiz
+             * olur - fark ne aykiri isaretlenir ne de blok bit genisligini
+             * yukseltir, sonra dar maskeyle paketlenip UST BITI KAYBEDER.
+             * Tam olarak 2^31'lik bir fark, orn. isareti degisen ama
+             * buyuklugu ayni kalan bir float bit deseni (+0.001 -> -0.001),
+             * kayipsizligi bu yolla bozuyordu. Gercek ucus logundaki
+             * jiroskop kanalinda olcumle yakalandi. */
+            int64_t m = elbari_ic_mutlak64(fark);
 
-            if (m > ELBARI_AYKIRI_ESIK)
+            if (m > (int64_t)ELBARI_AYKIRI_ESIK)
             {
                 aykiri_maske |= (uint8_t)(1u << (unsigned int)j);
             }
-            else if (m > maks_mutlak)
+            else if (m > (int64_t)maks_mutlak)
             {
-                maks_mutlak = m;
+                /* Bu dalda m <= ELBARI_AYKIRI_ESIK; daralma guvenli. */
+                maks_mutlak = (int32_t)m;
             }
             else
             {

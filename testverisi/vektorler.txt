@@ -88,6 +88,17 @@ GIRDI 0 1 2 3 4 5 6 7 8 200 9 300 10 400 11 500 12 13 14 15 16 17 18 19
 CIKTI 000000005255c5c0043d92b786ed991e86525501
 SON
 
+VEKTOR cekirdek_isaret_biti
+ACIKLAMA Ardisik fark TAM OLARAK 2^31: yalnizca isaret biti degisen iki
+ACIKLAMA float bit deseni (+0.001f / -0.001f). 32 bitlik mutlak deger bu
+ACIKLAMA farkta negatif kaldigi icin fark eskiden ne aykiri sayilir ne de
+ACIKLAMA blok genisligini yukseltirdi; dar maskeyle paketlenip UST BITI
+ACIKLAMA KAYBEDERDI. Gercek ucus logunun jiroskop kanalinda yakalandi.
+KATMAN cekirdek
+GIRDI 981668463 981668463 -1165815185 -1165815185 981668463 981668463 -1165815185 -1165815185 981668463
+CIKTI 6f12833aa10a00000008000000080000000800000008
+SON
+
 VEKTOR kanal_uc_kanal
 ACIKLAMA 3 kanal: her kanal kendi icinde sikistirilir
 KATMAN kanal
