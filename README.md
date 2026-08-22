@@ -265,12 +265,13 @@ gerçek ailedeki karşılığı budur. Ama yukarıdaki tabloda görüldüğü gi
 veri setinde aynı değil** — yönelimde kıl payı, tekrarlı kanallarda belirgin, IMU ve
 titreşimde ise negatif. Beklenen sonuç: ElBâri zaten aynı fikirleri kullanıyor.
 
-**2. Çerçeveleme açılınca oran liderliği kayboluyor.**
-Paket kaybı dayanıklılığı devredeyken ElBâri **4.33x** ile Sprintz'in (**4.67x**)
-%8 altına düşüyor. Yani projenin ayırt edici özelliği, oran üstünlüğünün tamamını
-yiyor. Savunulabilir iddia "en yüksek oran" değil, **"ailede kayıplı linkte
-çalışabilen tek üye"** — tablodaki diğer yedi kodeğin hiçbirinde paket kaybı
-dayanıklılığı yok.
+**2. Çerçeveleme bedelini herkes ödediğinde sıralama çerçeve boyutuna bağlı.**
+Rakiplerde çerçeveleme yok, dolayısıyla adil kıyas için aynı yükü onlara da vermek
+gerekir. Verildiğinde **100 kayıt/çerçevede ElBâri lider** (GPS 4.33x vs Sprintz 3.86x,
+yönelim 10.75x vs 8.65x), ama **25 kayıt/çerçevede Sprintz öne geçiyor** (3.32x vs
+2.82x). Kırılma noktası 50–100 arası. Sebep ElBâri'nin çerçeve başına sabit maliyeti:
+8 kanalda ~84 bayt. Bu, kayıp süpürmesiyle birlikte okunmalı — yüksek kayıpta optimum
+çerçeve ~1 pakete iner, yani **en çok ihtiyaç duyulan rejim en zayıf olduğumuz rejim.**
 
 **3. Kanal ayrımı argümanı saman adam değilmiş.**
 Kanal ayrımı olmadan ailenin **tamamı** çöküyor: BP128 1.00x, Sprintz 0.97x,
@@ -344,7 +345,7 @@ buçuk kat geride.
 > ⚠️ **Bu üstünlük yalnızca bu tablo için geçerlidir.** Doğru rakip ailesiyle
 > (Simple8b, OptPFD, Sprintz) ölçüldüğünde fark daralıyor, veri setine göre işaret bile
 > değiştiriyor (konum +%3…+%6, yönelim/IMU −%2…−%7, tekrarlı PWM −%25…−%46) ve
-> çerçeveleme açıkken ElBâri oran liderliğini kaybediyor — bkz.
+> çerçeveleme açıkken sıralama çerçeve boyutuna bağlı hâle geliyor — bkz.
 > [belgeler/KIYAS_TAMSAYI_KODEKLER.md](belgeler/KIYAS_TAMSAYI_KODEKLER.md).
 
 **4. "Ön işlemeyi biz de yaparız" itirazı ölçüldü.**
@@ -1177,7 +1178,8 @@ telemetri kodeki olarak paketlemesidir.
 **Bu katkı ölçüldü.** Aynı ailenin üyeleriyle (Simple8b, BP128, OptPFD, Sprintz-Delta)
 yedi veri setinde yan yana koyulduğunda ElBâri **beş sette önde** (konum +%3…+%8,
 yönelim +%0,1, tekrarlı PWM +%10…+%24), **iki sette geride** (IMU ve titreşim, %2-7);
-çerçeveleme açıkken oran liderliği Sprintz'e geçer. Ayrıntı ve dürüst sınırlar:
+çerçeveleme herkese eşit verildiğinde 100 kayıt/çerçevede lider, 25'te Sprintz'in
+gerisinde kalıyor. Ayrıntı ve dürüst sınırlar:
 **[belgeler/KIYAS_TAMSAYI_KODEKLER.md](belgeler/KIYAS_TAMSAYI_KODEKLER.md)**.
 
 ## ⚠️ Patent ve IP Notu

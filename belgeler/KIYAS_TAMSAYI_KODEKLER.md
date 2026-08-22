@@ -181,27 +181,51 @@ sıfır blok kısayolunun birlikte getirdiği kazançtır.
 > −%2…−%7 çıkıyor. Tek bir veri setinden okunan bir yüzde **genellenemez**; savunulabilir
 > ifade "yedi setin beşinde önde, IMU ve titreşimde geride"dir.
 
-**2. Çerçeveleme açılınca ElBâri oran liderliğini kaybediyor.**
+**2. Çerçeveleme bedelini herkes ödediğinde sıralama çerçeve boyutuna bağlı.**
 
-Bu, bu ölçümün en önemli bulgusudur:
+> ⚠️ **Bu bulgu düzeltildi.** Önceki sürümde "çerçeveleme açılınca ElBâri oran liderliğini
+> kaybediyor" yazıyordu ve dayanağı, ElBâri'nin **çerçeveli** oranını rakiplerin
+> **çerçevesiz** oranıyla karşılaştırmaktı. Bu elmayla armuttur: rakiplerde çerçeveleme
+> yoktur, dolayısıyla o bedeli hiç ödemezler. Senaryo 4 aynı yükü herkese verir —
+> akış bağımsız çözülebilir parçalara bölünür ve her parçaya aynı 16 baytlık çerçeve
+> başlığı eklenir.
 
-| | Oran |
-| --- | ---: |
-| ElBâri (kanal, çerçevesiz) | 5,05x |
-| Sprintz-Delta | 4,67x |
-| **ElBâri (çerçeve, 100 kayıt)** | **4,33x** |
+**100 kayıt/çerçeve** — ElBâri açık ara lider:
 
-Paket kaybı dayanıklılığı açıldığında ElBâri, Sprintz'in **%8 altına** düşüyor. Yani
-projenin asıl ayırt edici özelliği (bağımsız çerçeveler), oran üstünlüğünün tamamını ve
-fazlasını yiyor.
+| Veri | **ElBâri** | Sprintz | Simple8b |
+| --- | ---: | ---: | ---: |
+| GPS (OSM) | **4,33x** | 3,86x | 3,76x |
+| Yönelim | **10,75x** | 8,65x | 7,95x |
+| Kumanda (RCIN) | **21,65x** | 17,10x | 11,87x |
+| Titreşim | 4,50x | 4,37x | **4,51x** |
+| IMU | 5,76x | 5,50x | **5,98x** |
 
-Bunun iki sonucu var:
-- **İddia yeniden konumlanmalı.** ElBâri'nin savunulabilir üstünlüğü "en yüksek oran"
-  değil, **"kayıplı linkte çalışabilen tek aile üyesi"**. Tablodaki diğer yedi kodeğin
-  hiçbirinde paket kaybı dayanıklılığı yok; tek paket düşerse akış çözülemez.
-- **Çerçeve boyutu optimizasyonu teorik bir merak değil, doğrudan bir gerek.** 4,95 →
-  4,30 farkının nerede optimum olduğu §5'te süpürüldü — ve maliyet %13 değil, gerçek
-  kısıtlar altında **%43** çıktı.
+**25 kayıt/çerçeve** — tablo tersine dönüyor, Sprintz her yerde önde:
+
+| Veri | ElBâri | **Sprintz** | Fark |
+| --- | ---: | ---: | ---: |
+| GPS (OSM) | 2,82x | **3,32x** | −%15 |
+| Yönelim | 4,69x | **6,32x** | −%26 |
+| Kumanda (RCIN) | 7,44x | **13,31x** | −%44 |
+| IMU | 3,84x | **4,95x** | −%22 |
+
+Kırılma noktası **50–100 kayıt** arasındadır ve veri setine göre kayar.
+
+**Sebep: çerçeve başına sabit maliyet.** ElBâri her çerçevede 16 baytlık çerçeve
+başlığı + `2 + 2 + kanal×4` baytlık kanal başlığı + kanal başına 32 bitlik mutlak
+referans yazar. 8 kanalda bu **~84 bayt**tır. 25 kayıtlık bir çerçevede bu sabit
+maliyet amorti edilemez; 100 kayıtta edilir.
+
+Bunun üç sonucu var:
+- **İddia yine de yeniden konumlanmalı**, ama farklı bir yerde. ElBâri'nin savunulabilir
+  üstünlüğü "her koşulda en yüksek oran" değil, **"kayıplı linkte çalışabilen tek aile
+  üyesi, ve 100+ kayıtlık çerçevelerde aynı zamanda en yüksek oran"**.
+- **Küçük çerçeve rejimi açık bir zayıflık.** Ve kötü haber şu: kayıp süpürmesi
+  ([KAYIP_DAYANIKLILIK.md](KAYIP_DAYANIKLILIK.md)) yüksek kayıpta optimumun **~1 pakete**
+  indiğini gösteriyor — yani en çok ihtiyaç duyulan rejim, en zayıf olduğumuz rejim.
+- **Somut optimizasyon hedefi:** kanal başlığındaki uzunluk alanları çerçeve başına
+  4 bayt sabit. Küçük çerçevede bu uzunluklar 256'nın altındadır; varint ya da 2 baytlık
+  alan 8 kanalda çerçeve başına ~16–24 bayt kazandırır.
 
 **3. Kanal ayrımı argümanı saman adam değilmiş.**
 

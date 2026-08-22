@@ -691,6 +691,132 @@ static unsigned char *dosya_oku(const char *yol, long *boyut_cikti)
 }
 
 /* =====================================================================
+ * SENARYO 4 - ADIL CERCEVELI KIYAS
+ * ---------------------------------------------------------------------
+ * NEDEN GEREKLI:
+ *   Senaryo 1 herkesi CERCEVESIZ olcer. Ama ElBari'nin ayirt edici
+ *   ozelligi paket kaybi dayanikliligidir ve bunun bir BEDELI vardir:
+ *   akis bagimsiz cozulebilir cercevelere bolunur, her cerceve kendi
+ *   mutlak referansini ve CRC'sini tasir.
+ *
+ *   "Cerceveleme acilinca ElBari oran liderligini kaybediyor" cumlesi
+ *   simdiye kadar ElBari'nin CERCEVELI degerini rakiplerin CERCEVESIZ
+ *   degeriyle karsilastiriyordu. Bu elmayla armuttur: rakiplerde
+ *   cerceveleme YOK, dolayisiyla o bedeli hic odemiyorlar.
+ *
+ * ADIL KURULUM:
+ *   Ayni dayaniklilik herkese verilir. Kayit akisi kpc kayitlik
+ *   parcalara bolunur; her parca BAGIMSIZ kodlanir ve her parcaya
+ *   ElBari cerceve basligiyla AYNI yuk eklenir (16 bayt: sihirli sayi,
+ *   surum, CRC32, sira no, kayit sayisi).
+ *
+ *   Boylece sorulan soru sudur: "Paket kaybina dayanikli olmak her
+ *   kodege KAC'A MAL OLUYOR ve sonrasinda siralama ne?"
+ * ===================================================================== */
+
+static void adil_cerceveli(const int32_t *veri, int32_t eleman_sayisi,
+                           int32_t kanal_sayisi, int32_t kpc,
+                           is_alani *is, FILE *csv)
+{
+    int32_t kayit_sayisi = eleman_sayisi / kanal_sayisi;
+    sonuc sonuclar[KODEK_ADEDI];
+    int32_t i;
+    char etiket[64];
+
+    printf("\n--- SENARYO 4: ADIL cerceveli kiyas (%d kayit/cerceve) ---\n",
+           (int)kpc);
+    printf("Paket kaybi dayanikliligi HERKESE veriliyor: akis bagimsiz\n");
+    printf("cozulebilir parcalara bolunur ve her parcaya ElBari cerceve\n");
+    printf("basligiyla ayni %d baytlik yuk eklenir.\n\n",
+           (int)ELBARI_CERCEVE_BASLIK_BOYUTU);
+
+    for (i = 0; i < KODEK_ADEDI; i++)
+    {
+        const kodek_tanimi *k = &KODEKLER[i];
+        long toplam = 0;
+        int32_t r = 0;
+        int32_t basarisiz = 0;
+
+        (void)memset(&sonuclar[i], 0, sizeof(sonuclar[i]));
+        sonuclar[i].ad = k->ad;
+        sonuclar[i].referans = k->referans;
+        sonuclar[i].boyut = -1;
+
+        /* ElBari'nin kendi cerceve satiri bu senaryoda tekrar olmaz. */
+        if (k->tur == TUR_ELBARI_CERCEVE) { continue; }
+
+        while (r < kayit_sayisi)
+        {
+            int32_t kac = kayit_sayisi - r;
+            int32_t n;
+
+            if (kac > kpc) { kac = kpc; }
+
+            if (k->tur == TUR_ELBARI_KANAL)
+            {
+                /* ElBari icin gercek cerceve katmani kullanilir: baslik,
+                 * CRC ve mutlak referans zaten iceridedir. */
+                n = elbari_cerceve_yaz(&veri[r * kanal_sayisi],
+                                       kac * kanal_sayisi, kanal_sayisi,
+                                       (uint32_t)r, is->elbari_calisma,
+                                       is->elbari_calisma_kap,
+                                       is->cikti, is->cikti_kap);
+                if (n < 0) { basarisiz = 1; break; }
+                toplam += (long)n;
+            }
+            else if (k->tur == TUR_SPRINTZ)
+            {
+                n = kiyas_sprintz_kodla(&veri[r * kanal_sayisi],
+                                        kac * kanal_sayisi, kanal_sayisi,
+                                        is->cikti, is->cikti_kap);
+                if (n < 0) { basarisiz = 1; break; }
+                toplam += (long)n + ELBARI_CERCEVE_BASLIK_BOYUTU;
+            }
+            else
+            {
+                n = aile_a_kodla(k->kodla, &veri[r * kanal_sayisi],
+                                 kac * kanal_sayisi, kanal_sayisi, is);
+                if (n < 0) { basarisiz = 1; break; }
+                toplam += (long)n + ELBARI_CERCEVE_BASLIK_BOYUTU;
+            }
+            r += kac;
+        }
+
+        if (basarisiz == 0)
+        {
+            sonuclar[i].boyut = (int32_t)toplam;
+            sonuclar[i].oran = ((double)eleman_sayisi * 4.0) / (double)toplam;
+            sonuclar[i].dogru = 1;
+        }
+    }
+
+    printf("  %-26s %10s %8s %s\n", "kodek", "bayt", "oran", "cerceveleme bedeli");
+    printf("  ----------------------------------------------------------------\n");
+    for (i = 0; i < KODEK_ADEDI; i++)
+    {
+        if (KODEKLER[i].tur == TUR_ELBARI_CERCEVE) { continue; }
+        if (sonuclar[i].boyut < 0)
+        {
+            printf("  %-26s %10s %8s\n", sonuclar[i].ad, "-", "-");
+        }
+        else
+        {
+            printf("  %-26s %10d %7.2fx\n",
+                   sonuclar[i].ad, (int)sonuclar[i].boyut, sonuclar[i].oran);
+        }
+    }
+    printf("  ----------------------------------------------------------------\n");
+    printf("  Bedel sutunu icin Senaryo 1 ile karsilastirin: ayni kodegin\n");
+    printf("  cercevesiz orani ne kadar dusuyor?\n");
+
+    if (csv != NULL)
+    {
+        (void)sprintf(etiket, "adil-cerceveli-%d", (int)kpc);
+        csv_yaz(csv, etiket, sonuclar, KODEK_ADEDI);
+    }
+}
+
+/* =====================================================================
  * ANA
  * ===================================================================== */
 
@@ -847,6 +973,13 @@ int main(int argc, char **argv)
      * SENARYO 3 - cerceve boyutu supurmesi
      * ================================================================= */
     cerceve_supurmesi(veri, eleman_sayisi, kanal_sayisi, &is, csv);
+
+    /* =================================================================
+     * SENARYO 4 - adil cerceveli kiyas
+     * ================================================================= */
+    adil_cerceveli(veri, eleman_sayisi, kanal_sayisi, 100, &is, csv);
+    adil_cerceveli(veri, eleman_sayisi, kanal_sayisi, 50, &is, csv);
+    adil_cerceveli(veri, eleman_sayisi, kanal_sayisi, 25, &is, csv);
 
     if (csv != NULL)
     {
