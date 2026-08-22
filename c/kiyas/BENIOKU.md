@@ -2,7 +2,7 @@
 
 ## Neden bu klasör var
 
-ElBâri, [README](../../README.md#-algoritma-detayları) ve
+ElBâri, [belgeler/MIMARI.md §5](../../belgeler/MIMARI.md) ve
 [biçim spesifikasyonunda](../../belgeler/BICIM_SPESIFIKASYONU.md) kendini açıkça
 **PFOR-Delta ailesinin bir uygulaması** olarak tanımlıyor. Buna rağmen bugüne kadar
 yalnızca **genel amaçlı bayt sıkıştırıcılarıyla** (zstd, LZ4, Brotli, Deflate)
