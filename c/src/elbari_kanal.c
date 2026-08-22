@@ -257,7 +257,6 @@ int32_t elbari_kanal_kabid(const int32_t *ham_veri,
         int32_t ikinci_derece;
         int32_t ilk_deger = 0;
         int32_t yuk_uzunlugu;
-        int32_t on_ek_boyu;
         int32_t ham_bayt;
         int32_t yuk_konumu;
         int32_t sonuc;
@@ -307,7 +306,6 @@ int32_t elbari_kanal_kabid(const int32_t *ham_veri,
         yuk_uzunlugu = uzunluk - 1;
 
         (void)ilk_deger;
-        on_ek_boyu = 0;
         ham_bayt = yuk_uzunlugu * 4;
         yuk_konumu = yazma_konumu;
 
@@ -463,7 +461,6 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
         int32_t yuk_boyutu;
         int32_t ham_gecis;
         int32_t ikinci_derece;
-        int32_t on_ek_boyu;
         int32_t ilk_deger = 0;
         int32_t yuk_konumu;
         int32_t ic_boyut;
@@ -477,19 +474,10 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
         ham_gecis     = elbari_ic_bayrak_var_mi(ham_gecis_bayraklari, c);
         ikinci_derece = elbari_ic_bayrak_var_mi(ikinci_derece_bayraklari, c);
 
-        /* Ikinci derece kanallarda yukun basinda mutlak ilk deger bulunur. */
-        /* MISRA 10.6: bilesik ifade yerine acik dallanma. */
-        if (ikinci_derece != 0)
-        {
-            on_ek_boyu = 4;
-        }
-        else
-        {
-            on_ek_boyu = 0;
-        }
-        /* Mutlak ilk deger REFERANS BLOGUNDAN gelir (bicim surumu 4). */
-        ilk_deger  = referanslar[c];
-        on_ek_boyu = 0;
+        /* Mutlak ilk deger REFERANS BLOGUNDAN gelir (bicim surumu 4).
+         * Surum 3'e kadar ikinci derece kanallarda yukun basinda 4 baytlik
+         * bir on ek vardi; artik yok. */
+        ilk_deger = referanslar[c];
 
         yuk_konumu    = okuma_konumu;
         ic_boyut      = girdi_boyutu - yuk_konumu;

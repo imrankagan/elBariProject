@@ -72,6 +72,23 @@ static int32_t rastgele_i32(void)
     return (int32_t)rastgele();
 }
 
+/**
+ * Saran toplama.
+ *
+ * Uretecler durum degiskenini surekli ilerletir ve bu ISARETLI TASMAYA
+ * yol acar - C'de tanimsiz davranistir. UBSan bunu CI'da yakaladi.
+ * Kutuphanenin kendisi zaten isaretsiz aritmetik kullaniyor; burada
+ * eksik olan test aracinin kendisiydi.
+ */
+static int32_t sar_topla(int32_t a, int32_t b)
+{
+    uint32_t t = (uint32_t)a + (uint32_t)b;
+    int32_t r;
+
+    (void)memcpy(&r, &t, sizeof(r));
+    return r;
+}
+
 /* =====================================================================
  * DEGER URETECLERI
  * ---------------------------------------------------------------------
@@ -130,7 +147,7 @@ static int32_t tek_deger(int32_t uretec, int32_t i, int32_t *durum)
         return rastgele_i32();
 
     case 1:
-        *durum += (int32_t)rastgele_aralik(9u) - 4;
+        *durum = sar_topla(*durum, (int32_t)rastgele_aralik(9u) - 4);
         return *durum;
 
     case 2:
@@ -150,7 +167,7 @@ static int32_t tek_deger(int32_t uretec, int32_t i, int32_t *durum)
     case 5:
         /* Farklar esigin (32767) hemen iki yaninda gezinir. */
         d = (int32_t)rastgele_aralik(5u) - 2;
-        *durum += (((i % 2) == 0) ? 32767 : -32766) + d;
+        *durum = sar_topla(*durum, (((i % 2) == 0) ? 32767 : -32766) + d);
         return *durum;
 
     case 6:
@@ -166,12 +183,15 @@ static int32_t tek_deger(int32_t uretec, int32_t i, int32_t *durum)
         return (rastgele_aralik(32u) == 0u) ? rastgele_i32() : *durum;
 
     case 8:
-        *durum += 1000;
+        *durum = sar_topla(*durum, 1000);
         return *durum;
 
     case 9:
         /* Uzun sifir kosulari, arada tek sicrama: blok-ustu sifir yollari */
-        if (rastgele_aralik(64u) == 0u) { *durum += (int32_t)rastgele(); }
+        if (rastgele_aralik(64u) == 0u)
+        {
+            *durum = sar_topla(*durum, rastgele_i32());
+        }
         return *durum;
 
     case 10:
@@ -181,7 +201,9 @@ static int32_t tek_deger(int32_t uretec, int32_t i, int32_t *durum)
         int32_t blok = i / ELBARI_BLOK_BOYUTU;
         int32_t genislik = blok % 18;
         int32_t araligi = (genislik >= 31) ? 2147483647 : (1 << genislik);
-        *durum += (int32_t)rastgele_aralik((unsigned int)araligi) - (araligi / 2);
+        *durum = sar_topla(*durum,
+                           (int32_t)rastgele_aralik((unsigned int)araligi)
+                           - (araligi / 2));
         return *durum;
     }
     }

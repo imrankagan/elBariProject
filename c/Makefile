@@ -36,7 +36,11 @@ KIYAS_KAYNAK = kiyas/onisleme.c kiyas/kodekler.c kiyas/sprintz.c
 MAV_KAYNAK = mavlink/mav_bicim.c mavlink/mav_sema.c mavlink/mav_kademe.c \
              mavlink/mav_uretici.c
 
-PROGRAMLAR = dogrulama olcum fuzz deger_fuzz kayip uygunluk kapsamli kiyas              kiyas-oztest mav_olcum
+# NOT: hedef adlari klasor adlariyla CAKISMAMALIDIR. "kiyas" adinda bir
+# ikili uretmek Linux'ta "cannot open output file kiyas: Is a directory"
+# hatasi veriyordu, cunku c/kiyas/ diye bir dizin var. Windows tarafinda
+# derle.bat ciktiyi kiyas/kiyas.exe olarak urettigi icin bu hic gorulmedi.
+PROGRAMLAR = dogrulama olcum fuzz deger_fuzz kayip uygunluk kapsamli kiyas-olcum kiyas-oztest mav_olcum
 
 .PHONY: all sanitize test temizle
 
@@ -69,8 +73,8 @@ kapsamli: test/kapsamli.c $(KAYNAK)
 	$(CC) $(CFLAGS) -o $@ $^
 
 # ElBari'yi kendi ailesiyle (Simple8b, BP128, OptPFD, Sprintz, ...) olcer.
-# Calistirma: ./kiyas ../testverisi/gercek_gps.bin 200
-kiyas: kiyas/kiyas.c $(KIYAS_KAYNAK) $(KAYNAK)
+# Calistirma: ./kiyas-olcum ../testverisi/gercek_gps.bin 200
+kiyas-olcum: kiyas/kiyas.c $(KIYAS_KAYNAK) $(KAYNAK)
 	$(CC) $(CFLAGS) -o $@ $^
 
 # Rakip uygulamalarin kenar durum dogrulamasi. Dis veri istemez.
