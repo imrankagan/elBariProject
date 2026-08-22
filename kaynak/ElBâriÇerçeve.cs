@@ -48,10 +48,21 @@ namespace ElBâri
     public static class ElBâriÇerçeve
     {
         /// <summary>Çerçeve başlığının bayt uzunluğu.</summary>
-        public const int BASLIK_BOYUTU = 16;
+        // Çerçeve başlığı (biçim sürümü 4). Sürüm 3'te 16 bayttı:
+        //   2 sihirli sayı + 1 sürüm + 1 ayrılmış + 4 CRC + 4 sıra + 4 kayıt
+        // Küçük çerçevede bu sabit maliyet amorti edilemiyordu:
+        //   [0]      sihirli sayı (1 bayt yeter; asıl doğrulamayı CRC yapar)
+        //   [1]      sürüm
+        //   [2..5]   CRC32
+        //   [6..7]   sıra no      (uint16, sarar — kayıp tespitine yeter)
+        //   [8..9]   kayıt sayısı (uint16)
+        // Ayrılmış bayt kaldırıldı. Kazanç: çerçeve başına 6 bayt.
+        public const int BASLIK_BOYUTU = 10;
+
+        /// <summary>Başlıkta sıra no ve kayıt sayısının üst sınırı.</summary>
+        private const int MAKS_ALAN = 65535;
 
         private const byte SIHIR_0 = 0xEB;
-        private const byte SIHIR_1 = 0x71;
         // Biçim sürümü 4: kanal katmanındaki uzunluk tablosu kaldırıldı.
         // Kanallar ardışık çözülür; çekirdek kendi tüketimini bildirir.
         // Kanal başına 4 bayt, 8 kanallı bir çerçevede 32 bayt kazanç.
@@ -118,16 +129,21 @@ namespace ElBâri
 
             // Başlık
             cikti[0] = SIHIR_0;
-            cikti[1] = SIHIR_1;
-            cikti[2] = SURUM;
-            cikti[3] = 0;
-            MemoryMarshal.Write(cikti.Slice(8, 4), in siraNo);
-            MemoryMarshal.Write(cikti.Slice(12, 4), in kayitSayisi);
+            cikti[1] = SURUM;
+            // Sıra no 16 bite SARAR; kayıp/sıralama tespiti için yeterlidir
+            // (RTP de 16 bit kullanır).
+            ushort sira16 = (ushort)(siraNo & 0xFFFF);
+            ushort kayit16 = (ushort)kayitSayisi;
+            MemoryMarshal.Write(cikti.Slice(6, 2), in sira16);
+            MemoryMarshal.Write(cikti.Slice(8, 2), in kayit16);
 
             // CRC: [8..son] (sıra no + kayıt sayısı + yük)
+            // CRC: [6..son] aralığı (sıra no + kayıt sayısı + yük).
+            // Sihirli sayı ve sürüm kapsam dışıdır; birebir karşılaştırmayla
+            // doğrulanırlar.
             int toplam = BASLIK_BOYUTU + yukBoyutu;
-            uint crc = Crc32(cikti.Slice(8, toplam - 8));
-            MemoryMarshal.Write(cikti.Slice(4, 4), in crc);
+            uint crc = Crc32(cikti.Slice(6, toplam - 6));
+            MemoryMarshal.Write(cikti.Slice(2, 4), in crc);
 
             return toplam;
         }
@@ -142,24 +158,22 @@ namespace ElBâri
         public static bool CerceveGecerliMi(scoped ReadOnlySpan<byte> cerceve)
         {
             if (cerceve.Length < BASLIK_BOYUTU) return false;
-            if (cerceve[0] != SIHIR_0 || cerceve[1] != SIHIR_1) return false;
-            if (cerceve[2] != SURUM) return false;
-            // [3] ayrılmış alan: CRC kapsamı dışında olduğu için burada doğrulanır,
-            // aksi halde bu bayta düşen bir bit bozulması fark edilmeden geçerdi.
-            if (cerceve[3] != 0) return false;
+            if (cerceve[0] != SIHIR_0) return false;
+            if (cerceve[1] != SURUM) return false;
+            // Ayrılmış bayt biçim sürümü 4'te kaldırıldı; [2..5] artık CRC32.
 
-            uint beklenen = MemoryMarshal.Read<uint>(cerceve.Slice(4, 4));
-            uint hesaplanan = Crc32(cerceve.Slice(8));
+            uint beklenen = MemoryMarshal.Read<uint>(cerceve.Slice(2, 4));
+            uint hesaplanan = Crc32(cerceve.Slice(6));
             return beklenen == hesaplanan;
         }
 
         /// <summary>Çerçevenin sıra numarasını okur (doğrulama yapmadan).</summary>
         public static uint CerceveSiraNo(scoped ReadOnlySpan<byte> cerceve)
-            => MemoryMarshal.Read<uint>(cerceve.Slice(8, 4));
+            => MemoryMarshal.Read<ushort>(cerceve.Slice(6, 2));
 
         /// <summary>Çerçevedeki kayıt sayısını okur (doğrulama yapmadan).</summary>
         public static int CerceveKayitSayisi(scoped ReadOnlySpan<byte> cerceve)
-            => MemoryMarshal.Read<int>(cerceve.Slice(12, 4));
+            => MemoryMarshal.Read<ushort>(cerceve.Slice(8, 2));
 
         /// <summary>
         /// Tek bir çerçeveyi bağımsız olarak çözer. Diğer çerçevelere ihtiyaç duymaz.

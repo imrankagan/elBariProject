@@ -257,6 +257,18 @@ static ELBARI_SATIRICI void elbari_ic_i32_yaz(uint8_t *hedef, int32_t deger)
     elbari_ic_u32_yaz(hedef, elbari_ic_isaretsize_cevir(deger));
 }
 
+/** 16 bitlik isaretsiz deger, little-endian. */
+static ELBARI_SATIRICI void elbari_ic_u16_yaz(uint8_t *hedef, uint16_t deger)
+{
+    hedef[0] = (uint8_t)(deger & 0xFFu);
+    hedef[1] = (uint8_t)((deger >> 8) & 0xFFu);
+}
+
+static ELBARI_SATIRICI uint16_t elbari_ic_u16_oku(const uint8_t *kaynak)
+{
+    return (uint16_t)((uint16_t)kaynak[0] | ((uint16_t)kaynak[1] << 8));
+}
+
 static ELBARI_SATIRICI int32_t elbari_ic_i32_oku(const uint8_t *kaynak)
 {
     return elbari_ic_isaretliye_cevir(elbari_ic_u32_oku(kaynak));

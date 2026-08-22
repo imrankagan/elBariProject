@@ -98,7 +98,20 @@ extern "C" {
 #define ELBARI_MAKS_ELEMAN              (200000000)
 
 /** Cerceve basliginin bayt uzunlugu. */
-#define ELBARI_CERCEVE_BASLIK_BOYUTU    (16)
+/* Cerceve basligi (bicim surumu 4). Surum 3'te 16 bayttı:
+ *   2 sihirli sayi + 1 surum + 1 ayrilmis + 4 CRC + 4 sira + 4 kayit
+ * Kucuk cercevede bu sabit maliyet amorti edilemiyordu, o yuzden
+ * daraltildi:
+ *   [0]      sihirli sayi (1 bayt yeter; asil dogrulamayi CRC yapar)
+ *   [1]      surum
+ *   [2..5]   CRC32
+ *   [6..7]   sira no      (uint16, sarar - kayip tespitine yeter)
+ *   [8..9]   kayit sayisi (uint16)
+ * Ayrilmis bayt kaldirildi. Kazanc: cerceve basina 6 bayt. */
+#define ELBARI_CERCEVE_BASLIK_BOYUTU    (10)
+
+/** Cerceve basliginda sira no ve kayit sayisinin ust siniri. */
+#define ELBARI_CERCEVE_MAKS_ALAN        (65535)
 
 /* =====================================================================
  * KATMANLI BUTUNLUK MODELI - GUVENLIK NOTU

@@ -60,9 +60,10 @@ namespace ElBâri
         public static int EnKotuDurumCiktiBoyutu(int elemanSayisi, int kanalSayisi)
         {
             int bayrakBayt = (kanalSayisi + 7) / 8;
-            // Biçim sürümü 4: kanal başına 4 baytlık uzunluk tablosu KALDIRILDI.
-            // Kanallar ardışık çözülür ve çekirdek kendi tüketimini bildirir.
-            int baslik = 2 + 2 * bayrakBayt;
+            // Biçim sürümü 4: kanal başına 4 baytlık uzunluk tablosu KALDIRILDI
+            // (kanallar ardışık çözülür, çekirdek kendi tüketimini bildirir) ve
+            // bayrakBayt alanı da kaldırıldı — kanalSayisi'ndan türetilebilir.
+            int baslik = 1 + 2 * bayrakBayt;
             // eleman*4 (ham) + eleman/2 (paketleme payı) + kanal başına referans/pay
             return baslik + elemanSayisi * 4 + elemanSayisi / 2 + kanalSayisi * 68 + 64;
         }
@@ -116,7 +117,7 @@ namespace ElBâri
             }
 
             int bayrakBayt = (kanalSayisi + 7) / 8;
-            int baslikBoyu = 2 + 2 * bayrakBayt;
+            int baslikBoyu = 1 + 2 * bayrakBayt;
             if (cikti.Length < baslikBoyu)
             {
                 throw new ArgumentException(
@@ -124,10 +125,9 @@ namespace ElBâri
             }
 
             cikti[0] = (byte)kanalSayisi;
-            cikti[1] = (byte)bayrakBayt;
 
-            Span<byte> ikinciDereceBayraklari = cikti.Slice(2, bayrakBayt);
-            Span<byte> hamGecisBayraklari = cikti.Slice(2 + bayrakBayt, bayrakBayt);
+            Span<byte> ikinciDereceBayraklari = cikti.Slice(1, bayrakBayt);
+            Span<byte> hamGecisBayraklari = cikti.Slice(1 + bayrakBayt, bayrakBayt);
 
             ikinciDereceBayraklari.Clear();
             hamGecisBayraklari.Clear();
@@ -257,14 +257,14 @@ namespace ElBâri
             }
 
             int kanalSayisi = girdi[0];
-            int bayrakBayt = girdi[1];
-
-            if (kanalSayisi < 1 || bayrakBayt != (kanalSayisi + 7) / 8)
+            if (kanalSayisi < 1)
             {
-                throw new ArgumentException("Girdi başlığı bozuk (kanal sayısı/bayrak boyutu tutarsız).", nameof(girdi));
+                throw new ArgumentException("Girdi başlığı bozuk (kanal sayısı geçersiz).", nameof(girdi));
             }
+            // bayrakBayt TAŞINMAZ: kanal sayısından türetilir (biçim sürümü 4).
+            int bayrakBayt = (kanalSayisi + 7) / 8;
 
-            int baslikBoyu = 2 + 2 * bayrakBayt;
+            int baslikBoyu = 1 + 2 * bayrakBayt;
             if (girdi.Length < baslikBoyu)
             {
                 throw new ArgumentException("Girdi tamponu başlık için çok küçük.", nameof(girdi));
@@ -279,8 +279,8 @@ namespace ElBâri
                     nameof(calismaAlani));
             }
 
-            ReadOnlySpan<byte> ikinciDereceBayraklari = girdi.Slice(2, bayrakBayt);
-            ReadOnlySpan<byte> hamGecisBayraklari = girdi.Slice(2 + bayrakBayt, bayrakBayt);
+            ReadOnlySpan<byte> ikinciDereceBayraklari = girdi.Slice(1, bayrakBayt);
+            ReadOnlySpan<byte> hamGecisBayraklari = girdi.Slice(1 + bayrakBayt, bayrakBayt);
             int okumaKonumu = baslikBoyu;
 
             for (int c = 0; c < kanalSayisi; c++)

@@ -57,9 +57,10 @@ int32_t elbari_kanal_en_kotu_durum_boyutu(int32_t eleman_sayisi,
     }
 
     bayrak_bayt = (kanal_sayisi + 7) / 8;
-    /* Bicim surumu 4: kanal basina 4 baytlik uzunluk tablosu KALDIRILDI.
-     * Kanallar ardisik cozulur ve cekirdek kendi tuketimini bildirir. */
-    baslik = 2 + (2 * bayrak_bayt);
+    /* Bicim surumu 4: kanal basina 4 baytlik uzunluk tablosu KALDIRILDI
+     * (kanallar ardisik cozulur, cekirdek kendi tuketimini bildirir) ve
+     * bayrak_bayt alani da kaldirildi - kanal_sayisi'ndan turetilebilir. */
+    baslik = 1 + (2 * bayrak_bayt);
 
     /* eleman*4 (ham) + eleman/2 (paketleme payi) + kanal basina referans/pay */
     return baslik
@@ -184,21 +185,20 @@ int32_t elbari_kanal_kabid(const int32_t *ham_veri,
     }
 
     bayrak_bayt = (kanal_sayisi + 7) / 8;
-    baslik_boyu = 2 + (2 * bayrak_bayt);
+    baslik_boyu = 1 + (2 * bayrak_bayt);
     if (cikti_kapasitesi < baslik_boyu)
     {
         return ELBARI_HATA_TAMPON_KUCUK;
     }
 
     cikti[0] = (uint8_t)kanal_sayisi;
-    cikti[1] = (uint8_t)bayrak_bayt;
 
-    ikinci_derece_bayraklari = &cikti[2];
-    ham_gecis_bayraklari     = &cikti[2 + bayrak_bayt];
+    ikinci_derece_bayraklari = &cikti[1];
+    ham_gecis_bayraklari     = &cikti[1 + bayrak_bayt];
 
     for (i = 0; i < (2 * bayrak_bayt); i++)
     {
-        cikti[2 + i] = 0u;
+        cikti[1 + i] = 0u;
     }
 
     yazma_konumu = baslik_boyu;
@@ -350,20 +350,20 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
     {
         return ELBARI_TAMAM;
     }
-    if (girdi_boyutu < 2)
+    if (girdi_boyutu < 1)
     {
         return ELBARI_HATA_BOZUK_GIRDI;
     }
 
     kanal_sayisi = (int32_t)girdi[0];
-    bayrak_bayt  = (int32_t)girdi[1];
-
-    if ((kanal_sayisi < 1) || (bayrak_bayt != ((kanal_sayisi + 7) / 8)))
+    if (kanal_sayisi < 1)
     {
         return ELBARI_HATA_BOZUK_GIRDI;
     }
+    /* bayrak_bayt TASINMAZ: kanal sayisindan turetilir (bicim surumu 4). */
+    bayrak_bayt = (kanal_sayisi + 7) / 8;
 
-    baslik_boyu = 2 + (2 * bayrak_bayt);
+    baslik_boyu = 1 + (2 * bayrak_bayt);
     if (girdi_boyutu < baslik_boyu)
     {
         return ELBARI_HATA_BOZUK_GIRDI;
@@ -375,8 +375,8 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
         return ELBARI_HATA_TAMPON_KUCUK;
     }
 
-    ikinci_derece_bayraklari = &girdi[2];
-    ham_gecis_bayraklari     = &girdi[2 + bayrak_bayt];
+    ikinci_derece_bayraklari = &girdi[1];
+    ham_gecis_bayraklari     = &girdi[1 + bayrak_bayt];
 
     okuma_konumu = baslik_boyu;
 

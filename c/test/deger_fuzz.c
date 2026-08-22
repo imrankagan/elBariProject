@@ -401,12 +401,16 @@ static void cerceve_turu(int32_t uretec, int32_t *veri, int32_t *geri,
         return;
     }
 
-    if ((sira_cikan != sira_giren) || (kayit_cikan != kayit))
+    /* Bicim surumu 4: sira no baslikta 16 BITTIR ve sarar. Kayip ve
+     * siralama tespiti icin yeterlidir (RTP de 16 bit kullanir). Bu
+     * yuzden karsilastirma dusuk 16 bit uzerinden yapilir. */
+    if ((sira_cikan != (sira_giren & 0xFFFFu)) || (kayit_cikan != kayit))
     {
         printf("\n  !!! BASLIK BOZUK: cerceve / %s (tohum 0x%llX)\n",
                URETEC_ADI[uretec], tohum_once);
-        printf("      sira  giren %u  cikan %u\n",
-               (unsigned)sira_giren, (unsigned)sira_cikan);
+        printf("      sira  giren %u (dusuk 16 bit %u)  cikan %u\n",
+               (unsigned)sira_giren, (unsigned)(sira_giren & 0xFFFFu),
+               (unsigned)sira_cikan);
         printf("      kayit giren %d  cikan %d\n",
                (int)kayit, (int)kayit_cikan);
         g_cerceve.hata++;

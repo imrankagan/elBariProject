@@ -27,7 +27,6 @@
 #include "elbari_ic.h"
 
 #define ELBARI_SIHIR_0   (0xEBu)
-#define ELBARI_SIHIR_1   (0x71u)
 /* Bicim surumu 4: kanal katmanindaki uzunluk tablosu kaldirildi.
  * Kanallar ardisik cozulur; cekirdek kendi tuketimini bildirir. Kanal
  * basina 4 bayt, 8 kanalli bir cercevede 32 bayt kazanc.
@@ -182,6 +181,15 @@ int32_t elbari_cerceve_yaz(const int32_t *kayitlar,
 
     kayit_sayisi = eleman_sayisi / kanal_sayisi;
 
+    /* Baslikta kayit sayisi 16 bittir (bicim surumu 4). Sinir asilirsa
+     * SESSIZCE KIRPMAK yerine reddedilir - kayipsizlik pazarlik konusu
+     * degildir. Pratikte cerceve MTU'ya sigmak zorunda oldugu icin bu
+     * sinira yaklasilmaz. */
+    if (kayit_sayisi > ELBARI_CERCEVE_MAKS_ALAN)
+    {
+        return ELBARI_HATA_PARAMETRE;
+    }
+
     /* Yuk: kanal katmani ile sikistir */
     yuk_boyutu = elbari_kanal_kabid(kayitlar, eleman_sayisi, kanal_sayisi,
                                     calisma_alani, calisma_kapasitesi,
@@ -192,18 +200,20 @@ int32_t elbari_cerceve_yaz(const int32_t *kayitlar,
         return yuk_boyutu;
     }
 
-    /* Baslik */
+    /* Baslik (bkz. elbari.h ELBARI_CERCEVE_BASLIK_BOYUTU) */
     cikti[0] = ELBARI_SIHIR_0;
-    cikti[1] = ELBARI_SIHIR_1;
-    cikti[2] = (uint8_t)ELBARI_SURUM;
-    cikti[3] = 0u;
-    elbari_ic_u32_yaz(&cikti[8], sira_no);
-    elbari_ic_i32_yaz(&cikti[12], kayit_sayisi);
+    cikti[1] = (uint8_t)ELBARI_SURUM;
+    /* Sira no 16 bite SARAR; kayip/siralama tespiti icin yeterlidir
+     * (RTP de 16 bit kullanir). */
+    elbari_ic_u16_yaz(&cikti[6], (uint16_t)(sira_no & 0xFFFFu));
+    elbari_ic_u16_yaz(&cikti[8], (uint16_t)kayit_sayisi);
 
-    /* CRC: [8..son] araligi (sira no + kayit sayisi + yuk) */
+    /* CRC: [6..son] araligi (sira no + kayit sayisi + yuk).
+     * Sihirli sayi ve surum kapsam disidir; onlar birebir
+     * karsilastirmayla dogrulanir. */
     toplam = ELBARI_CERCEVE_BASLIK_BOYUTU + yuk_boyutu;
-    crc = elbari_crc32(&cikti[8], toplam - 8);
-    elbari_ic_u32_yaz(&cikti[4], crc);
+    crc = elbari_crc32(&cikti[6], toplam - 6);
+    elbari_ic_u32_yaz(&cikti[2], crc);
 
     return toplam;
 }
@@ -222,24 +232,17 @@ int32_t elbari_cerceve_gecerli_mi(const uint8_t *cerceve, int32_t cerceve_boyutu
     {
         return 0;
     }
-    if ((cerceve[0] != ELBARI_SIHIR_0) || (cerceve[1] != ELBARI_SIHIR_1))
+    if (cerceve[0] != ELBARI_SIHIR_0)
     {
         return 0;
     }
-    if (cerceve[2] != (uint8_t)ELBARI_SURUM)
-    {
-        return 0;
-    }
-    /* [3] ayrilmis alan: CRC kapsami disinda oldugu icin burada
-     * dogrulanir; aksi halde bu bayta dusen bir bit bozulmasi fark
-     * edilmeden gecerdi. */
-    if (cerceve[3] != 0u)
+    if (cerceve[1] != (uint8_t)ELBARI_SURUM)
     {
         return 0;
     }
 
-    beklenen   = elbari_ic_u32_oku(&cerceve[4]);
-    hesaplanan = elbari_crc32(&cerceve[8], cerceve_boyutu - 8);
+    beklenen   = elbari_ic_u32_oku(&cerceve[2]);
+    hesaplanan = elbari_crc32(&cerceve[6], cerceve_boyutu - 6);
 
     /* MISRA 10.6: bilesik ifade yerine acik dallanma. */
     if (beklenen == hesaplanan)
@@ -259,7 +262,7 @@ uint32_t elbari_cerceve_sira_no(const uint8_t *cerceve)
     {
         return 0u;
     }
-    return elbari_ic_u32_oku(&cerceve[8]);
+    return (uint32_t)elbari_ic_u16_oku(&cerceve[6]);
 }
 
 int32_t elbari_cerceve_kayit_sayisi(const uint8_t *cerceve)
@@ -268,7 +271,7 @@ int32_t elbari_cerceve_kayit_sayisi(const uint8_t *cerceve)
     {
         return 0;
     }
-    return elbari_ic_i32_oku(&cerceve[12]);
+    return (int32_t)elbari_ic_u16_oku(&cerceve[8]);
 }
 
 int32_t elbari_cerceve_oku(const uint8_t *cerceve,
