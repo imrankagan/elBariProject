@@ -57,11 +57,11 @@ Bu belge o boşluğu kapatıyor ve **beklendiği gibi, iddiayı küçültüyor.*
 
 | Kodek | Kaynak | Bayt | Oran | bit/değer | encode MB/sn | decode MB/sn |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| **ElBâri (kanal)** | bu çalışma | **58.525** | **5.05x** | **6.34** | 1.176 | 1.673 |
+| **ElBâri (kanal)** | bu çalışma | **58.513** | **5.05x** | **6.33** | 1.176 | 1.673 |
 | Sprintz-Delta | Blalock ve ark. 2018 | 63.321 | 4.67x | 6.85 | 463 | 1.045 |
 | Simple8b | Anh & Moffat 2010 | 63.885 | 4.63x | 6.91 | 364 | 1.824 |
 | OptPFD (PFOR+yama) | Zukowski 2006 / Yan 2009 | 64.807 | 4.56x | 7.01 | 260 | 1.103 |
-| ElBâri (çerçeve, 100) | bu çalışma | 68.282 | 4.33x | 7.39 | 548 | 885 |
+| ElBâri (çerçeve, 100) | bu çalışma | 63.836 | 4.63x | 6.91 | 548 | 885 |
 | BP128 | Lemire & Boytsov 2015 | 81.130 | 3.64x | 8.78 | 556 | 1.078 |
 | VByte (LEB128) | varint temel çizgisi | 93.540 | 3.16x | 10.12 | 2.599 | 1.612 |
 | StreamVByte | Lemire & Kurz 2017 | 104.855 | 2.82x | 11.35 | 1.803 | 1.671 |
@@ -282,43 +282,41 @@ bağlar:
 
 | Çerçeve (kayıt) | Çerçeve sayısı | Toplam bayt | Oran | ort. B/çerçeve | **en büyük B** | gecikme @10 Hz | @50 Hz |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| *çerçeveleme yok* | — | 58.525 | **5.05x** | — | — | *akış* | *akış* |
-| 1 | 24.642 | 1.084.248 | 0.27x | 44 | 44 | 0,10 s | 0,02 s |
-| 1 | — | — | — | — | — | — | — |
-| 2 | 12.321 | 596.564 | 0.50x | 48 | 56 | 0,20 s | 0,04 s |
-| 5 | 4.929 | 302.147 | 0.98x | 61 | 92 | 0,50 s | 0,10 s |
-| 10 | 2.465 | 176.888 | 1.67x | 72 | 106 | 1,00 s | 0,20 s |
-| 20 | 1.233 | 117.037 | 2.53x | 95 | 160 | 2,00 s | 0,40 s |
-| **25** | 986 | 104.838 | **2.82x** | 106 | **185** | 2,50 s | **0,50 s** |
-| 50 | 493 | 79.928 | 3.70x | 162 | 315 | 5,00 s | 1,00 s |
-| 100 | 247 | 68.282 | 4.33x | 279 | **572** | 10,00 s | 2,00 s |
-| 200 | 124 | 63.321 | 4.67x | 511 | 1.001 | 20,00 s | 4,00 s |
-| 500 | 50 | 61.207 | 4.83x | 1.224 | 2.339 | 50,00 s | 10,00 s |
-| 1000 | 25 | 58.757 | 5.03x | 2.350 | 4.228 | 100,00 s | 20,00 s |
+| *çerçeveleme yok* | — | 58.513 | **5.05x** | — | — | *akış* | *akış* |
+| 1 | 24.642 | 640.692 | 0.46x | 26 | 26 | 0,10 s | 0,02 s |
+| 2 | 12.321 | 374.786 | 0.79x | 30 | 38 | 0,20 s | 0,04 s |
+| 5 | 4.929 | 213.425 | 1.39x | 43 | 74 | 0,50 s | 0,10 s |
+| 10 | 2.465 | 132.518 | 2.23x | 54 | 88 | 1,00 s | 0,20 s |
+| 20 | 1.233 | 94.843 | 3.12x | 77 | 142 | 2,00 s | 0,40 s |
+| **25** | 986 | 87.090 | **3.40x** | 88 | **167** | 2,50 s | **0,50 s** |
+| 50 | 493 | 71.054 | 4.16x | 144 | 297 | 5,00 s | 1,00 s |
+| 100 | 247 | 63.836 | 4.63x | 258 | 554 | 10,00 s | 2,00 s |
+| 200 | 124 | 60.299 | 4.90x | 486 | 983 | 20,00 s | 4,00 s |
+| 500 | 50 | 59.429 | 4.98x | 1.189 | 2.321 | 50,00 s | 10,00 s |
+| 1000 | 25 | 58.307 | 5.07x | 2.332 | 4.210 | 100,00 s | 20,00 s |
 
-*(1 kayıt/çerçeve desteklenmiyor: çekirdek kodlayıcı tek elemanlı girdiyi
-`ELBARI_SIKISTIRILAMAZ` ile reddediyor.)*
+### Bunun anlamı — vitrin rakamı ne kadar gerçekçi?
 
-### Bunun anlamı — README'deki 4.33x rakamı ne kadar gerçekçi?
+**Sıkıştırma 5 kayıt/çerçevenin altında kayboluyor.** 1 kayıtta oran 0.46x — veri
+**iki katından fazla büyüyor**, çünkü çerçeve başlığı yükten büyük.
 
-**Sıkıştırma 5 kayıt/çerçevenin altında tamamen kayboluyor.** 2 kayıtta oran 0.50x —
-veri **iki katına çıkıyor**, çünkü 16 baytlık çerçeve başlığı 24 baytlık yükten büyük.
+**4.63x rakamı 10 saniyelik tamponlama gerektiriyor** (10 Hz telemetride). Canlı
+telemetri için kabul edilemez: uçağın 10 saniye önceki konumunu görürsün.
 
-**4.33x rakamı, 10 saniyelik tamponlama gerektiriyor** (10 Hz telemetride). Canlı
-telemetri için bu kabul edilemez: uçağın 10 saniye önceki konumunu görürsün.
+**Ayrıca tek pakete sığmıyor.** 100 kayıtta en büyük çerçeve 554 bayt; tipik SiK
+radyo yükünün iki katından fazla. Çerçeve parçalanmak zorunda kalırsa
+*"bir paket düşerse yalnızca o çerçeve kaybolur"* garantisi zayıflar — bir çerçeve
+artık birden fazla pakete yayılmıştır.
 
-**4.33x rakamı ayrıca tek pakete sığmıyor.** En büyük çerçeve 572 bayt; tipik SiK
-radyo yükünün iki katından fazla. Çerçeve parçalanmak zorunda kalırsa,
-*"bir paket düşerse yalnızca o çerçeve kaybolur"* garantisi zayıflar — çünkü artık
-bir çerçeve birden fazla pakete yayılmıştır.
+**Gerçekçi çalışma noktası çok daha küçük.** Hem tek pakete sığan (≤167 B) hem
+gecikmesi kabul edilebilir (50 Hz'de 0,5 s) satır **25 kayıt/çerçeve** ve orada oran
+**3.40x** — çerçevesiz 5.05x'in **%67'si**.
 
-**Gerçekçi çalışma noktası çok daha küçük.** Hem tek pakete sığan (≤185 B) hem
-gecikmesi kabul edilebilir (50 Hz'de 0,5 s) tek satır **25 kayıt/çerçeve** ve orada
-oran **2.82x** — README'nin öne çıkardığı 5.05x'in **%56'sı**.
-
-> Bu, projenin en önemli ölçülmemiş varsayımıydı: çerçeveleme maliyeti README'de
-> "%13" (4.95 → 4.30) olarak geçiyor. Gerçek kısıtlar altında maliyet **%43**
-> (4.95 → 2.82). Tezin merkezî sorusu bu tablonun üç ekseni arasındaki ödünleşimdir.
+> Yani çerçevelemenin gerçek maliyeti, gerçekçi kısıtlar altında **%33**'tür.
+>
+> **Biçim sürümü 4 bu tabloyu belirgin biçimde iyileştirdi.** Sürüm 3'te aynı satır
+> 2.82x idi ve maliyet %43'tü; çerçeve başına sabit yükün 84 → ~20 bayta inmesi
+> farkı buradan kapattı (§3). En büyük çerçeve de 185 → 167 bayta indi.
 
 ## 6. Bu ölçüm projenin iddialarını nasıl değiştiriyor
 

@@ -124,14 +124,14 @@ Zorlayıcı bir telemetri hızı varsayalım: saniyede 400 kayıt (tipik İHA te
 
 ```
 Çerçeve başına 100 kayıt  →  saniyede 4 çerçeve
-Çerçeve başına encode     →  1,8 µs (ölçüldü, C medyan)
+Çerçeve başına encode     →  1,6 µs (ölçüldü, C medyan)
 ────────────────────────────────────────────────────
-Saniyede harcanan süre    :  7,2 µs
-İşlemci kullanımı         :  ~%0,0007
+Saniyede harcanan süre    :  6,4 µs
+İşlemci kullanımı         :  ~%0,0006
 ```
 
-İhtiyacın **~138.000 katı** kapasite var. Bu projede tıkanan yer işlemci değil,
-**telsizin bant genişliğidir.** Elle SIMD %0,0007'yi %0,0004 yapar — ölçülebilir ama
+İhtiyacın **~156.000 katı** kapasite var. Bu projede tıkanan yer işlemci değil,
+**telsizin bant genişliğidir.** Elle SIMD %0,0006'yı %0,0004 yapar — ölçülebilir ama
 anlamsız.
 
 > **Dürüstlük notu:** Bu ölçüm masaüstü x64 üzerindedir. Gerçek hedef ARM kartlar
@@ -148,19 +148,21 @@ kötü ihtimalle ne kadar sürdüğüdür.** Çerçeve başına (100 kayıt × 3
 
 | İşlem | en küçük | medyan | p95 | p99 | p99.9 | en büyük |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| encode | 1,20 µs | 1,80 µs | 2,10 µs | 2,70 µs | 4,00 µs | 18,30 µs |
-| decode | 0,90 µs | 1,40 µs | 1,70 µs | 1,90 µs | 2,70 µs | 19,70 µs |
+| encode | 0,90 µs | **1,60 µs** | 1,90 µs | 2,30 µs | 3,50 µs | 20,20 µs |
+| decode | 0,70 µs | **1,30 µs** | 1,50 µs | 1,80 µs | 3,10 µs | 28,50 µs |
 
-**Oynama oranı (p99 / medyan): encode 1,50x, decode 1,36x.** Dar bir bant.
+**Oynama oranı (p99 / medyan): encode 1,44x, decode 1,38x.** Dar bir bant.
 
-**Veriye bağlı (algoritmik) değişkenlik: 1,78x.** Her çerçeve için 200 tekrarın
-ortalaması alınarak işletim sistemi gürültüsü bastırıldığında en yavaş çerçeve, en
-hızlının iki katından az sürüyor. Sabit blok yapısının beklenen davranışı.
+**Veriye bağlı (algoritmik) değişkenlik: 2,55x.** Her çerçeve için 200 tekrarın
+ortalaması alınarak işletim sistemi gürültüsü bastırıldığında kalan fark budur.
 
 > **Dürüstlük notu:** Ölçüm genel amaçlı bir işletim sistemi üzerindedir. En büyük
-> değerler (18–20 µs) büyük ölçüde **işletim sistemi gürültüsüdür** — zamanlayıcı
+> değerler (20–28 µs) büyük ölçüde **işletim sistemi gürültüsüdür** — zamanlayıcı
 > kesintileri, sayfa hataları, frekans ölçekleme. Gerçek WCET analizi ancak bir RTOS
 > üzerinde ve statik analizle yapılabilir; **henüz yapılmadı.**
+>
+> Bu tablonun birincil kaynağı [OLCUM_SONUCLARI.md §4](OLCUM_SONUCLARI.md)'tür ve orada
+> tekrarlanabilirlik notu da vardır.
 
 ---
 

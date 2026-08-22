@@ -1,28 +1,46 @@
-# ElBâri — Kapsamlı Ölçüm Sonuçları
+# Ölçüm Sonuçları — Birincil Sayı Kaynağı
 
-**Biçim sürümü:** 2
+**Biçim sürümü:** 4
 **Ortam:** Windows 11, x64, 24 çekirdek · .NET 10 (AVX2) · MSVC C17 `/O2`
-**Yöntem:** 15 tur ısınma, 120 tur ölçüm, tek iş parçacığı
 
-> Bu belgedeki her sayı **ölçülmüştür**. Tahmin, hedef ya da literatürden alınan
-> değer içermez. Ölçümü kendiniz tekrarlamak için son bölüme bakınız.
+> **Bu belgenin işi nedir?** Projedeki sayıların **tek kaynağı** olmak. Anlatı
+> belgeleri (mimari, kıyas, test) buradan alıntı yapar; aynı sayı iki yerde
+> tutulmaz.
+>
+> Her tablonun altında **hangi komutla üretildiği** yazılıdır. Üretilemeyen bir
+> tablo varsa bu da açıkça belirtilir.
+
+| Ne arıyorsanız | Nereye |
+| --- | --- |
+| Katmanların neden var olduğu | [MIMARI.md](MIMARI.md) |
+| Kendi ailesiyle kıyas | [KIYAS_TAMSAYI_KODEKLER.md](KIYAS_TAMSAYI_KODEKLER.md) |
+| Zstd / LZ4 / Brotli | [KIYAS_GENEL_AMACLI.md](KIYAS_GENEL_AMACLI.md) |
+| Paket kaybı süpürmesi | [KAYIP_DAYANIKLILIK.md](KAYIP_DAYANIKLILIK.md) |
+| Testlerin envanteri | [TEST_VE_DOGRULAMA.md](TEST_VE_DOGRULAMA.md) |
+| MISRA, CI, gömülü | [C_SURUMU.md](C_SURUMU.md) |
 
 ---
 
 ## 1. Veri setleri
 
-| Veri seti | K | Ham | Kaynak |
-| --- | ---: | ---: | --- |
-| **Gerçek GPS** | 3 | 295.704 B | OpenStreetMap halka açık GPS izleri, 24.642 gerçek kayıt |
-| **İHA telemetri** | 6 | 288.000 B | Gerçekçi uçuş (sabit hız + gürültü), tamsayı |
-| **Float kuantalanmış** | 6 | 288.000 B | Yönelim/hız/batarya, 0.001 ve 0.01 hassasiyet |
-| Sıralı sayaç | 1 | 240.000 B | En iyi durum (sentetik) |
-| Sabit değer | 1 | 240.000 B | Tüm farklar sıfır (sentetik) |
-| Sinüs sensör | 1 | 240.000 B | Periyodik sinyal (sentetik) |
-| Rastgele | 1 | 240.000 B | Zorlu senaryo (sentetik) |
+| Veri seti | K | Ham | Kaynak | Nerede |
+| --- | ---: | ---: | --- | --- |
+| **Gerçek GPS** | 3 | 295.704 B | OpenStreetMap halka açık GPS izleri, 24.642 kayıt | `testverisi/gercek_gps.bin` |
+| **Yönelim (ATT)** | 3 | 820.188 B | ALFA uçuş logu, 68.349 kayıt | `c/veri/` ile üretilir |
+| **IMU** | 6 | 3.280.752 B | ALFA uçuş logu, 136.698 kayıt | `c/veri/` ile üretilir |
+| **Titreşim (VIBE)** | 3 | 820.056 B | ALFA uçuş logu | `c/veri/` ile üretilir |
+| **Servo (RCOU)** | 8 | 2.186.848 B | ALFA uçuş logu | `c/veri/` ile üretilir |
+| **Kumanda (RCIN)** | 8 | 2.186.848 B | ALFA uçuş logu | `c/veri/` ile üretilir |
+| **GPS (ALFA)** | 3 | 164.064 B | ALFA uçuş logu | `c/veri/` ile üretilir |
+| İHA telemetri (sentetik) | 6 | 39.984 B | .NET takımı içinde üretilir | `benchmark/` |
 
-> Gerçek karar için **ilk üç satıra** bakınız. Sentetik setler yalnızca uç davranışı
-> göstermek içindir; gerçek dünyayı temsil etmezler.
+> **ALFA fikstürleri depoda değildir** — veri seti açılınca 12,5 GB'dır ve kendi lisansı
+> vardır. `c/veri/donustur.exe` bir ArduPilot `.bin` logundan üretir; ayrıntı
+> [`c/veri/BENIOKU.md`](../c/veri/BENIOKU.md).
+>
+> **Platform sabit kanattır** (Carbon Z T-28). Yönelimi bir çoklu rotordan belirgin
+> biçimde daha düzgündür; ATT/IMU oranları çoklu rotor telemetrisine göre **iyimser**
+> taraftadır.
 
 ---
 
@@ -30,31 +48,47 @@
 
 **C# ve C birebir aynı çıktıyı ürettiği için oranlar özdeştir.**
 
-| Veri seti | Çekirdek | Kanal | Çerçeve (100) |
+| Veri seti | Çekirdek (tek akış) | Kanal | Çerçeve (100 kayıt) |
 | --- | ---: | ---: | ---: |
-| **Gerçek GPS** | ⊘ RED | **5.05x** | 4.33x |
-| **İHA telemetri** | ⊘ RED | **7.13x** | 5.82x |
-| **Float kuantalanmış** | 1.94x | **10.51x** | 7.94x |
-| Sıralı sayaç | 12.80x | 63.73x | 10.26x |
-| Sabit değer | 63.93x | 63.80x | 11.43x |
-| Sinüs sensör | 6.72x | 13.24x | 6.46x |
-| Rastgele | 1.94x | 1.94x | 1.72x |
+| **Gerçek GPS** | ⊘ RED | **5.05x** | 4.63x |
+| **İHA telemetri (6 kanal)** | ⊘ RED | **7.12x** | 6.78x |
+
+```bash
+dotnet run --configuration Debug     # senaryo 26-32
+```
 
 **Okunması gerekenler:**
 
-- **Çok kanallı veride çekirdek katmanı tek başına REDDEDİYOR.** Kanallar iç içe
-  olduğu için ardışık farklar zıplıyor ve veri "sıkıştırılamaz" görünüyor. Kanal
-  katmanı bu yüzden zorunlu, süs değil.
-- **Çerçeveleme oranı düşürüyor** (5.05x → 4.33x, yaklaşık %14). Bu, paket kaybı
+- **Çok kanallı veride çekirdek tek başına REDDEDİYOR.** Kanallar iç içe olduğu için
+  ardışık farklar zıplıyor. Kanal katmanı bu yüzden zorunlu, süs değil.
+- **Çerçeveleme oranı düşürüyor** (5.05x → 4.63x, ≈%8). Bu, paket kaybı
   dayanıklılığının bedeli. Kayıpsız bir taşıma varsa çerçeve katmanı kullanılmamalı.
-- **Rastgele veride 1.94x** — sıkıştırılamayan veride bile bit paketleme sayesinde
-  bir miktar kazanç var, ve veri **kaybolmuyor** (ham geçiş).
+- Biçim sürümü 4 öncesinde bu bedel %14'tü; çerçeve başına sabit yükün düşmesi farkı
+  kapattı.
+
+### Gerçek uçuş fikstürleri (kanal katmanı, çerçevesiz)
+
+| Veri seti | K | Bayt | Oran |
+| --- | ---: | ---: | ---: |
+| Kumanda (RCIN) | 8 | 23.657 | **92.44x** |
+| Servo (RCOU) | 8 | 58.259 | **37.54x** |
+| Yönelim (ATT) | 3 | 52.646 | **15.58x** |
+| IMU | 6 | 476.928 | 6.88x |
+| GPS (ALFA) | 3 | 29.306 | 5.60x |
+| Titreşim (VIBE) | 3 | 152.546 | 5.38x |
+| GPS (OSM) | 3 | 58.513 | 5.05x |
+
+```bash
+c\kiyas\kiyas.exe <fikstür.bin> 20     # SENARYO 1 satırı
+```
+
+Rakiplerle karşılaştırma: [KIYAS_TAMSAYI_KODEKLER.md](KIYAS_TAMSAYI_KODEKLER.md)
 
 ---
 
-## 3. Hız — C# ve C yan yana
+## 3. Hız
 
-Kanal katmanı, MB/sn (ham veri üzerinden).
+### C ile C# yan yana (kanal katmanı, MB/sn)
 
 | Veri seti | C# encode | C encode | C# decode | C decode |
 | --- | ---: | ---: | ---: | ---: |
@@ -66,31 +100,41 @@ Kanal katmanı, MB/sn (ham veri üzerinden).
 | Sinüs sensör | 1.034 | **1.046** | 924 | **1.328** |
 | Rastgele | **816** | 785 | 781 | **1.433** |
 
-**Sezgiye aykırı sonuç: saf skaler C, SIMD'li C#'tan genelde hızlı.**
+> ⚠️ **Bu tablo şu an tekrarlanamıyor.** `olcum.exe` bir referans dizini bekler
+> (`girdi.bin` vb.) ve o dizini üreten kod depoda yoktur. Sayılar biçim sürümü 2
+> döneminde alınmıştır; **hız sıralaması** geçerlidir (biçim değişikliği hızı
+> belirgin biçimde etkilemedi) ama mutlak değerler tazelenmemiştir.
+>
+> Tekrarlanabilir hız ölçümü için `kiyas.exe` kullanın — o, depodaki fikstürlerle
+> çalışır ve her kodeğin encode/decode hızını verir.
 
-Özellikle **çözmede fark belirgin** — C, gerçek veride %30-80 daha hızlı. Sebebi:
+**Sezgiye aykırı sonuç: saf skaler C, SIMD'li C#'tan genelde hızlı.** Özellikle
+çözmede fark belirgin. Gerekçesi ve "elle SIMD neden yazılmayacak" kararı:
+[C_SURUMU.md §4](C_SURUMU.md)
 
-1. C#'taki AVX2 yalnızca fark hesabını hızlandırıyor; işin asıl yükü olan **bit
-   paketleme döngüsü** her iki sürümde de skaler.
-2. C tarafında dizi sınır kontrolü yok.
-3. Derleyici bazı döngüleri kendiliğinden vektörleştiriyor.
+### Tekrarlanabilir hız (kiyas takımı, gerçek GPS)
 
-> Pratik sonuç: gömülü ve savunma hedefleri, aynı zamanda **daha hızlı** olan
-> sürümü alıyor. Elle SIMD eklemek öncelik değil.
-
-### Kayıt başına verim
-
-| Veri seti | C# | C |
+| Kodek | encode MB/sn | decode MB/sn |
 | --- | ---: | ---: |
-| Gerçek GPS | 83,6 M kayıt/sn | **108,1 M kayıt/sn** |
-| İHA telemetri | **36,2 M** | 34,1 M |
-| Float kuantalanmış | 41,7 M | **41,8 M** |
+| **ElBâri (kanal)** | **1.176** | 1.673 |
+| VByte | 2.892 | 1.747 |
+| StreamVByte | 1.909 | 1.780 |
+| Simple8b | 380 | 1.874 |
+| Sprintz-Delta | 446 | 1.115 |
+| OptPFD | 243 | 1.138 |
+| BP128 | 570 | 1.210 |
+
+```bash
+c\kiyas\kiyas.exe testverisi\gercek_gps.bin 100
+```
+
+> Rakipler **yeniden yazılmış skaler** sürümlerdir; hız sütunu onlar için bir **alt
+> sınırdır** ve buradan "ElBâri daha hızlı" iddiası **kurulmaz**.
 
 ---
 
-## 4. Gecikme dağılımı — "deterministik" iddiasının sınavı
+## 4. Gecikme dağılımı
 
-Gerçek zamanlı sistemde ortalama gecikme anlamsızdır; önemli olan **en kötü ihtimal**.
 Çerçeve başına (100 kayıt × 3 kanal), 246 çerçeve × 200 tekrar, C sürümü:
 
 | İşlem | en küçük | medyan | p95 | p99 | p99.9 | en büyük |
@@ -103,10 +147,12 @@ Gerçek zamanlı sistemde ortalama gecikme anlamsızdır; önemli olan **en köt
 **Veriye bağlı (algoritmik) değişkenlik: 2,55x.** Her çerçeve için 200 tekrarın
 ortalaması alınarak işletim sistemi gürültüsü bastırıldığında kalan fark budur.
 
-> **Dürüstlük notu:** En büyük değerler (20-28 µs) büyük ölçüde **işletim sistemi
+> **Dürüstlük notu:** En büyük değerler (20–28 µs) büyük ölçüde **işletim sistemi
 > gürültüsüdür** — zamanlayıcı kesintileri, sayfa hataları, frekans ölçekleme.
-> Algoritmanın kendisi değildir. Gerçek en-kötü-durum (WCET) analizi ancak bir RTOS
-> üzerinde ve statik analizle yapılabilir; **bu henüz yapılmamıştır.**
+> Algoritmanın kendisi değildir. Gerçek WCET analizi ancak bir RTOS üzerinde ve statik
+> analizle yapılabilir; **yapılmadı** (§7).
+>
+> Bu tablo da §3 ile aynı referans dizinini kullanır ve **şu an tekrarlanamıyor.**
 
 ### İşlemci payı
 
@@ -132,111 +178,16 @@ Tıkanan yer işlemci değil, **telsizin bant genişliğidir.**
 
 **Sıfır heap tahsisatı doğrulandı** — GC duraklaması yok, gerçek-zaman uyumlu.
 
----
-
-## 6. Paket kaybı dayanıklılığı
-
-Gerçek GPS verisi, 100 kayıt/çerçeve, 247 çerçeve, rastgele paket kaybı:
-
-| Paket kaybı | Çerçeveli (kurtarılan) | Çerçevesiz |
-| ---: | ---: | ---: |
-| %1 | **24.442 kayıt (%99,2)** | 0 (%0) |
-| %5 | **23.042 kayıt (%93,5)** | 0 (%0) |
-| %10 | **21.842 kayıt (%88,6)** | 0 (%0) |
-| %25 | **17.642 kayıt (%71,6)** | 0 (%0) |
-| %50 | **11.242 kayıt (%45,6)** | 0 (%0) |
-
-Sağdaki sütun meselenin özü: klasik fark kodlamada **tek bir paket düşerse her şey
-gider**. Çerçeveli yaklaşımda kayıp lineerdir.
+```bash
+dotnet run --configuration Debug     # "Allocation" bölümü
+```
 
 ---
 
-## 7. Float: kayıplı mı, kayıpsız mı?
+## 6. Teorik alt sınır — ne kadar yer kaldı?
 
-Aynı veri (12.000 kayıt × 6 kanal, gerçekçi uçuş):
-
-| Yöntem | Boyut | Oran | Doğruluk |
-| --- | ---: | ---: | --- |
-| Ham float32 | 288.000 B | — | — |
-| **Kuantalama (kayıplı)** | **27.403 B** | **10.51x** | Hata ≤ yarım adım |
-| Kayıpsız XOR | 237.335 B | 1.21x | Bit bit aynı |
-
-**Kuantalama 8,7 kat daha küçük.**
-
-Gürültülü sensör verisinde kayıpsız XOR neredeyse hiç kazandırmıyor: gürültü mantisin
-alt bitlerini her örneklemde değiştiriyor ve bu bitler tanımı gereği sıkıştırılamaz.
-
-> XOR yalnızca değerler **aynen tekrar ettiğinde** parlar (durağan veride 15,08x
-> ölçüldü). Tam değer gerekmiyorsa kuantalama kullanın.
-
----
-
-## 8. Rakiplerle karşılaştırma
-
-Aynı makine, aynı gerçek GPS verisi, aynı tur sayısı.
-
-| Yöntem | Boyut | Oran | Encode | Decode |
-| --- | ---: | ---: | ---: | ---: |
-| **ElBâri — kanal ayrımı** | **58.525 B** | **5.05x** | **863 MB/sn** | 846 MB/sn |
-| **ElBâri — çerçeveli** | 68.282 B | 4.33x | 224 MB/sn | 245 MB/sn |
-| Zstd (seviye 1) | 184.181 B | 1.61x | 214 MB/sn | 303 MB/sn |
-| Zstd (seviye 19) | 97.481 B | 3.03x | 8 MB/sn | 481 MB/sn |
-| LZ4 (hızlı) | 228.684 B | 1.29x | 909 MB/sn | 3.110 MB/sn |
-| Brotli (q11) | 82.471 B | 3.59x | 1 MB/sn | 286 MB/sn |
-| Deflate | 167.385 B | 1.77x | 62 MB/sn | 538 MB/sn |
-
-ElBâri bu veri setinde **hem en yüksek orana** hem (LZ4 dışında) **en yüksek hıza**
-sahip. LZ4 açmada daha hızlı ama oranı 1.29x — dört kat geride.
-
-Ayrıca tabloda **görünmeyen** farklar: paket kaybı dayanıklılığı, sıfır tahsisat,
-deterministik gecikme, bağımlılıksızlık. Rakiplerin hiçbirinde yok.
-
-
-### 8b. Adil soru: oranın ne kadarı bizden geliyor?
-
-Skeptik bir müşteri haklı olarak şunu sorar:
-
-> *"Float'ta 10.51x diyorsunuz. Ama kuantalama zaten herkesin yapabileceği bir ön
-> işlem. Ben de kuantalayıp zstd kullansam ne olur?"*
-
-Ölçüldü. **Aynı kuantalanmış veri hem bize hem rakiplere verildi:**
-
-| Yöntem | Boyut | Oran | Encode |
-| --- | ---: | ---: | ---: |
-| **ElBâri (kuantalama + kanal)** | **27.403 B** | **10.51x** | **981 MB/sn** |
-| Brotli q11 | 54.817 B | 5.25x | 1 MB/sn |
-| Zstd seviye 19 | 55.713 B | 5.17x | 5 MB/sn |
-| Deflate | 89.068 B | 3.23x | 65 MB/sn |
-| Zstd seviye 1 | 94.968 B | 3.03x | 322 MB/sn |
-| LZ4 hızlı | 146.414 B | 1.97x | 537 MB/sn |
-
-**Rakiplere kanal ayrımı da bedava verildi** (yani iki ön işlemi de biz yaptık):
-
-| Yöntem | Boyut | Oran | Encode |
-| --- | ---: | ---: | ---: |
-| **ElBâri** | **27.403 B** | **10.51x** | **981 MB/sn** |
-| Brotli q11 + kanal ayrımı | 36.730 B | 7.84x | 1 MB/sn |
-| Zstd sev.19 + kanal ayrımı | 39.244 B | 7.34x | 4 MB/sn |
-| Zstd sev.1 + kanal ayrımı | 60.027 B | 4.80x | 392 MB/sn |
-
-**Sonuçların dürüst okunması:**
-
-1. **Kuantalama tek başına açıklamıyor.** Rakipler aynı kuantalanmış veriyi aldı ve en
-   iyileri 5.25x'te kaldı; biz 10.51x'teyiz.
-2. **Kanal ayrımı rakiplere de yarıyor** — Zstd-1 3.03x'ten 4.80x'e çıktı. Bu, kanal
-   ayrımının genel olarak doğru bir fikir olduğunu gösteriyor; bizim özel bir hilemiz
-   değil.
-3. **Her iki ön işlemi de bedava verdikten sonra bile öndeyiz:** 10.51x vs en iyi
-   rakip 7.84x — %34 daha iyi, üstelik **~1.000 kat hızlı** encode ederek.
-
-> Yani oranın kaynağı yalnızca ön işleme değil; **bit paketleme, kanal başına adaptif
-> fark derecesi ve sıfır blok** birlikte fark yaratıyor.
-
----
-
-## 9. Teorik alt sınır — ne kadar yer kaldı?
-
-"Daha fazla sıkıştırabilir miyiz?" sorusu ölçüldü.
+"Daha fazla sıkıştırabilir miyiz?" sorusu ölçüldü. Bu, başka hiçbir belgede olmayan
+bir analizdir ve **entropi kodlaması eklenip eklenmemesi** kararını verir.
 
 ### Gerçek GPS
 
@@ -255,108 +206,112 @@ Skeptik bir müşteri haklı olarak şunu sorar:
 | Bit paketleme tabanı | 12.06x | %13 küçük |
 | Entropi + frekans tablosu | 14.18x | %25 küçük |
 
-**Sonuç: entropi kodlaması gerçek GPS verisinde işe yaramaz.** Kanallarda 1715-2063
+**Sonuç: entropi kodlaması gerçek GPS verisinde işe yaramaz.** Kanallarda 1.715–2.063
 farklı sembol var; frekans tablosunun kendisi entropinin kazandırdığından fazlasını
 götürüyor.
 
-Tablo maliyetinden kaçmanın yolu uyarlanabilir model kullanmaktır — ama o da çözücünün
-**önceki tüm veriyi görmüş olmasını** gerektirir, yani **bağımsız çerçeveleri yok eder.**
-Entropi kodlaması ile paket kaybı dayanıklılığı temelde uyuşmaz.
+Tablo maliyetinden kaçmanın yolu **uyarlanabilir model** kullanmaktır — ama o da
+çözücünün *önceki tüm veriyi görmüş olmasını* gerektirir, yani **bağımsız çerçeveleri
+yok eder.**
+
+> **Entropi kodlaması ile paket kaybı dayanıklılığı temelde uyuşmaz.** Bu, projenin
+> en önemli mimari kısıtlarından biridir ve bir eksiklik değil, bilinçli bir seçimdir.
 
 ---
 
-## 10. Doğrulama durumu
+## 7. Bilinen eksikler ve gerekçeleri
 
-| Kontrol | Sonuç |
-| --- | --- |
-| C ↔ .NET ikili uyumluluk | ✅ 58.525 bayt birebir aynı |
-| Uygunluk vektörleri | ✅ 27 vektör, 54 kontrol, 0 hata |
-| C# test paketi | ✅ 32 senaryo, 0 hata |
-| Fuzz (düşmanca girdi) | ✅ 0 tampon taşması, bozuk çerçeve reddi %100 |
-| MSVC `/W4` + `/Wall /analyze` | ✅ 0 uyarı, 0 bulgu |
-| GCC / Clang (Linux, CI) | ✅ temiz |
-| ASan + UBSan (CI) | ✅ temiz |
-| Tahsisat | ✅ 0 bayt |
-
-### Bilinen eksikler ve gerekçeleri
-
-Bu bölüm **bilinçli olarak** ayrı tutulmuştur. Bir alıcının "neyi bilmiyorlar?"
+Bu bölüm **bilinçli olarak** ayrı tutulmuştur. Bir alıcının *"neyi bilmiyorlar?"*
 sorusunun cevabı gizlenmemelidir.
 
-#### ⏳ Gerçek ARM donanımında ölçüm
+### ⏳ Gerçek ARM donanımında ölçüm
 
 **Durum:** Yapılmadı — donanım mevcut değil.
 
 Kod ARM'da **derlenir** (bağımlılıksız C99), ancak hız ve gecikme rakamları yalnızca
-x64 üzerinde ölçülmüştür. ARM kartlar (Raspberry Pi, Jetson) tipik olarak daha yavaştır;
-kabaca 5-10 kat varsayılabilir ama bu **ölçülmemiş bir tahmindir**.
+x64 üzerinde ölçülmüştür. ARM kartlar (Raspberry Pi, Jetson) tipik olarak daha
+yavaştır; kabaca 5–10 kat varsayılabilir ama bu **ölçülmemiş bir tahmindir.**
 
-**Ne gerekir:** Bir Raspberry Pi 4/5 ya da Jetson kartı. `make` ile derlenip
-`kapsamli` ve `olcum` çalıştırılması yeterli — kod değişikliği gerekmez.
+**Ne gerekir:** Bir Raspberry Pi 4/5 ya da Jetson. `make` ile derleyip `kapsamli` ve
+`olcum` çalıştırmak yeterli — kod değişikliği gerekmez.
 
 **Önemi:** Orta. İşlemci payı x64'te %0,0006 çıktığı için 10 kat yavaşlama bile
 %0,006 eder; tıkanma riski yoktur. Ölçüm, iddiayı doğrulamak içindir.
 
-#### ⏳ RTOS üzerinde en-kötü-durum (WCET) analizi
+### ⏳ RTOS üzerinde en-kötü-durum (WCET) analizi
 
 **Durum:** Yapılmadı — RTOS ortamı mevcut değil.
 
-Bu belgedeki gecikme yüzdelikleri genel amaçlı bir işletim sistemi üzerinde alınmıştır
-ve üst değerler büyük ölçüde **işletim sistemi gürültüsüdür**. Gerçek WCET, kesintilerin
-denetim altında olduğu bir RTOS'ta ve statik analiz araçlarıyla belirlenir.
-
-**Ne gerekir:** Hedef RTOS (VxWorks, PikeOS, NuttX vb.) + WCET analiz aracı. Bu, tipik
-olarak müşteri/entegratör tarafında yapılır.
+§4'teki gecikme yüzdelikleri genel amaçlı bir işletim sisteminde alınmıştır ve üst
+değerler büyük ölçüde işletim sistemi gürültüsüdür. Gerçek WCET, kesintilerin denetim
+altında olduğu bir RTOS'ta ve statik analiz araçlarıyla belirlenir.
 
 **Kolaylaştıran tasarım:** Sabit blok yapısı, özyineleme olmaması, dinamik bellek
 kullanılmaması ve tüm döngülerin sınırlı olması WCET analizini **mümkün** kılar. Bu
-özellikler MISRA belgesinde ayrıca doğrulanmıştır.
+özellikler [MISRA_UYUM.md](MISRA_UYUM.md)'de ayrıca doğrulanmıştır.
 
-#### ❌ Elle yazılmış SIMD (C sürümü)
+### ⏳ `olcum.exe` referans veri seti depoda yok
 
-**Durum:** Yapılmayacak — **ölçüm gerekçesiyle**.
+**Durum:** §3 ve §4 tabloları tekrarlanamıyor.
 
-Bu bir eksiklik değil, **ölçüme dayalı bir karardır**:
+`olcum.exe` bir dizinde `girdi.bin` ve `float_girdi.bin` bekler; bu dosyaları üreten
+kod depoda değildir. Sayılar geçerli ama **tazelenemiyor.**
 
-1. **C zaten C#'tan hızlı.** C# sürümü elle AVX2 kullanıyor, C sürümü saf skaler.
-   Buna rağmen C, çözmede %30-80 daha hızlı (bkz. bölüm 3). Elle SIMD'in getirisi
-   sanıldığı kadar büyük değil.
-2. **SIMD işin küçük bir kısmına dokunuyor.** Fark hesabı vektörleşebilir ama asıl
-   yük olan **bit paketleme döngüsü** doğası gereği sıralıdır — her değer bir öncekinin
+**Ne gerekir:** Küçük bir üretici (fikstür biçimi basit:
+`[int32 kanal][int32 eleman][int32 × N]`) ya da bu tabloların `kiyas`/`kayip` gibi
+depodaki fikstürlerle çalışan araçlara taşınması. İkincisi tercih edilmelidir —
+"her tablo bir komutla üretilebilmeli" ilkesi bunu gerektirir.
+
+### ❌ Elle yazılmış SIMD (C sürümü)
+
+**Durum:** Yapılmayacak — **ölçüm gerekçesiyle.**
+
+Bu bir eksiklik değil, ölçüme dayalı bir karardır:
+
+1. **C zaten C#'tan hızlı.** C# elle AVX2 kullanıyor, C saf skaler; buna rağmen C
+   çözmede %30–80 daha hızlı (§3).
+2. **SIMD işin küçük bir kısmına dokunuyor.** Fark hesabı vektörleşebilir ama asıl yük
+   olan **bit paketleme döngüsü** doğası gereği sıralıdır — her değer bir öncekinin
    bıraktığı bit konumundan devam eder.
-3. **İşlemci zaten boşta.** Hedef senaryoda kullanım %0,0006. Elle SIMD bunu %0,0004
-   yapar — ölçülebilir ama anlamsız.
-4. **Maliyeti gerçek:** mimariye özel kod yolları (AVX2 / NEON / skaler), üç ayrı
-   test yükü, MISRA denetiminin zorlaşması, taşınabilirliğin azalması.
+3. **İşlemci zaten boşta.** Hedef senaryoda kullanım %0,0006; elle SIMD bunu %0,0004
+   yapar.
+4. **Maliyeti gerçek:** mimariye özel kod yolları (AVX2 / NEON / skaler), üç ayrı test
+   yükü, MISRA denetiminin zorlaşması, taşınabilirliğin azalması.
 
 > **Karar:** Tıkanan yer işlemci değil, telsizin bant genişliğidir. Optimizasyon çabası
-> orana ve dayanıklılığa harcanmalıdır. Bu karar, gerekçesi değişirse (ör. çok daha
-> yüksek veri hızı gerektiren bir kullanım ortaya çıkarsa) yeniden değerlendirilebilir.
+> orana ve dayanıklılığa harcanmalıdır. Gerekçesi değişirse (çok daha yüksek veri hızı
+> gerektiren bir kullanım çıkarsa) yeniden değerlendirilir.
 
-#### ⏳ Sertifikalı araçla MISRA doğrulaması
+### ⏳ Sertifikalı araçla MISRA doğrulaması
 
-**Durum:** Elle inceleme yapıldı ve belgelendi ([MISRA_UYUM.md](MISRA_UYUM.md)); araçla
-doğrulanmadı.
+**Durum:** Elle inceleme yapıldı ve belgelendi ([MISRA_UYUM.md](MISRA_UYUM.md)); açık
+kaynak Cppcheck CI'da temiz geçiyor. Nitelikli araç raporu yok. Ayrıntı:
+[C_SURUMU.md §6](C_SURUMU.md)
 
 ---
 
-## 11. Ölçümü tekrarlama
+## 8. Ölçümü tekrarlama
 
 ```bash
-# C# tarafı (veri setlerini de üretir)
-dotnet run -c Release            # test paketi, 32 senaryo
+# .NET takımı — §2 ve §5
+dotnet run --configuration Debug
 
-# C tarafı
-cd c
-derle.bat                        # Windows
-make                             # Linux/macOS
+# Kıyas takımı — §2 fikstür tablosu, §3 tekrarlanabilir hız
+c\derle.bat
+c\kiyas\derle.bat
+c\kiyas\kiyas.exe testverisi\gercek_gps.bin 100
 
-kapsamli.exe <veri_dizini>       # oran + hız tablosu
-olcum.exe <referans_dizini>      # verim + gecikme dağılımı
-uygunluk.exe ../testverisi/vektorler.txt
-fuzz.exe 300000
+# Doğrulama — bkz. TEST_VE_DOGRULAMA.md
+c\uygunluk.exe testverisi\vektorler.txt
+c\deger_fuzz.exe 300000
+c\fuzz.exe 300000
+
+# Gerçek uçuş fikstürleri (ALFA logu gerekir)
+c\veri\donustur.exe "<ArduPilot .bin>"
 ```
+
+Linux/macOS için `cd c && make test`.
 
 ---
 
-**© 2025 İmran Kağan. Tüm hakları saklıdır.**
+**© 2025-2026 İmran Kağan.** Akademik kullanım serbest → [LICENSE.txt](../LICENSE.txt)

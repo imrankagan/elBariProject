@@ -26,8 +26,8 @@ Telemetriyi olduğu gibi sıkıştırıcıya vermek:
 
 | Yöntem | Boyut | Oran | Encode | Decode |
 | --- | ---: | ---: | ---: | ---: |
-| **ElBâri — kanal ayrımı** | **58.525 B** | **5.05x** | **863 MB/sn** | **846 MB/sn** |
-| **ElBâri — çerçeveli (100)** | 68.282 B | 4.33x | 224 MB/sn | 245 MB/sn |
+| **ElBâri — kanal ayrımı** | **58.513 B** | **5.05x** | **863 MB/sn** | **846 MB/sn** |
+| **ElBâri — çerçeveli (100)** | 63.836 B | 4.63x | 224 MB/sn | 245 MB/sn |
 | Zstd (seviye 1) | 184.181 B | 1.61x | 210 MB/sn | 313 MB/sn |
 | Zstd (seviye 3) | 175.535 B | 1.68x | 156 MB/sn | 323 MB/sn |
 | Zstd (seviye 9) | 172.483 B | 1.71x | 81 MB/sn | 804 MB/sn |

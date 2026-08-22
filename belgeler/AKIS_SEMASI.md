@@ -303,7 +303,7 @@ sıkıştırılamaz. Kuantalama gürültüyü baştan atar.
     C   →  yukarıdakilerin tümü + RTOS + bare-metal MCU + DSP
 ```
 
-Gerçek GPS verisiyle (24.642 kayıt) iki sürüm **58.525 bayt birebir aynı** çıktı üretir
+Gerçek GPS verisiyle (24.642 kayıt) iki sürüm **58.513 bayt birebir aynı** çıktı üretir
 ve birbirinin çıktısını çözebilir.
 
 ---

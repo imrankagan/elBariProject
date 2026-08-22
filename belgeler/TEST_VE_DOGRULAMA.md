@@ -214,11 +214,11 @@ reddeder ve çağıran ham gönderir.
 | --- | --- |
 | GERÇEK GPS — kanal ayrımsız | ⊘ REDDEDİLDİ (beklenen) |
 | GERÇEK GPS — kanal ayrımı | **5.05x** |
-| GERÇEK GPS — çerçeveli (100) | **4.33x** (CRC dahil) |
-| GERÇEK GPS — çerçeveli (500) | **4.90x** |
+| GERÇEK GPS — çerçeveli (100) | **4.63x** (CRC dahil) |
+| GERÇEK GPS — çerçeveli (500) | **4.98x** |
 | İHA 6 kanal — kanal ayrımsız | ⊘ REDDEDİLDİ (beklenen) |
-| İHA 6 kanal — kanal ayrımı | **7.09x** |
-| İHA 6 kanal — çerçeveli (250) | **6.54x** |
+| İHA 6 kanal — kanal ayrımı | **7.12x** |
+| İHA 6 kanal — çerçeveli (250) | **6.78x** |
 
 ### Tahsisat
 
