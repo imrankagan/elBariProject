@@ -41,10 +41,12 @@ namespace ElBâri
     //
     // BİÇİM (bayt düzeni):
     //   [0]                : kanal sayısı K            (1 bayt)
-    //   [1]                : bayrak bayt sayısı B      (1 bayt, B = ceil(K/8))
-    //   [2 .. 2+B)         : ikinci-derece bayrakları  (kanal başına 1 bit)
-    //   [2+B .. 2+2B)      : ham-geçiş bayrakları      (kanal başına 1 bit)
-    //   [2+2B .. 2+2B+4K)  : kanal başına yük boyutu   (int32)
+    //   [1 .. 1+B)         : ikinci-derece bayrakları  (kanal başına 1 bit)
+    //   [1+B .. 1+2B)      : ham-geçiş bayrakları      (kanal başına 1 bit)
+    //   [1+2B]             : referans bloğu bayrağı    (1 bayt)
+    //   [1+2B+1 .. )       : referans bloğu (K değer, biçim sürümü 4)
+    //   B = ceil(K/8) TÜRETİLİR, taşınmaz.
+    //   Kanal yük boyutları TAŞINMAZ: çekirdek kendi tüketimini bildirir.
     //   sonrası            : kanal yükleri, sırayla
     // =================================================================
     public static class ElBâriKanal
@@ -63,7 +65,8 @@ namespace ElBâri
             // Biçim sürümü 4: kanal başına 4 baytlık uzunluk tablosu KALDIRILDI
             // (kanallar ardışık çözülür, çekirdek kendi tüketimini bildirir) ve
             // bayrakBayt alanı da kaldırıldı — kanalSayisi'ndan türetilebilir.
-            int baslik = 1 + 2 * bayrakBayt;
+            // +1 referans bloğu bayrağı, + referans bloğu (en kötü: kanal*4)
+            int baslik = 1 + 2 * bayrakBayt + 1 + kanalSayisi * 4;
             // eleman*4 (ham) + eleman/2 (paketleme payı) + kanal başına referans/pay
             return baslik + elemanSayisi * 4 + elemanSayisi / 2 + kanalSayisi * 68 + 64;
         }
@@ -72,7 +75,9 @@ namespace ElBâri
         /// Gereken çalışma alanı (int cinsinden): en uzun kanalın eleman sayısı.
         /// </summary>
         public static int GerekliCalismaAlani(int elemanSayisi, int kanalSayisi)
-            => kanalSayisi <= 0 ? 0 : (elemanSayisi + kanalSayisi - 1) / kanalSayisi;
+            // Kanal başına en uzun dizi + REFERANS BLOĞU için kanalSayisi kadar
+            // ek yer (biçim sürümü 4).
+            => kanalSayisi <= 0 ? 0 : (elemanSayisi + kanalSayisi - 1) / kanalSayisi + kanalSayisi;
 
         /// <summary>c numaralı kanalın kaç eleman içerdiği (eksik kayıtlara toleranslı).</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -117,8 +122,9 @@ namespace ElBâri
             }
 
             int bayrakBayt = (kanalSayisi + 7) / 8;
-            int baslikBoyu = 1 + 2 * bayrakBayt;
-            if (cikti.Length < baslikBoyu)
+            // +1: referans bloğu bayrağı
+            int baslikBoyu = 1 + 2 * bayrakBayt + 1;
+            if (cikti.Length < baslikBoyu + kanalSayisi * 4)
             {
                 throw new ArgumentException(
                     $"Çıktı tamponu başlık için bile yetersiz. En az {baslikBoyu} bayt gerekli.", nameof(cikti));
@@ -132,8 +138,45 @@ namespace ElBâri
             ikinciDereceBayraklari.Clear();
             hamGecisBayraklari.Clear();
 
-
             int yazmaKonumu = baslikBoyu;
+
+            // -------------------------------------------------------------
+            // REFERANS BLOĞU (biçim sürümü 4)
+            // Her kanalın akışı bir MUTLAK REFERANSLA başlar; bunlar kanal
+            // başına 4 bayt tutar ve küçük bir çerçevede toplam boyutun
+            // neredeyse yarısını yiyordu. Oysa bu K değer AKIŞIN İLK
+            // KAYDIDIR ve kanalların ilk değerleri genellikle birbirine
+            // yakındır. Hepsi tek blokta sıkıştırılır.
+            // Bayrak: 1 = blok sıkıştırıldı (kendini sınırlar), 0 = ham K x 4.
+            // C sürümüyle BİREBİR aynı kural: c/src/elbari_kanal.c
+            // -------------------------------------------------------------
+            for (int i = 0; i < kanalSayisi; i++)
+            {
+                calismaAlani[i] = (i < toplam) ? hamVeri[i] : 0;
+            }
+
+            int refBoyut = -1;
+            if (kanalSayisi >= 3)
+            {
+                refBoyut = ElBâri.ElKâbıd(calismaAlani.Slice(0, kanalSayisi),
+                                          cikti.Slice(yazmaKonumu));
+            }
+
+            if (refBoyut > 0 && refBoyut < kanalSayisi * 4)
+            {
+                cikti[baslikBoyu - 1] = 1;
+                yazmaKonumu += refBoyut;
+            }
+            else
+            {
+                cikti[baslikBoyu - 1] = 0;
+                for (int i = 0; i < kanalSayisi; i++)
+                {
+                    int r = calismaAlani[i];
+                    MemoryMarshal.Write(cikti.Slice(yazmaKonumu + i * 4, 4), in r);
+                }
+                yazmaKonumu += kanalSayisi * 4;
+            }
 
             for (int c = 0; c < kanalSayisi; c++)
             {
@@ -164,8 +207,7 @@ namespace ElBâri
 
                 if (ikinciDerece)
                 {
-                    ilkDeger = kanal[0];
-                    // Yerinde sola kaydırarak fark akışı üret: [d1, d2, ..., d(m-1)]
+                    // Mutlak ilk değer REFERANS BLOĞUNDA; ayrıca yazılmaz.
                     for (int i = 0; i < uzunluk - 1; i++)
                     {
                         kanal[i] = unchecked(kanal[i + 1] - kanal[i]);
@@ -178,28 +220,20 @@ namespace ElBâri
                     yuk = kanal;
                 }
 
-                int onEkBoyu = ikinciDerece ? 4 : 0;
-                int hamBayt = yuk.Length * sizeof(int);
+                _ = ilkDeger;
+                // Referanstan SONRAKİ değer sayısı her iki derecede de aynı.
+                int yukUzunlugu = uzunluk - 1;
+                int hamBayt = yukUzunlugu * sizeof(int);
+                int yukKonumu = yazmaKonumu;
 
-                if (yazmaKonumu + onEkBoyu > cikti.Length)
-                {
-                    throw new ArgumentException(
-                        $"Çıktı tamponu çok küçük. EnKotuDurumCiktiBoyutu({toplam}, {kanalSayisi}) kullanın.",
-                        nameof(cikti));
-                }
-
-                if (ikinciDerece)
-                {
-                    MemoryMarshal.Write(cikti.Slice(yazmaKonumu, 4), in ilkDeger);
-                }
-
-                int yukKonumu = yazmaKonumu + onEkBoyu;
-
-                // 3) Sıkıştırmayı dene
+                // 3) Sıkıştırmayı dene. Birinci derecede referans DIŞARIDA
+                //    (blokta) olduğu için ElKâbıdRef kullanılır.
                 int sonuc = -1;
-                if (yuk.Length > 0 && cikti.Length - yukKonumu >= hamBayt + 64)
+                if (yukUzunlugu > 0 && cikti.Length - yukKonumu >= hamBayt + 64)
                 {
-                    sonuc = ElBâri.ElKâbıd(yuk, cikti.Slice(yukKonumu));
+                    sonuc = ikinciDerece
+                          ? ElBâri.ElKâbıd(yuk, cikti.Slice(yukKonumu))
+                          : ElBâri.ElKâbıdRef(kanal, cikti.Slice(yukKonumu));
                 }
 
                 if (sonuc > 0 && sonuc < hamBayt)
@@ -219,9 +253,11 @@ namespace ElBâri
                             nameof(cikti));
                     }
 
-                    for (int i = 0; i < yuk.Length; i++)
+                    // Birinci derecede ilk değer referans bloğunda; [1..m-1]
+                    // yazılır. İkinci derecede fark dizisinin tamamı yazılır.
+                    for (int i = 0; i < yukUzunlugu; i++)
                     {
-                        int deger = yuk[i];
+                        int deger = ikinciDerece ? kanal[i] : kanal[i + 1];
                         MemoryMarshal.Write(cikti.Slice(yukKonumu + i * 4, 4), in deger);
                     }
 
@@ -264,7 +300,8 @@ namespace ElBâri
             // bayrakBayt TAŞINMAZ: kanal sayısından türetilir (biçim sürümü 4).
             int bayrakBayt = (kanalSayisi + 7) / 8;
 
-            int baslikBoyu = 1 + 2 * bayrakBayt;
+            // +1: referans bloğu bayrağı
+            int baslikBoyu = 1 + 2 * bayrakBayt + 1;
             if (girdi.Length < baslikBoyu)
             {
                 throw new ArgumentException("Girdi tamponu başlık için çok küçük.", nameof(girdi));
@@ -283,6 +320,28 @@ namespace ElBâri
             ReadOnlySpan<byte> hamGecisBayraklari = girdi.Slice(1 + bayrakBayt, bayrakBayt);
             int okumaKonumu = baslikBoyu;
 
+            // REFERANS BLOĞU (biçim sürümü 4) — bkz. kodlayıcıdaki açıklama.
+            // Kanal referansları çalışma alanının SONUNDA tutulur; kanal
+            // çözümü için kullanılan baş kısmıyla çakışmaz.
+            Span<int> referanslar = calismaAlani.Slice(calismaAlani.Length - kanalSayisi, kanalSayisi);
+
+            if (girdi[baslikBoyu - 1] == 0)
+            {
+                if (okumaKonumu + kanalSayisi * 4 > girdi.Length)
+                {
+                    throw new ArgumentException("Girdi bozuk: referans bloğu eksik.", nameof(girdi));
+                }
+                for (int c2 = 0; c2 < kanalSayisi; c2++)
+                {
+                    referanslar[c2] = MemoryMarshal.Read<int>(girdi.Slice(okumaKonumu + c2 * 4, 4));
+                }
+                okumaKonumu += kanalSayisi * 4;
+            }
+            else
+            {
+                okumaKonumu += ElBâri.ElBâsıtAkis(girdi.Slice(okumaKonumu), referanslar);
+            }
+
             for (int c = 0; c < kanalSayisi; c++)
             {
                 int uzunluk = KanalUzunlugu(toplam, kanalSayisi, c);
@@ -294,47 +353,49 @@ namespace ElBâri
                 Span<int> kanal = calismaAlani.Slice(0, uzunluk);
 
                 // İkinci derece kanallarda yükün başında mutlak ilk değer bulunur.
-                int onEkBoyu = ikinciDerece ? 4 : 0;
-                if (okumaKonumu + onEkBoyu > girdi.Length)
-                {
-                    throw new ArgumentException($"Girdi bozuk: kanal {c} yükü eksik.", nameof(girdi));
-                }
-
-                int ilkDeger = 0;
-                if (ikinciDerece)
-                {
-                    ilkDeger = MemoryMarshal.Read<int>(girdi.Slice(okumaKonumu, 4));
-                }
-
-                int yukKonumu = okumaKonumu + onEkBoyu;
+                // Mutlak ilk değer REFERANS BLOĞUNDAN gelir (biçim sürümü 4).
+                int ilkDeger = referanslar[c];
+                int yukKonumu = okumaKonumu;
                 int icBoyut = girdi.Length - yukKonumu;
-                int hedefUzunluk = ikinciDerece ? uzunluk - 1 : uzunluk;
+                // Referanstan sonraki değer sayısı her iki derecede de aynı.
+                int hedefUzunluk = uzunluk - 1;
                 int yukBoyutu = 0;
 
                 if (hedefUzunluk > 0)
                 {
-                    Span<int> hedef = kanal.Slice(0, hedefUzunluk);
-
                     if (hamGecis)
                     {
-                        // Ham geçişin boyutu hesaplanabilir; tabloya gerek yok.
                         if (icBoyut < hedefUzunluk * 4)
                         {
                             throw new ArgumentException($"Girdi bozuk: kanal {c} ham yükü eksik.", nameof(girdi));
                         }
                         for (int i = 0; i < hedefUzunluk; i++)
                         {
-                            hedef[i] = MemoryMarshal.Read<int>(girdi.Slice(yukKonumu + i * 4, 4));
+                            int hedefI = ikinciDerece ? i : (i + 1);
+                            kanal[hedefI] = MemoryMarshal.Read<int>(girdi.Slice(yukKonumu + i * 4, 4));
                         }
                         yukBoyutu = hedefUzunluk * 4;
                     }
+                    else if (ikinciDerece)
+                    {
+                        // Fark akışı kendi referansını taşır.
+                        yukBoyutu = ElBâri.ElBâsıtAkis(girdi.Slice(yukKonumu, icBoyut),
+                                                       kanal.Slice(0, hedefUzunluk));
+                    }
                     else
                     {
-                        // Sıkıştırılmış kanal: çekirdek kaç bayt tükettiğini
-                        // bildirir, böylece bir sonraki kanalın başlangıcı
-                        // uzunluk tablosu olmadan bulunur (biçim sürümü 4).
-                        yukBoyutu = ElBâri.ElBâsıtAkis(girdi.Slice(yukKonumu, icBoyut), hedef);
+                        // Birinci derece: referans blokta; çözücüye dışarıdan
+                        // verilir ve kanal[0] oradan dolar.
+                        yukBoyutu = ElBâri.ElBâsıtRefAkis(girdi.Slice(yukKonumu, icBoyut),
+                                                          ilkDeger, kanal.Slice(0, uzunluk));
                     }
+                }
+
+                // Ham geçiş / boş kanal yolunda birinci derecenin ilk değeri
+                // çözücüden gelmez; referanstan konur.
+                if (!ikinciDerece && (hamGecis || hedefUzunluk == 0))
+                {
+                    kanal[0] = ilkDeger;
                 }
 
                 okumaKonumu = yukKonumu + yukBoyutu;

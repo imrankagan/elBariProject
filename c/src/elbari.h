@@ -218,6 +218,33 @@ int32_t elbari_basit_akis(const uint8_t *girdi,
                           int32_t        eleman_sayisi,
                           int32_t       *tuketilen_cikti);
 
+/* ---------------------------------------------------------------------
+ * REFERANSI DISARIDA TUTAN VARYANTLAR  (bicim surumu 4)
+ * ---------------------------------------------------------------------
+ * elbari_kabid akisin basina 4 baytlik MUTLAK REFERANS yazar. Cok kanalli
+ * bir cercevede bu, kanal basina 4 bayt demektir - 8 kanalli 25 kayitlik
+ * bir cercevede toplam boyutun neredeyse YARISI.
+ *
+ * Oysa kanallarin ilk degerleri genellikle BIRBIRINE YAKINDIR (8 RC
+ * kanalinin hepsi ~1500). Kanal katmani bu K degeri tek bir referans
+ * blogunda toplayip birlikte sikistirir; her kanalin akisi da referansini
+ * disaridan alir.
+ * ------------------------------------------------------------------- */
+
+/** elbari_kabid ile ayni; mutlak referansi YAZMAZ. */
+int32_t elbari_kabid_ref(const int32_t *ham_veri,
+                         int32_t        eleman_sayisi,
+                         uint8_t       *cikti,
+                         int32_t        cikti_kapasitesi);
+
+/** elbari_basit_akis ile ayni; ilk degeri DISARIDAN alir. */
+int32_t elbari_basit_ref_akis(const uint8_t *girdi,
+                              int32_t        girdi_boyutu,
+                              int32_t        ilk_deger,
+                              int32_t       *cikti,
+                              int32_t        eleman_sayisi,
+                              int32_t       *tuketilen_cikti);
+
 /* =====================================================================
  * KATMAN 2 - KANAL (cok kanalli telemetri)
  * ===================================================================== */

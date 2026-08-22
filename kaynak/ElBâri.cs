@@ -363,8 +363,25 @@ namespace ElBâri
         // ELKÂBID (KODLAYICI) – %100 YİĞİNSİZ & AYKIRI HARİTALI
         // PERFORMANS: Agresif Satıriçi + Sıcak Yol Optimizasyonu
         // =================================================================
+        /// <summary>
+        /// ElKâbıd ile aynı; akışın başına 4 baytlık MUTLAK REFERANS YAZMAZ.
+        /// Kanal katmanı K kanalın referansını tek blokta toplar
+        /// (biçim sürümü 4). C sürümündeki elbari_kabid_ref karşılığı.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        public static int ElKâbıdRef(scoped ReadOnlySpan<int> hamVeri, scoped Span<byte> cikti)
+        {
+            return KodlaIc(hamVeri, cikti, false);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static int ElKâbıd(scoped ReadOnlySpan<int> hamVeri, scoped Span<byte> cikti)
+        {
+            return KodlaIc(hamVeri, cikti, true);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        private static int KodlaIc(scoped ReadOnlySpan<int> hamVeri, scoped Span<byte> cikti, bool referansYaz)
         {
             if (hamVeri.IsEmpty) return 0;
 
@@ -377,7 +394,7 @@ namespace ElBâri
             }
 
             // GÜVENLİK KONTROLÜ: Çıktı tamponu yeterli mi?
-            int minCiktiBoyu = REFERANS_BOYUTU + (hamVeri.Length * sizeof(int)); // En kötü durum tahmini
+            int minCiktiBoyu = (referansYaz ? REFERANS_BOYUTU : 0) + (hamVeri.Length * sizeof(int));
             if (cikti.Length < minCiktiBoyu)
             {
                 throw new ArgumentException(
@@ -385,10 +402,13 @@ namespace ElBâri
                     nameof(cikti));
             }
 
-            int referans = hamVeri[0];
-            MemoryMarshal.Write(cikti, in referans);
-
-            int baytIndeksi = REFERANS_BOYUTU;
+            int baytIndeksi = 0;
+            if (referansYaz)
+            {
+                int referans = hamVeri[0];
+                MemoryMarshal.Write(cikti, in referans);
+                baytIndeksi = REFERANS_BOYUTU;
+            }
             long bitTamponu = 0;
             int bitSayisi = 0;
             int veriIndeksi = 1;
@@ -647,12 +667,21 @@ namespace ElBâri
         /// </summary>
         public static int ElBâsıtAkis(scoped ReadOnlySpan<byte> girdi, scoped Span<int> cikti)
         {
-            return CozIc(girdi, cikti);
+            return CozIc(girdi, cikti, true, 0);
+        }
+
+        /// <summary>
+        /// ElBâsıtAkis ile aynı; ilk değeri DIŞARIDAN alır (referans bloğu).
+        /// C sürümündeki elbari_basit_ref_akis karşılığı.
+        /// </summary>
+        public static int ElBâsıtRefAkis(scoped ReadOnlySpan<byte> girdi, int ilkDeger, scoped Span<int> cikti)
+        {
+            return CozIc(girdi, cikti, false, ilkDeger);
         }
 
         public static void ElBâsıt(scoped ReadOnlySpan<byte> girdi, scoped Span<int> cikti)
         {
-            int tuketilen = CozIc(girdi, cikti);
+            int tuketilen = CozIc(girdi, cikti, true, 0);
 
             // YAPISAL DOĞRULAMA - tüketim kontrolü.
             // Geçerli bir sıkıştırılmış akış girdinin TAMAMINI tüketir.
@@ -672,10 +701,11 @@ namespace ElBâri
         }
 
         /// <summary>Çözme çekirdeği; tüketilen bayt sayısını döndürür.</summary>
-        private static int CozIc(scoped ReadOnlySpan<byte> girdi, scoped Span<int> cikti)
+        private static int CozIc(scoped ReadOnlySpan<byte> girdi, scoped Span<int> cikti,
+                                 bool referansVar, int ilkDeger)
         {
             // GÜVENLİK KONTROLÜ: Girdi en az referans boyutu içermeli
-            if (girdi.Length < REFERANS_BOYUTU)
+            if (referansVar && girdi.Length < REFERANS_BOYUTU)
             {
                 throw new ArgumentException(
                     $"Girdi tamponu çok küçük. Minimum {REFERANS_BOYUTU} bayt gerekli, {girdi.Length} bayt verildi.", 
@@ -687,10 +717,16 @@ namespace ElBâri
                 throw new ArgumentException("Çıktı tamponu boş olamaz.", nameof(cikti));
             }
 
-            int referans = MemoryMarshal.Read<int>(girdi.Slice(0, REFERANS_BOYUTU));
-            cikti[0] = referans;
-
-            int baytIndeksi = REFERANS_BOYUTU;
+            int baytIndeksi = 0;
+            if (referansVar)
+            {
+                cikti[0] = MemoryMarshal.Read<int>(girdi.Slice(0, REFERANS_BOYUTU));
+                baytIndeksi = REFERANS_BOYUTU;
+            }
+            else
+            {
+                cikti[0] = ilkDeger;
+            }
             long bitTamponu = 0;
             int bitSayisi = 0;
             int ciktiIndeksi = 1;

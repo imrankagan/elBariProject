@@ -60,7 +60,8 @@ int32_t elbari_kanal_en_kotu_durum_boyutu(int32_t eleman_sayisi,
     /* Bicim surumu 4: kanal basina 4 baytlik uzunluk tablosu KALDIRILDI
      * (kanallar ardisik cozulur, cekirdek kendi tuketimini bildirir) ve
      * bayrak_bayt alani da kaldirildi - kanal_sayisi'ndan turetilebilir. */
-    baslik = 1 + (2 * bayrak_bayt);
+    /* +1 referans blogu bayragi, + referans blogu (en kotu: kanal*4) */
+    baslik = 1 + (2 * bayrak_bayt) + 1 + (kanal_sayisi * 4);
 
     /* eleman*4 (ham) + eleman/2 (paketleme payi) + kanal basina referans/pay */
     return baslik
@@ -77,7 +78,10 @@ int32_t elbari_kanal_gerekli_calisma_alani(int32_t eleman_sayisi,
     {
         return 0;
     }
-    return (eleman_sayisi + kanal_sayisi - 1) / kanal_sayisi;
+    /* Kanal basina en uzun dizi + REFERANS BLOGU icin kanal_sayisi kadar
+     * ek yer (bicim surumu 4). Kodlayici blogu bastan, cozucu sondan
+     * kullanir; ikisi de kanal calisma alaniyla cakismaz. */
+    return ((eleman_sayisi + kanal_sayisi - 1) / kanal_sayisi) + kanal_sayisi;
 }
 
 /** c numarali kanalin kac eleman icerdigi (eksik kayitlara toleransli). */
@@ -162,6 +166,7 @@ int32_t elbari_kanal_kabid(const int32_t *ham_veri,
     int32_t c;
     uint8_t *ikinci_derece_bayraklari;
     uint8_t *ham_gecis_bayraklari;
+    int32_t  ref_boyut;
     int32_t i;
 
     if ((ham_veri == NULL) || (calisma_alani == NULL) || (cikti == NULL) ||
@@ -185,8 +190,9 @@ int32_t elbari_kanal_kabid(const int32_t *ham_veri,
     }
 
     bayrak_bayt = (kanal_sayisi + 7) / 8;
-    baslik_boyu = 1 + (2 * bayrak_bayt);
-    if (cikti_kapasitesi < baslik_boyu)
+    /* +1: referans blogu bayragi */
+    baslik_boyu = 1 + (2 * bayrak_bayt) + 1;
+    if (cikti_kapasitesi < (baslik_boyu + (kanal_sayisi * 4)))
     {
         return ELBARI_HATA_TAMPON_KUCUK;
     }
@@ -202,6 +208,48 @@ int32_t elbari_kanal_kabid(const int32_t *ham_veri,
     }
 
     yazma_konumu = baslik_boyu;
+
+    /* -----------------------------------------------------------------
+     * REFERANS BLOGU  (bicim surumu 4)
+     * -----------------------------------------------------------------
+     * Her kanalin akisi bir MUTLAK REFERANSLA baslar. Bunlar kanal
+     * basina 4 bayt tutar ve kucuk bir cercevede toplam boyutun neredeyse
+     * yarisini yiyordu (8 kanalli 25 kayitlik cercevede 68 baytin 32'si).
+     *
+     * Oysa bu K deger AKISIN ILK KAYDIDIR ve kanallarin ilk degerleri
+     * genellikle birbirine yakindir (8 RC kanalinin hepsi ~1500). Bu
+     * yuzden hepsi TEK BIR BLOKTA birlikte sikistirilir; her kanalin
+     * akisi referansini disaridan alir (elbari_kabid_ref).
+     *
+     * Bayrak: 1 = blok sikistirildi (kendini sinirlar), 0 = ham K x 4.
+     * --------------------------------------------------------------- */
+    for (i = 0; i < kanal_sayisi; i++)
+    {
+        calisma_alani[i] = (i < eleman_sayisi) ? ham_veri[i] : 0;
+    }
+
+    ref_boyut = ELBARI_SIKISTIRILAMAZ;
+    if (kanal_sayisi >= 3)
+    {
+        ref_boyut = elbari_kabid(calisma_alani, kanal_sayisi,
+                                 &cikti[yazma_konumu],
+                                 cikti_kapasitesi - yazma_konumu);
+    }
+
+    if ((ref_boyut > 0) && (ref_boyut < (kanal_sayisi * 4)))
+    {
+        cikti[baslik_boyu - 1] = 1u;
+        yazma_konumu += ref_boyut;
+    }
+    else
+    {
+        cikti[baslik_boyu - 1] = 0u;
+        for (i = 0; i < kanal_sayisi; i++)
+        {
+            elbari_ic_i32_yaz(&cikti[yazma_konumu + (i * 4)], calisma_alani[i]);
+        }
+        yazma_konumu += kanal_sayisi * 4;
+    }
 
     for (c = 0; c < kanal_sayisi; c++)
     {
@@ -246,49 +294,41 @@ int32_t elbari_kanal_kabid(const int32_t *ham_veri,
 
         if (ikinci_derece != 0)
         {
-            ilk_deger = calisma_alani[0];
-            /* Yerinde sola kaydirarak fark akisi uret: [d1, d2, ..., d(m-1)] */
+            /* Yerinde sola kaydirarak fark akisi uret: [d1, d2, ..., d(m-1)].
+             * Mutlak ilk deger (calisma_alani[0]) REFERANS BLOGUNDADIR;
+             * ayrica yazilmaz. */
             for (i = 0; i < (uzunluk - 1); i++)
             {
                 calisma_alani[i] = elbari_ic_fark(calisma_alani[i + 1], calisma_alani[i]);
             }
-            yuk_uzunlugu = uzunluk - 1;
             elbari_ic_bayrak_kur(ikinci_derece_bayraklari, c);
         }
-        else
-        {
-            yuk_uzunlugu = uzunluk;
-        }
+        /* Her iki durumda da referanstan SONRAKI deger sayisi ayni. */
+        yuk_uzunlugu = uzunluk - 1;
 
-        /* MISRA 10.6: bilesik ifade yerine acik dallanma. */
-        if (ikinci_derece != 0)
-        {
-            on_ek_boyu = 4;
-        }
-        else
-        {
-            on_ek_boyu = 0;
-        }
+        (void)ilk_deger;
+        on_ek_boyu = 0;
         ham_bayt = yuk_uzunlugu * 4;
+        yuk_konumu = yazma_konumu;
 
-        if ((yazma_konumu + on_ek_boyu) > cikti_kapasitesi)
-        {
-            return ELBARI_HATA_TAMPON_KUCUK;
-        }
-
-        if (ikinci_derece != 0)
-        {
-            elbari_ic_i32_yaz(&cikti[yazma_konumu], ilk_deger);
-        }
-
-        yuk_konumu = yazma_konumu + on_ek_boyu;
-
-        /* 3) Sikistirmayi dene */
+        /* 3) Sikistirmayi dene. Birinci derecede referans DISARIDA
+         *    (blokta) oldugu icin kabid_ref kullanilir; ikinci derecede
+         *    akis zaten fark dizisidir ve kendi referansini tasir. */
         sonuc = ELBARI_SIKISTIRILAMAZ;
         if ((yuk_uzunlugu > 0) && ((cikti_kapasitesi - yuk_konumu) >= (ham_bayt + 64)))
         {
-            sonuc = elbari_kabid(calisma_alani, yuk_uzunlugu,
-                                 &cikti[yuk_konumu], cikti_kapasitesi - yuk_konumu);
+            if (ikinci_derece != 0)
+            {
+                sonuc = elbari_kabid(calisma_alani, yuk_uzunlugu,
+                                     &cikti[yuk_konumu],
+                                     cikti_kapasitesi - yuk_konumu);
+            }
+            else
+            {
+                sonuc = elbari_kabid_ref(calisma_alani, uzunluk,
+                                         &cikti[yuk_konumu],
+                                         cikti_kapasitesi - yuk_konumu);
+            }
         }
 
         if ((sonuc > 0) && (sonuc < ham_bayt))
@@ -306,9 +346,14 @@ int32_t elbari_kanal_kabid(const int32_t *ham_veri,
                 return ELBARI_HATA_TAMPON_KUCUK;
             }
 
+            /* Birinci derecede ilk deger referans blogunda; [1..m-1]
+             * yazilir. Ikinci derecede fark dizisinin tamami yazilir. */
             for (i = 0; i < yuk_uzunlugu; i++)
             {
-                elbari_ic_i32_yaz(&cikti[yuk_konumu + (i * 4)], calisma_alani[i]);
+                int32_t kaynak = (ikinci_derece != 0)
+                                 ? calisma_alani[i]
+                                 : calisma_alani[i + 1];
+                elbari_ic_i32_yaz(&cikti[yuk_konumu + (i * 4)], kaynak);
             }
 
             /* Ham gecis boyutu zaten hesaplanabilir: on_ek + eleman*4 */
@@ -340,6 +385,7 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
     int32_t i;
     const uint8_t *ikinci_derece_bayraklari;
     const uint8_t *ham_gecis_bayraklari;
+    int32_t *referanslar;
 
     if ((girdi == NULL) || (calisma_alani == NULL) || (cikti == NULL) ||
         (eleman_sayisi < 0) || (eleman_sayisi > ELBARI_MAKS_ELEMAN))
@@ -363,7 +409,8 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
     /* bayrak_bayt TASINMAZ: kanal sayisindan turetilir (bicim surumu 4). */
     bayrak_bayt = (kanal_sayisi + 7) / 8;
 
-    baslik_boyu = 1 + (2 * bayrak_bayt);
+    /* +1: referans blogu bayragi */
+    baslik_boyu = 1 + (2 * bayrak_bayt) + 1;
     if (girdi_boyutu < baslik_boyu)
     {
         return ELBARI_HATA_BOZUK_GIRDI;
@@ -379,6 +426,36 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
     ham_gecis_bayraklari     = &girdi[1 + bayrak_bayt];
 
     okuma_konumu = baslik_boyu;
+
+    /* -----------------------------------------------------------------
+     * REFERANS BLOGU (bicim surumu 4) - bkz. kodlayicidaki aciklama.
+     * Kanal referanslari calisma alaninin SONUNDA tutulur; kanal
+     * cozumu icin kullanilan bas kismiyla cakismaz.
+     * --------------------------------------------------------------- */
+    referanslar = &calisma_alani[calisma_kapasitesi - kanal_sayisi];
+
+    if (girdi[baslik_boyu - 1] == 0u)
+    {
+        if ((okuma_konumu + (kanal_sayisi * 4)) > girdi_boyutu)
+        {
+            return ELBARI_HATA_BOZUK_GIRDI;
+        }
+        for (c = 0; c < kanal_sayisi; c++)
+        {
+            referanslar[c] = elbari_ic_i32_oku(&girdi[okuma_konumu + (c * 4)]);
+        }
+        okuma_konumu += kanal_sayisi * 4;
+    }
+    else
+    {
+        int32_t ref_tuketilen = 0;
+        int32_t ref_durum = elbari_basit_akis(&girdi[okuma_konumu],
+                                              girdi_boyutu - okuma_konumu,
+                                              referanslar, kanal_sayisi,
+                                              &ref_tuketilen);
+        if (ref_durum != ELBARI_TAMAM) { return ref_durum; }
+        okuma_konumu += ref_tuketilen;
+    }
 
     for (c = 0; c < kanal_sayisi; c++)
     {
@@ -410,19 +487,14 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
         {
             on_ek_boyu = 0;
         }
-        if ((okuma_konumu + on_ek_boyu) > girdi_boyutu)
-        {
-            return ELBARI_HATA_BOZUK_GIRDI;
-        }
+        /* Mutlak ilk deger REFERANS BLOGUNDAN gelir (bicim surumu 4). */
+        ilk_deger  = referanslar[c];
+        on_ek_boyu = 0;
 
-        if (ikinci_derece != 0)
-        {
-            ilk_deger = elbari_ic_i32_oku(&girdi[okuma_konumu]);
-        }
-
-        yuk_konumu    = okuma_konumu + on_ek_boyu;
+        yuk_konumu    = okuma_konumu;
         ic_boyut      = girdi_boyutu - yuk_konumu;
-        hedef_uzunluk = (ikinci_derece != 0) ? (uzunluk - 1) : uzunluk;
+        /* Referanstan sonraki deger sayisi her iki derecede de ayni. */
+        hedef_uzunluk = uzunluk - 1;
         yuk_boyutu    = 0;
 
         if (hedef_uzunluk > 0)
@@ -436,25 +508,45 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
                 }
                 for (i = 0; i < hedef_uzunluk; i++)
                 {
-                    calisma_alani[i] = elbari_ic_i32_oku(&girdi[yuk_konumu + (i * 4)]);
+                    int32_t hedef_i = (ikinci_derece != 0) ? i : (i + 1);
+                    calisma_alani[hedef_i] =
+                        elbari_ic_i32_oku(&girdi[yuk_konumu + (i * 4)]);
                 }
                 yuk_boyutu = hedef_uzunluk * 4;
             }
             else
             {
-                /* Sikistirilmis kanal: cekirdek kac bayt tukettigini
-                 * bildirir, boylece bir sonraki kanalin baslangici
-                 * uzunluk tablosu olmadan bulunur (bicim surumu 4). */
                 int32_t tuketilen = 0;
-                int32_t durum = elbari_basit_akis(&girdi[yuk_konumu], ic_boyut,
-                                                  calisma_alani, hedef_uzunluk,
-                                                  &tuketilen);
+                int32_t durum;
+
+                if (ikinci_derece != 0)
+                {
+                    /* Fark akisi kendi referansini tasir. */
+                    durum = elbari_basit_akis(&girdi[yuk_konumu], ic_boyut,
+                                              calisma_alani, hedef_uzunluk,
+                                              &tuketilen);
+                }
+                else
+                {
+                    /* Birinci derece: referans blokta; cozucuye disaridan
+                     * verilir ve calisma_alani[0] oradan dolar. */
+                    durum = elbari_basit_ref_akis(&girdi[yuk_konumu], ic_boyut,
+                                                  ilk_deger, calisma_alani,
+                                                  uzunluk, &tuketilen);
+                }
                 if (durum != ELBARI_TAMAM)
                 {
                     return durum;
                 }
                 yuk_boyutu = tuketilen;
             }
+        }
+
+        /* Ham gecis / bos kanal yolunda birinci derecenin ilk degeri
+         * cozucuden gelmez; referanstan konur. */
+        if ((ikinci_derece == 0) && ((ham_gecis != 0) || (hedef_uzunluk == 0)))
+        {
+            calisma_alani[0] = ilk_deger;
         }
 
         okuma_konumu = yuk_konumu + yuk_boyutu;

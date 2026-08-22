@@ -301,10 +301,17 @@ static int32_t elbari_ic_sifir_blok_mu(const int32_t *ham_veri, int32_t i)
  * KODLAYICI
  * ------------------------------------------------------------------- */
 
-int32_t elbari_kabid(const int32_t *ham_veri,
-                     int32_t        eleman_sayisi,
-                     uint8_t       *cikti,
-                     int32_t        cikti_kapasitesi)
+/**
+ * Kodlama cekirdegi.
+ * @param referans_yaz 1 ise akisin basina 4 baytlik mutlak referans yazilir
+ *                     (elbari_kabid davranisi). 0 ise YAZILMAZ; cagiran
+ *                     ham_veri[0]'i baska bir yerde saklar.
+ */
+static int32_t elbari_ic_kodla(const int32_t *ham_veri,
+                               int32_t        eleman_sayisi,
+                               uint8_t       *cikti,
+                               int32_t        cikti_kapasitesi,
+                               int32_t        referans_yaz)
 {
     int32_t  bayt_indeksi;
     uint64_t bit_tamponu = 0u;
@@ -336,15 +343,24 @@ int32_t elbari_kabid(const int32_t *ham_veri,
     }
 
     /* En kotu durumda her eleman 32 bit ile kodlanabilir; tampon yetmeli. */
-    en_az_gereken = ELBARI_REFERANS_BOYUTU + (eleman_sayisi * 4);
+    en_az_gereken = eleman_sayisi * 4;
+    if (referans_yaz != 0) { en_az_gereken += ELBARI_REFERANS_BOYUTU; }
     if (cikti_kapasitesi < en_az_gereken)
     {
         return ELBARI_HATA_TAMPON_KUCUK;
     }
 
-    /* Akisin basina mutlak referans deger yazilir. */
-    elbari_ic_i32_yaz(cikti, ham_veri[0]);
-    bayt_indeksi = ELBARI_REFERANS_BOYUTU;
+    /* Akisin basina mutlak referans deger yazilir - referans DISARIDA
+     * tutuluyorsa yazilmaz (bicim surumu 4, referans blogu). */
+    if (referans_yaz != 0)
+    {
+        elbari_ic_i32_yaz(cikti, ham_veri[0]);
+        bayt_indeksi = ELBARI_REFERANS_BOYUTU;
+    }
+    else
+    {
+        bayt_indeksi = 0;
+    }
 
     while (veri_indeksi < eleman_sayisi)
     {
@@ -614,11 +630,18 @@ int32_t elbari_kabid(const int32_t *ham_veri,
  * Cozme cekirdegi. Tuketilen bayt sayisini bildirir, ARTIK KONTROLU
  * YAPMAZ - o karar cagirana aittir.
  */
-static int32_t elbari_ic_coz(const uint8_t *girdi,
-                             int32_t        girdi_boyutu,
-                             int32_t       *cikti,
-                             int32_t        eleman_sayisi,
-                             int32_t       *tuketilen_cikti)
+/**
+ * Cozme cekirdegi.
+ * @param referans_var 1 ise akisin basinda 4 baytlik mutlak referans
+ *                     beklenir. 0 ise ilk_deger disaridan verilir.
+ */
+static int32_t elbari_ic_coz2(const uint8_t *girdi,
+                              int32_t        girdi_boyutu,
+                              int32_t       *cikti,
+                              int32_t        eleman_sayisi,
+                              int32_t        referans_var,
+                              int32_t        ilk_deger,
+                              int32_t       *tuketilen_cikti)
 {
     int32_t  bayt_indeksi;
     uint64_t bit_tamponu = 0u;
@@ -641,14 +664,22 @@ static int32_t elbari_ic_coz(const uint8_t *girdi,
     {
         return ELBARI_TAMAM;
     }
-    if (girdi_boyutu < ELBARI_REFERANS_BOYUTU)
+    if ((referans_var != 0) && (girdi_boyutu < ELBARI_REFERANS_BOYUTU))
     {
         return ELBARI_HATA_BOZUK_GIRDI;
     }
 
-    /* Akisin basindaki mutlak referans */
-    cikti[0] = elbari_ic_i32_oku(girdi);
-    bayt_indeksi = ELBARI_REFERANS_BOYUTU;
+    /* Akisin basindaki mutlak referans - disaridaysa parametreden gelir. */
+    if (referans_var != 0)
+    {
+        cikti[0] = elbari_ic_i32_oku(girdi);
+        bayt_indeksi = ELBARI_REFERANS_BOYUTU;
+    }
+    else
+    {
+        cikti[0] = ilk_deger;
+        bayt_indeksi = 0;
+    }
 
     while (cikti_indeksi < eleman_sayisi)
     {
@@ -854,14 +885,30 @@ static int32_t elbari_ic_coz(const uint8_t *girdi,
     return ELBARI_TAMAM;
 }
 
+int32_t elbari_kabid(const int32_t *ham_veri,
+                     int32_t        eleman_sayisi,
+                     uint8_t       *cikti,
+                     int32_t        cikti_kapasitesi)
+{
+    return elbari_ic_kodla(ham_veri, eleman_sayisi, cikti, cikti_kapasitesi, 1);
+}
+
+int32_t elbari_kabid_ref(const int32_t *ham_veri,
+                         int32_t        eleman_sayisi,
+                         uint8_t       *cikti,
+                         int32_t        cikti_kapasitesi)
+{
+    return elbari_ic_kodla(ham_veri, eleman_sayisi, cikti, cikti_kapasitesi, 0);
+}
+
 int32_t elbari_basit(const uint8_t *girdi,
                      int32_t        girdi_boyutu,
                      int32_t       *cikti,
                      int32_t        eleman_sayisi)
 {
     int32_t tuketilen = 0;
-    int32_t durum = elbari_ic_coz(girdi, girdi_boyutu, cikti,
-                                  eleman_sayisi, &tuketilen);
+    int32_t durum = elbari_ic_coz2(girdi, girdi_boyutu, cikti,
+                                   eleman_sayisi, 1, 0, &tuketilen);
 
     if (durum != ELBARI_TAMAM) { return durum; }
 
@@ -881,6 +928,18 @@ int32_t elbari_basit_akis(const uint8_t *girdi,
                           int32_t       *tuketilen_cikti)
 {
     if (tuketilen_cikti == NULL) { return ELBARI_HATA_PARAMETRE; }
-    return elbari_ic_coz(girdi, girdi_boyutu, cikti, eleman_sayisi,
-                         tuketilen_cikti);
+    return elbari_ic_coz2(girdi, girdi_boyutu, cikti, eleman_sayisi,
+                          1, 0, tuketilen_cikti);
+}
+
+int32_t elbari_basit_ref_akis(const uint8_t *girdi,
+                              int32_t        girdi_boyutu,
+                              int32_t        ilk_deger,
+                              int32_t       *cikti,
+                              int32_t        eleman_sayisi,
+                              int32_t       *tuketilen_cikti)
+{
+    if (tuketilen_cikti == NULL) { return ELBARI_HATA_PARAMETRE; }
+    return elbari_ic_coz2(girdi, girdi_boyutu, cikti, eleman_sayisi,
+                          0, ilk_deger, tuketilen_cikti);
 }
