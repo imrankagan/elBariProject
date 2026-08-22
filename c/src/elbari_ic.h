@@ -68,6 +68,18 @@ static ELBARI_SATIRICI uint32_t elbari_ic_isaretsize_cevir(int32_t deger)
     return sonuc;
 }
 
+/**
+ * Cozucunun tuketmeden birakabilecegi en fazla bayt sayisi.
+ *
+ * Gecerli bir akista bu deger 0'dir; kodlayici ne yazdiysa cozucu onu
+ * okur. Kucuk bir tolerans, ileride bicime hizalama/dolgu eklenirse
+ * kirilma olmamasi icin birakilmistir.
+ *
+ * Hem cekirdek (tek akis API'si) hem kanal katmani (toplu kontrol)
+ * kullandigi icin ortak ic baslikta durur.
+ */
+#define ELBARI_ARTIK_TOLERANSI          (0)
+
 /* ---------------------------------------------------------------------
  * ARITMETIK
  * ------------------------------------------------------------------- */

@@ -186,6 +186,25 @@ int32_t elbari_basit(const uint8_t *girdi,
 /** Cekirdek katman icin guvenli en kotu durum cikti boyutu (bayt). */
 int32_t elbari_cekirdek_en_kotu_durum_boyutu(int32_t eleman_sayisi);
 
+/**
+ * elbari_basit ile ayni cozmeyi yapar; ek olarak TUKETILEN bayt sayisini
+ * bildirir ve artik (residue) kontrolunu YAPMAZ.
+ *
+ * NEDEN VAR: kanal katmani birden cok kanalin akisini TEK tamponda ardisik
+ * tutar. Her kanalin nerede bittigini ayri bir uzunluk tablosuyla tasimak
+ * yerine cozucunun kendi tuketimini bildirmesi yeterlidir - tablo boylece
+ * tamamen kalkar (bicim surumu 4). Butunluk kontrolu cagirana aittir;
+ * cerceve katmani bunu CRC ile zaten yapar.
+ *
+ * @param tuketilen_cikti  okunan bayt sayisi (NULL olamaz)
+ * @return ELBARI_TAMAM veya ELBARI_HATA_*
+ */
+int32_t elbari_basit_akis(const uint8_t *girdi,
+                          int32_t        girdi_boyutu,
+                          int32_t       *cikti,
+                          int32_t        eleman_sayisi,
+                          int32_t       *tuketilen_cikti);
+
 /* =====================================================================
  * KATMAN 2 - KANAL (cok kanalli telemetri)
  * ===================================================================== */
@@ -254,7 +273,7 @@ int32_t elbari_kanal_gerekli_calisma_alani(int32_t eleman_sayisi,
  *
  * CERCEVE BICIMI (baslik 16 bayt):
  *   [0..1]   : sihirli sayi 0xEB 0x71
- *   [2]      : surum (2)
+ *   [2]      : surum (4)
  *   [3]      : ayrilmis (0 olmali)
  *   [4..7]   : CRC32  ([8..son] araligi uzerinden)
  *   [8..11]  : cerceve sira numarasi (uint32)

@@ -633,7 +633,46 @@ namespace ElBâri
         // PERFORMANS: Agresif Satıriçi + Sıcak Yol Optimizasyonu
         // =================================================================
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        /// <summary>
+        /// ElBâsıt ile aynı çözmeyi yapar; ek olarak TÜKETİLEN bayt sayısını
+        /// döndürür ve artık (residue) kontrolünü YAPMAZ.
+        ///
+        /// Kanal katmanı birden çok kanalın akışını tek tamponda ardışık tutar.
+        /// Her kanalın nerede bittiğini ayrı bir uzunluk tablosuyla taşımak
+        /// yerine çözücünün kendi tüketimini bildirmesi yeterlidir — tablo
+        /// böylece tamamen kalkar (biçim sürümü 4). Bütünlük kontrolü çağırana
+        /// aittir; çerçeve katmanı bunu CRC ile zaten yapar.
+        ///
+        /// C sürümündeki elbari_basit_akis ile birebir aynı davranış.
+        /// </summary>
+        public static int ElBâsıtAkis(scoped ReadOnlySpan<byte> girdi, scoped Span<int> cikti)
+        {
+            return CozIc(girdi, cikti);
+        }
+
         public static void ElBâsıt(scoped ReadOnlySpan<byte> girdi, scoped Span<int> cikti)
+        {
+            int tuketilen = CozIc(girdi, cikti);
+
+            // YAPISAL DOĞRULAMA - tüketim kontrolü.
+            // Geçerli bir sıkıştırılmış akış girdinin TAMAMINI tüketir.
+            // Bu, sağlama toplamının yerini TUTMAZ; maliyeti tek bir
+            // karşılaştırmadır ve rastgele/bozuk verinin büyük kısmını eler.
+            if ((girdi.Length - tuketilen) > ARTIK_TOLERANSI)
+            {
+#if EMBEDDED_MODE
+                return;
+#else
+                throw new ArgumentException(
+                    $"Girdi bu kodlayıcıdan çıkmamış görünüyor: {girdi.Length - tuketilen} bayt " +
+                    "tüketilmeden kaldı. Güvenilmeyen veri için ElBâriÇerçeve katmanını kullanın.",
+                    nameof(girdi));
+#endif
+            }
+        }
+
+        /// <summary>Çözme çekirdeği; tüketilen bayt sayısını döndürür.</summary>
+        private static int CozIc(scoped ReadOnlySpan<byte> girdi, scoped Span<int> cikti)
         {
             // GÜVENLİK KONTROLÜ: Girdi en az referans boyutu içermeli
             if (girdi.Length < REFERANS_BOYUTU)
@@ -705,13 +744,13 @@ namespace ElBâri
                         bitSayisi -= SIFIR_KOSU_BITI;
 
                         // Kodlayıcı sıfır uzunlukta koşu yazmaz.
-                        if (kosu <= 0) { return; }
+                        if (kosu <= 0) { return baytIndeksi; }
 
                         for (int r = 0; r < kosu; r++)
                         {
                             for (int j = 0; j < BLOK_BOYUTU; j++)
                             {
-                                if (ciktiIndeksi >= cikti.Length) { return; }
+                                if (ciktiIndeksi >= cikti.Length) { return baytIndeksi; }
                                 cikti[ciktiIndeksi] = cikti[ciktiIndeksi - 1];
                                 ciktiIndeksi++;
                             }
@@ -801,17 +840,7 @@ namespace ElBâri
             //
             // NOT: girdi, sıkıştırılmış verinin TAM boyutunda olmalıdır. Daha büyük
             // bir dilim verilirse bu kontrol devreye girer.
-            if ((girdi.Length - baytIndeksi) > ARTIK_TOLERANSI)
-            {
-#if EMBEDDED_MODE
-                return;
-#else
-                throw new ArgumentException(
-                    $"Girdi bu kodlayıcıdan çıkmamış görünüyor: {girdi.Length - baytIndeksi} bayt " +
-                    "tüketilmeden kaldı. Güvenilmeyen veri için ElBâriÇerçeve katmanını kullanın.",
-                    nameof(girdi));
-#endif
-            }
+            return baytIndeksi;
         }
     }
 }

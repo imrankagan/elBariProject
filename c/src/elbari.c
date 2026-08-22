@@ -112,14 +112,6 @@
 /** Ortalama fark bu degeri asarsa veri rastgele kabul edilir (INT32_MAX / 4). */
 #define ELBARI_ORTALAMA_FARK_SINIRI     ((int64_t)536870911)
 
-/**
- * Cozucunun tuketmeden birakabilecegi en fazla bayt sayisi.
- *
- * Gecerli bir akista bu deger 0'dir; kodlayici ne yazdiysa cozucu onu
- * okur. Kucuk bir tolerans, ileride bicime hizalama/dolgu eklenirse
- * kirilma olmamasi icin birakilmistir.
- */
-#define ELBARI_ARTIK_TOLERANSI          (0)
 
 /* ---------------------------------------------------------------------
  * BOYUT HESABI
@@ -618,10 +610,15 @@ int32_t elbari_kabid(const int32_t *ham_veri,
  * COZUCU
  * ------------------------------------------------------------------- */
 
-int32_t elbari_basit(const uint8_t *girdi,
-                     int32_t        girdi_boyutu,
-                     int32_t       *cikti,
-                     int32_t        eleman_sayisi)
+/**
+ * Cozme cekirdegi. Tuketilen bayt sayisini bildirir, ARTIK KONTROLU
+ * YAPMAZ - o karar cagirana aittir.
+ */
+static int32_t elbari_ic_coz(const uint8_t *girdi,
+                             int32_t        girdi_boyutu,
+                             int32_t       *cikti,
+                             int32_t        eleman_sayisi,
+                             int32_t       *tuketilen_cikti)
 {
     int32_t  bayt_indeksi;
     uint64_t bit_tamponu = 0u;
@@ -848,11 +845,42 @@ int32_t elbari_basit(const uint8_t *girdi,
      *
      * NOT: girdi_boyutu, sikistirilmis verinin TAM boyutu olmalidir.
      * Daha buyuk bir tampon verilirse bu kontrol devreye girer ve
-     * ELBARI_HATA_BOZUK_GIRDI donulur. */
-    if ((girdi_boyutu - bayt_indeksi) > ELBARI_ARTIK_TOLERANSI)
+     * ELBARI_HATA_BOZUK_GIRDI donulur.
+     *
+     * Kontrol asagidaki elbari_basit sarmalayicisinda yapilir; cekirdek
+     * yalnizca tuketilen bayt sayisini bildirir. Kanal katmani ardisik
+     * akislari tek tamponda cozdugu icin bu ayrimi gerektirir. */
+    if (tuketilen_cikti != NULL) { *tuketilen_cikti = bayt_indeksi; }
+    return ELBARI_TAMAM;
+}
+
+int32_t elbari_basit(const uint8_t *girdi,
+                     int32_t        girdi_boyutu,
+                     int32_t       *cikti,
+                     int32_t        eleman_sayisi)
+{
+    int32_t tuketilen = 0;
+    int32_t durum = elbari_ic_coz(girdi, girdi_boyutu, cikti,
+                                  eleman_sayisi, &tuketilen);
+
+    if (durum != ELBARI_TAMAM) { return durum; }
+
+    /* YAPISAL DOGRULAMA - tuketim kontrolu (yukaridaki nota bakiniz).
+     * Tek akis API'sinde girdi_boyutu TAM boyut olmalidir. */
+    if ((girdi_boyutu - tuketilen) > ELBARI_ARTIK_TOLERANSI)
     {
         return ELBARI_HATA_BOZUK_GIRDI;
     }
-
     return ELBARI_TAMAM;
+}
+
+int32_t elbari_basit_akis(const uint8_t *girdi,
+                          int32_t        girdi_boyutu,
+                          int32_t       *cikti,
+                          int32_t        eleman_sayisi,
+                          int32_t       *tuketilen_cikti)
+{
+    if (tuketilen_cikti == NULL) { return ELBARI_HATA_PARAMETRE; }
+    return elbari_ic_coz(girdi, girdi_boyutu, cikti, eleman_sayisi,
+                         tuketilen_cikti);
 }

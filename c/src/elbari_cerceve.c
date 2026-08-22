@@ -28,11 +28,15 @@
 
 #define ELBARI_SIHIR_0   (0xEBu)
 #define ELBARI_SIHIR_1   (0x71u)
-/* Bicim surumu 3: blok-ustu sifir kosusu eklendi (bkz. elbari.c).
- * Surum 3 cozucusu surum 2 akislarini AYNEN cozer, ama tersi gecerli
- * degildir - bu yuzden surum bayti yukseltilir ve eski cozucu yeni
- * cerceveyi sessizce yanlis cozmek yerine REDDEDER. */
-#define ELBARI_SURUM     (3u)
+/* Bicim surumu 4: kanal katmanindaki uzunluk tablosu kaldirildi.
+ * Kanallar ardisik cozulur; cekirdek kendi tuketimini bildirir. Kanal
+ * basina 4 bayt, 8 kanalli bir cercevede 32 bayt kazanc.
+ *
+ * Surum 3: blok-ustu sifir kosusu (bkz. elbari.c).
+ *
+ * Her surum artisinda eski cozucu yeni cerceveyi sessizce yanlis cozmek
+ * yerine REDDEDER. */
+#define ELBARI_SURUM     (4u)
 
 /* ---------------------------------------------------------------------
  * CRC-32 (IEEE 802.3)

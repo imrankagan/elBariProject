@@ -57,7 +57,9 @@ int32_t elbari_kanal_en_kotu_durum_boyutu(int32_t eleman_sayisi,
     }
 
     bayrak_bayt = (kanal_sayisi + 7) / 8;
-    baslik = 2 + (2 * bayrak_bayt) + (kanal_sayisi * 4);
+    /* Bicim surumu 4: kanal basina 4 baytlik uzunluk tablosu KALDIRILDI.
+     * Kanallar ardisik cozulur ve cekirdek kendi tuketimini bildirir. */
+    baslik = 2 + (2 * bayrak_bayt);
 
     /* eleman*4 (ham) + eleman/2 (paketleme payi) + kanal basina referans/pay */
     return baslik
@@ -159,7 +161,6 @@ int32_t elbari_kanal_kabid(const int32_t *ham_veri,
     int32_t c;
     uint8_t *ikinci_derece_bayraklari;
     uint8_t *ham_gecis_bayraklari;
-    uint8_t *boyut_alani;
     int32_t i;
 
     if ((ham_veri == NULL) || (calisma_alani == NULL) || (cikti == NULL) ||
@@ -183,7 +184,7 @@ int32_t elbari_kanal_kabid(const int32_t *ham_veri,
     }
 
     bayrak_bayt = (kanal_sayisi + 7) / 8;
-    baslik_boyu = 2 + (2 * bayrak_bayt) + (kanal_sayisi * 4);
+    baslik_boyu = 2 + (2 * bayrak_bayt);
     if (cikti_kapasitesi < baslik_boyu)
     {
         return ELBARI_HATA_TAMPON_KUCUK;
@@ -194,9 +195,8 @@ int32_t elbari_kanal_kabid(const int32_t *ham_veri,
 
     ikinci_derece_bayraklari = &cikti[2];
     ham_gecis_bayraklari     = &cikti[2 + bayrak_bayt];
-    boyut_alani              = &cikti[2 + (2 * bayrak_bayt)];
 
-    for (i = 0; i < (2 * bayrak_bayt) + (kanal_sayisi * 4); i++)
+    for (i = 0; i < (2 * bayrak_bayt); i++)
     {
         cikti[2 + i] = 0u;
     }
@@ -213,7 +213,6 @@ int32_t elbari_kanal_kabid(const int32_t *ham_veri,
         int32_t ham_bayt;
         int32_t yuk_konumu;
         int32_t sonuc;
-        int32_t kayitli_boyut;
 
         if (uzunluk == 0)
         {
@@ -294,9 +293,8 @@ int32_t elbari_kanal_kabid(const int32_t *ham_veri,
 
         if ((sonuc > 0) && (sonuc < ham_bayt))
         {
-            /* Sikistirma kazancli */
-            kayitli_boyut = on_ek_boyu + sonuc;
-            elbari_ic_i32_yaz(&boyut_alani[c * 4], kayitli_boyut);
+            /* Sikistirma kazancli. Boyut YAZILMAZ: cozucu cekirdegin
+             * bildirdigi tuketimle ilerler (bicim surumu 4). */
             yazma_konumu = yuk_konumu + sonuc;
         }
         else
@@ -313,8 +311,7 @@ int32_t elbari_kanal_kabid(const int32_t *ham_veri,
                 elbari_ic_i32_yaz(&cikti[yuk_konumu + (i * 4)], calisma_alani[i]);
             }
 
-            kayitli_boyut = on_ek_boyu + ham_bayt;
-            elbari_ic_i32_yaz(&boyut_alani[c * 4], kayitli_boyut);
+            /* Ham gecis boyutu zaten hesaplanabilir: on_ek + eleman*4 */
             elbari_ic_bayrak_kur(ham_gecis_bayraklari, c);
             yazma_konumu = yuk_konumu + ham_bayt;
         }
@@ -343,7 +340,6 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
     int32_t i;
     const uint8_t *ikinci_derece_bayraklari;
     const uint8_t *ham_gecis_bayraklari;
-    const uint8_t *boyut_alani;
 
     if ((girdi == NULL) || (calisma_alani == NULL) || (cikti == NULL) ||
         (eleman_sayisi < 0) || (eleman_sayisi > ELBARI_MAKS_ELEMAN))
@@ -367,7 +363,7 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
         return ELBARI_HATA_BOZUK_GIRDI;
     }
 
-    baslik_boyu = 2 + (2 * bayrak_bayt) + (kanal_sayisi * 4);
+    baslik_boyu = 2 + (2 * bayrak_bayt);
     if (girdi_boyutu < baslik_boyu)
     {
         return ELBARI_HATA_BOZUK_GIRDI;
@@ -381,7 +377,6 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
 
     ikinci_derece_bayraklari = &girdi[2];
     ham_gecis_bayraklari     = &girdi[2 + bayrak_bayt];
-    boyut_alani              = &girdi[2 + (2 * bayrak_bayt)];
 
     okuma_konumu = baslik_boyu;
 
@@ -402,12 +397,6 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
             continue;
         }
 
-        yuk_boyutu = elbari_ic_i32_oku(&boyut_alani[c * 4]);
-        if ((yuk_boyutu <= 0) || ((okuma_konumu + yuk_boyutu) > girdi_boyutu))
-        {
-            return ELBARI_HATA_BOZUK_GIRDI;
-        }
-
         ham_gecis     = elbari_ic_bayrak_var_mi(ham_gecis_bayraklari, c);
         ikinci_derece = elbari_ic_bayrak_var_mi(ikinci_derece_bayraklari, c);
 
@@ -421,7 +410,7 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
         {
             on_ek_boyu = 0;
         }
-        if (yuk_boyutu < on_ek_boyu)
+        if ((okuma_konumu + on_ek_boyu) > girdi_boyutu)
         {
             return ELBARI_HATA_BOZUK_GIRDI;
         }
@@ -432,13 +421,15 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
         }
 
         yuk_konumu    = okuma_konumu + on_ek_boyu;
-        ic_boyut      = yuk_boyutu - on_ek_boyu;
+        ic_boyut      = girdi_boyutu - yuk_konumu;
         hedef_uzunluk = (ikinci_derece != 0) ? (uzunluk - 1) : uzunluk;
+        yuk_boyutu    = 0;
 
         if (hedef_uzunluk > 0)
         {
             if (ham_gecis != 0)
             {
+                /* Ham gecisin boyutu hesaplanabilir; tabloya gerek yok. */
                 if (ic_boyut < (hedef_uzunluk * 4))
                 {
                     return ELBARI_HATA_BOZUK_GIRDI;
@@ -447,19 +438,26 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
                 {
                     calisma_alani[i] = elbari_ic_i32_oku(&girdi[yuk_konumu + (i * 4)]);
                 }
+                yuk_boyutu = hedef_uzunluk * 4;
             }
             else
             {
-                int32_t durum = elbari_basit(&girdi[yuk_konumu], ic_boyut,
-                                             calisma_alani, hedef_uzunluk);
+                /* Sikistirilmis kanal: cekirdek kac bayt tukettigini
+                 * bildirir, boylece bir sonraki kanalin baslangici
+                 * uzunluk tablosu olmadan bulunur (bicim surumu 4). */
+                int32_t tuketilen = 0;
+                int32_t durum = elbari_basit_akis(&girdi[yuk_konumu], ic_boyut,
+                                                  calisma_alani, hedef_uzunluk,
+                                                  &tuketilen);
                 if (durum != ELBARI_TAMAM)
                 {
                     return durum;
                 }
+                yuk_boyutu = tuketilen;
             }
         }
 
-        okuma_konumu += yuk_boyutu;
+        okuma_konumu = yuk_konumu + yuk_boyutu;
 
         if (ikinci_derece != 0)
         {
@@ -482,6 +480,15 @@ int32_t elbari_kanal_basit(const uint8_t *girdi,
         {
             cikti[c + (i * kanal_sayisi)] = calisma_alani[i];
         }
+    }
+
+    /* YAPISAL DOGRULAMA - kanal katmani duzeyinde.
+     * Uzunluk tablosu kalktigi icin cekirdek tek tek artik kontrolu
+     * yapmaz; kontrol burada TOPLU yapilir. Gecerli bir akista tum
+     * kanallar bittiginde girdinin tamami tuketilmis olmalidir. */
+    if ((girdi_boyutu - okuma_konumu) > ELBARI_ARTIK_TOLERANSI)
+    {
+        return ELBARI_HATA_BOZUK_GIRDI;
     }
 
     return ELBARI_TAMAM;

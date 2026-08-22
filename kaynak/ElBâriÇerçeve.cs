@@ -52,11 +52,15 @@ namespace ElBâri
 
         private const byte SIHIR_0 = 0xEB;
         private const byte SIHIR_1 = 0x71;
-        // Biçim sürümü 3: blok-üstü sıfır koşusu eklendi (bkz. ElBâri.cs).
-        // Sürüm 3 çözücüsü sürüm 2 akışlarını aynen çözer, ama tersi geçerli
-        // değildir — bu yüzden sürüm baytı yükseltilir ve eski çözücü yeni
-        // çerçeveyi sessizce yanlış çözmek yerine REDDEDER.
-        private const byte SURUM = 3;
+        // Biçim sürümü 4: kanal katmanındaki uzunluk tablosu kaldırıldı.
+        // Kanallar ardışık çözülür; çekirdek kendi tüketimini bildirir.
+        // Kanal başına 4 bayt, 8 kanallı bir çerçevede 32 bayt kazanç.
+        //
+        // Sürüm 3: blok-üstü sıfır koşusu (bkz. ElBâri.cs).
+        //
+        // Her sürüm artışında eski çözücü yeni çerçeveyi sessizce yanlış
+        // çözmek yerine REDDEDER.
+        private const byte SURUM = 4;
 
         /// <summary>
         /// Bir çerçeve için güvenli en kötü durum çıktı boyutu.

@@ -60,7 +60,9 @@ namespace ElBâri
         public static int EnKotuDurumCiktiBoyutu(int elemanSayisi, int kanalSayisi)
         {
             int bayrakBayt = (kanalSayisi + 7) / 8;
-            int baslik = 2 + 2 * bayrakBayt + kanalSayisi * 4;
+            // Biçim sürümü 4: kanal başına 4 baytlık uzunluk tablosu KALDIRILDI.
+            // Kanallar ardışık çözülür ve çekirdek kendi tüketimini bildirir.
+            int baslik = 2 + 2 * bayrakBayt;
             // eleman*4 (ham) + eleman/2 (paketleme payı) + kanal başına referans/pay
             return baslik + elemanSayisi * 4 + elemanSayisi / 2 + kanalSayisi * 68 + 64;
         }
@@ -87,6 +89,9 @@ namespace ElBâri
         /// <param name="calismaAlani">Çağıranın verdiği geçici alan; en az GerekliCalismaAlani kadar</param>
         /// <param name="cikti">Çıktı tamponu; en az EnKotuDurumCiktiBoyutu kadar</param>
         /// <returns>Yazılan bayt sayısı. Boş girdide 0.</returns>
+        // Çözücünün tüketmeden bırakabileceği en fazla bayt (C ile aynı: 0).
+        private const int ARTIK_TOLERANSI = 0;
+
         public static int ElKâbıdKanal(
             scoped ReadOnlySpan<int> hamVeri,
             int kanalSayisi,
@@ -111,7 +116,7 @@ namespace ElBâri
             }
 
             int bayrakBayt = (kanalSayisi + 7) / 8;
-            int baslikBoyu = 2 + 2 * bayrakBayt + kanalSayisi * 4;
+            int baslikBoyu = 2 + 2 * bayrakBayt;
             if (cikti.Length < baslikBoyu)
             {
                 throw new ArgumentException(
@@ -123,11 +128,10 @@ namespace ElBâri
 
             Span<byte> ikinciDereceBayraklari = cikti.Slice(2, bayrakBayt);
             Span<byte> hamGecisBayraklari = cikti.Slice(2 + bayrakBayt, bayrakBayt);
-            Span<byte> boyutAlani = cikti.Slice(2 + 2 * bayrakBayt, kanalSayisi * 4);
 
             ikinciDereceBayraklari.Clear();
             hamGecisBayraklari.Clear();
-            boyutAlani.Clear();
+
 
             int yazmaKonumu = baslikBoyu;
 
@@ -200,9 +204,8 @@ namespace ElBâri
 
                 if (sonuc > 0 && sonuc < hamBayt)
                 {
-                    // Sıkıştırma kazançlı
-                    int kayitliBoyut = onEkBoyu + sonuc;
-                    MemoryMarshal.Write(boyutAlani.Slice(c * 4, 4), in kayitliBoyut);
+                    // Sıkıştırma kazançlı. Boyut YAZILMAZ: çözücü çekirdeğin
+                    // bildirdiği tüketimle ilerler (biçim sürümü 4).
                     yazmaKonumu = yukKonumu + sonuc;
                 }
                 else
@@ -222,8 +225,7 @@ namespace ElBâri
                         MemoryMarshal.Write(cikti.Slice(yukKonumu + i * 4, 4), in deger);
                     }
 
-                    int kayitliBoyut = onEkBoyu + hamBayt;
-                    MemoryMarshal.Write(boyutAlani.Slice(c * 4, 4), in kayitliBoyut);
+                    // Ham geçişin boyutu hesaplanabilir: onEk + eleman*4
                     hamGecisBayraklari[c >> 3] |= (byte)(1 << (c & 7));
                     yazmaKonumu = yukKonumu + hamBayt;
                 }
@@ -262,7 +264,7 @@ namespace ElBâri
                 throw new ArgumentException("Girdi başlığı bozuk (kanal sayısı/bayrak boyutu tutarsız).", nameof(girdi));
             }
 
-            int baslikBoyu = 2 + 2 * bayrakBayt + kanalSayisi * 4;
+            int baslikBoyu = 2 + 2 * bayrakBayt;
             if (girdi.Length < baslikBoyu)
             {
                 throw new ArgumentException("Girdi tamponu başlık için çok küçük.", nameof(girdi));
@@ -279,21 +281,12 @@ namespace ElBâri
 
             ReadOnlySpan<byte> ikinciDereceBayraklari = girdi.Slice(2, bayrakBayt);
             ReadOnlySpan<byte> hamGecisBayraklari = girdi.Slice(2 + bayrakBayt, bayrakBayt);
-            ReadOnlySpan<byte> boyutAlani = girdi.Slice(2 + 2 * bayrakBayt, kanalSayisi * 4);
-
             int okumaKonumu = baslikBoyu;
 
             for (int c = 0; c < kanalSayisi; c++)
             {
                 int uzunluk = KanalUzunlugu(toplam, kanalSayisi, c);
                 if (uzunluk == 0) continue;
-
-                int yukBoyutu = MemoryMarshal.Read<int>(boyutAlani.Slice(c * 4, 4));
-                if (yukBoyutu <= 0 || okumaKonumu + yukBoyutu > girdi.Length)
-                {
-                    throw new ArgumentException(
-                        $"Girdi bozuk: kanal {c} yük boyutu geçersiz ({yukBoyutu}).", nameof(girdi));
-                }
 
                 bool hamGecis = (hamGecisBayraklari[c >> 3] & (1 << (c & 7))) != 0;
                 bool ikinciDerece = (ikinciDereceBayraklari[c >> 3] & (1 << (c & 7))) != 0;
@@ -302,7 +295,7 @@ namespace ElBâri
 
                 // İkinci derece kanallarda yükün başında mutlak ilk değer bulunur.
                 int onEkBoyu = ikinciDerece ? 4 : 0;
-                if (yukBoyutu < onEkBoyu)
+                if (okumaKonumu + onEkBoyu > girdi.Length)
                 {
                     throw new ArgumentException($"Girdi bozuk: kanal {c} yükü eksik.", nameof(girdi));
                 }
@@ -314,8 +307,9 @@ namespace ElBâri
                 }
 
                 int yukKonumu = okumaKonumu + onEkBoyu;
-                int icBoyut = yukBoyutu - onEkBoyu;
+                int icBoyut = girdi.Length - yukKonumu;
                 int hedefUzunluk = ikinciDerece ? uzunluk - 1 : uzunluk;
+                int yukBoyutu = 0;
 
                 if (hedefUzunluk > 0)
                 {
@@ -323,6 +317,7 @@ namespace ElBâri
 
                     if (hamGecis)
                     {
+                        // Ham geçişin boyutu hesaplanabilir; tabloya gerek yok.
                         if (icBoyut < hedefUzunluk * 4)
                         {
                             throw new ArgumentException($"Girdi bozuk: kanal {c} ham yükü eksik.", nameof(girdi));
@@ -331,14 +326,18 @@ namespace ElBâri
                         {
                             hedef[i] = MemoryMarshal.Read<int>(girdi.Slice(yukKonumu + i * 4, 4));
                         }
+                        yukBoyutu = hedefUzunluk * 4;
                     }
                     else
                     {
-                        ElBâri.ElBâsıt(girdi.Slice(yukKonumu, icBoyut), hedef);
+                        // Sıkıştırılmış kanal: çekirdek kaç bayt tükettiğini
+                        // bildirir, böylece bir sonraki kanalın başlangıcı
+                        // uzunluk tablosu olmadan bulunur (biçim sürümü 4).
+                        yukBoyutu = ElBâri.ElBâsıtAkis(girdi.Slice(yukKonumu, icBoyut), hedef);
                     }
                 }
 
-                okumaKonumu += yukBoyutu;
+                okumaKonumu = yukKonumu + yukBoyutu;
 
                 if (ikinciDerece)
                 {
@@ -356,6 +355,19 @@ namespace ElBâri
                 {
                     cikti[c + i * kanalSayisi] = kanal[i];
                 }
+            }
+
+            // YAPISAL DOĞRULAMA - kanal katmanı düzeyinde.
+            // Uzunluk tablosu kalktığı için çekirdek tek tek artık kontrolü
+            // yapmaz; kontrol burada TOPLU yapılır. Geçerli bir akışta tüm
+            // kanallar bittiğinde girdinin tamamı tüketilmiş olmalıdır.
+            if ((girdi.Length - okumaKonumu) > ARTIK_TOLERANSI)
+            {
+#if !EMBEDDED_MODE
+                throw new ArgumentException(
+                    $"Girdi bu kodlayıcıdan çıkmamış görünüyor: {girdi.Length - okumaKonumu} bayt " +
+                    "tüketilmeden kaldı.", nameof(girdi));
+#endif
             }
         }
 
