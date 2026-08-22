@@ -194,7 +194,7 @@ işaret değişimi hep büyüklük değişimiyle birlikte oluyordu; tam olarak 2
 Bu deseni ancak **gerçek jiroskop** üretti.
 
 *Regresyon koruması:* `cekirdek_isaret_biti` vektörü eklendi
-([`testverisi/vektorler.txt`](../testverisi/vektorler.txt)). Mevcut 27 vektörün çıktısı
+([`testverisi/vektorler.txt`](../testverisi/vektorler.txt)). Mevcut vektörlerin çıktısı
 **değişmedi** — düzeltme yalnızca zaten bozuk olan akışları etkiliyor, biçim kırılmadı.
 
 > ⚠️ **Aynı hata C# sürümünde de olabilir.** 32 bitlik mutlak değer davranışı iki sürüm

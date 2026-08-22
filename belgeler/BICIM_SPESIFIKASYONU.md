@@ -488,11 +488,11 @@ böyle bir seçim bulunmaz).
 ## 6. Uygunluk doğrulaması
 
 Bu biçime uygunluk, [`testverisi/vektorler.txt`](../testverisi/vektorler.txt) dosyasındaki
-**dondurulmuş referans vektörleriyle** doğrulanır. Dosya **27 vektör** içerir:
+**dondurulmuş referans vektörleriyle** doğrulanır. Dosya **29 vektör** içerir:
 
 | Katman | Vektör | Kapsam |
 | --- | ---: | --- |
-| `cekirdek` | 10 | her bit genişliği (2/4/8/16), aykırı değer, sabit, negatif, kısmi blok, çok blok |
+| `cekirdek` | 12 | her bit genişliği, aykırı değer, sabit, negatif, kısmi blok, çok blok, **işaret biti (2³¹ farkı)**, **blok üstü sıfır koşusu** |
 | `kanal` | 5 | çok kanal, ikinci derece, ham geçiş, K=1, eksik kayıt |
 | `cerceve` | 3 | temel, sıra numarası, tek kayıt |
 | `float_kuantala` | 3 | kanal başına ölçek, negatif değerler, **tam yarım (yuvarlama yönü)** |
@@ -513,9 +513,9 @@ Bir implementasyon uyumlu sayılır ancak ve ancak:
 | Implementasyon | Durum |
 | --- | --- |
 | C# (.NET 10) | ✅ Referans implementasyon — vektörler bundan üretildi |
-| C (C99/C17) | ✅ **27 vektör, 54 kontrol, 0 hata** |
+| C (C99/C17) | ✅ **29 vektör, 58 kontrol, 0 hata** |
 
-Ek olarak iki implementasyon, 24.642 kayıtlık gerçek GPS verisinde **83.124 bayt birebir
+Ek olarak iki implementasyon, 24.642 kayıtlık gerçek GPS verisinde **58.513 bayt birebir
 aynı** çıktı üretmekte ve birbirinin çıktısını çözebilmektedir.
 
 Çalıştırmak için:

@@ -390,7 +390,7 @@ yapılandırmada bu sapma tamamen ortadan kalkar.
 | .NET ile ikili uyumluluk — kanal katmanı | 59.695 bayt birebir aynı |
 | .NET ile ikili uyumluluk — float katmanı | 27.403 bayt birebir aynı |
 | .NET ile ikili uyumluluk — kuantalama | 72.000 değerin tamamı aynı yuvarlandı |
-| Uygunluk vektörleri (biçim sözleşmesi) | 27 vektör, 54/54 geçti |
+| Uygunluk vektörleri (biçim sözleşmesi) | 29 vektör, 58/58 geçti |
 | Round-trip kayıpsızlık | ✅ |
 | Çapraz uyumluluk (C, .NET çıktısını çözüyor) | ✅ |
 | Tek-bit bozulma tespiti | 247/247 |

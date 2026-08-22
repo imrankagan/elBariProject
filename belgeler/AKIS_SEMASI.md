@@ -294,8 +294,8 @@ sıkıştırılamaz. Kuantalama gürültüyü baştan atar.
             └──────────► AYNI BAYTLAR ◄────────┘
                               │
                     ┌─────────┴──────────┐
-                    │ 27 uygunluk vektörü│
-                    │ 54 kontrol, 0 hata │
+                    │ 29 uygunluk vektörü│
+                    │ 58 kontrol, 0 hata │
                     └────────────────────┘
 
   Hedef platform:

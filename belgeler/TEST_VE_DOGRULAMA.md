@@ -142,7 +142,7 @@ Pratikte bir float'ın işareti değişip büyüklüğü aynı kaldığında olu
 **Nasıl bulundu:** Gerçek ArduPilot logunun jiroskop kanalı MAVLink vekiline bağlanınca
 kayıpsız modda tam tur doğrulaması düştü.
 
-**Neden daha önce bulunamadı:** 27 vektörün hiçbirinde 2³¹'lik fark yoktu; fuzz ise
+**Neden daha önce bulunamadı:** O tarihte var olan 27 vektörün hiçbirinde 2³¹'lik fark yoktu; fuzz ise
 çözücü sağlamlığını sınıyordu. Sentetik yönelim verisi sıfırı geçiyordu ama işaret
 değişimi hep büyüklük değişimiyle birlikteydi — tam olarak 2³¹ hiç çıkmadı.
 
