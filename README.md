@@ -214,6 +214,7 @@ bool tamam = ElBâriÇerçeve.CerceveOku(gelen, kanal, calisma, geri,
 
 | Belge | İçerik |
 | --- | --- |
+| [AKADEMIK_OZET.md](belgeler/AKADEMIK_OZET.md) | **Akademik özet** — problem, yöntem, bulgular, katkının konumlandırılması, sınırlar, kaynakça (TR + EN abstract) |
 | [MIMARI.md](belgeler/MIMARI.md) | Üç katmanın **neden** var olduğu, float katmanları, algoritma ailesi, biçim sürümleri |
 | [KULLANIM.md](belgeler/KULLANIM.md) | C# ve C API'leri, katmanlı bütünlük kuralı, derleme, ölçümü kendiniz koşma |
 | [BICIM_SPESIFIKASYONU.md](belgeler/BICIM_SPESIFIKASYONU.md) | **Arayüz Kontrol Dokümanı (ICD)** — bayt düzeyinde tam tanım |

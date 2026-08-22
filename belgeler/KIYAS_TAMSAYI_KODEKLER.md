@@ -237,7 +237,7 @@ referansları birbirine **korele değil**, blok kazanmıyor ve +1 baytlık bayra
 ödeniyor. Korelasyonun olduğu her yerde kazanç kat kat büyük; adaptifliğin bedeli
 bu bir bayttır.
 
-**Kalan açık ve nedeni.** 25 kayıt/çerçevede hâlâ %2–4 geridyiz. Kalan sabit maliyet
+**Kalan açık ve nedeni.** 25 kayıt/çerçevede hâlâ %2–4 gerideyiz. Kalan sabit maliyet
 ~20 bayttır ve bunun büyük kısmı CRC32'dir (4 bayt). Sprintz'in bu ölçümde ödediği
 başlık da aynı 10 bayttır, ama onun kanal içi yükü daha yalındır. Buradan sonrası
 artık başlık değil, **kodlama verimliliği** meselesidir (bkz. §8).
