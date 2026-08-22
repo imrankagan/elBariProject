@@ -1,14 +1,23 @@
 # ElBâri Biçim Spesifikasyonu
 
 **Belge türü:** Arayüz Kontrol Dokümanı (ICD)
-**Biçim sürümü:** 3
+**Biçim sürümü:** 4
 **Durum:** Dondurulmuş — bu sürümde geriye dönük uyumsuz değişiklik yapılmaz
 
-> **Sürüm 3'te ne değişti:** Çekirdek katmanına **blok-üstü sıfır koşusu** eklendi
-> (§2.2b). Sürüm 3 çözücüsü **bütün sürüm 2 akışlarını aynen çözer**; tersi geçerli
-> değildir, bu yüzden çerçeve başlığındaki sürüm baytı `2` → `3` yükseltilmiştir
-> (§4.1). Sürüm 2'nin ürettiği bit akışları bit bit değişmeden geçerlidir — kaçış
-> kodu sürüm 2'de **ulaşılamaz** bir birleşim üzerine kuruludur.
+> **Sürüm 4'te ne değişti — çerçeve başına sabit maliyet.** Ölçüm, 8 kanallı 25
+> kayıtlık bir çerçevede 68 baytın **84 baytının** (yani neredeyse tamamının) sabit
+> yük olduğunu gösterdi. Üç kalem kaldırıldı:
+>
+> 1. **Kanal uzunluk tablosu** (kanal × 4 bayt) — çözücü kanalları ardışık okuyor,
+>    çekirdek kendi tükettiği bayt sayısını bildiriyor (§3.2, §3.6).
+> 2. **Çerçeve başlığı 16 → 10 bayt** — ikinci sihirli sayı ve ayrılmış bayt
+>    kaldırıldı, sıra no ve kayıt sayısı 4 → 2 bayta indi (§4.1).
+> 3. **Mutlak referanslar tek blokta** — kanal başına 4 baytlık referans, akışın
+>    ilk kaydı olarak birlikte sıkıştırılıyor (§3.7).
+>
+> Toplam: 8 kanalda çerçeve başına ~84 → ~20 bayt.
+>
+> **Sürüm 3'te ne değişmişti:** Çekirdeğe **blok-üstü sıfır koşusu** eklendi (§2.2b).
 
 ---
 
@@ -131,9 +140,9 @@ uyumlu bir kodlayıcı aynı eşiği kullanmalıdır, aksi hâlde bit bit aynı 
 
 | Veri | Sürüm 2 | **Sürüm 3** |
 | --- | ---: | ---: |
-| Kumanda girişi (RCIN, 8 kanal) | 40,09x | **92,26x** |
-| Servo çıkışı (RCOU, 8 kanal) | 25,64x | **37,50x** |
-| Yönelim (ATT, 3 kanal) | 14,70x | **15,57x** |
+| Kumanda girişi (RCIN, 8 kanal) | 40,09x | **92,44x** |
+| Servo çıkışı (RCOU, 8 kanal) | 25,64x | **37,54x** |
+| Yönelim (ATT, 3 kanal) | 14,70x | **15,58x** |
 | GPS / IMU / titreşim | — | **değişmedi** (sıfır koşusu yok) |
 
 ### 2.3 Bit genişliği seçimi
@@ -206,7 +215,25 @@ girdide tüketilmemiş bayt kalmışsa akışı **reddetmelidir**.
 
 `c` numaralı kanalın elemanları, giriş dizisinde `c, c+N, c+2N, ...` indekslerindedir.
 
-### 3.2 Başlık
+### 3.2 Başlık *(sürüm 4)*
+
+```
+[0]                 kanal sayısı K
+[1 .. 1+B)          ikinci-derece bayrakları  (kanal başına 1 bit)
+[1+B .. 1+2B)       ham-geçiş bayrakları      (kanal başına 1 bit)
+[1+2B]              referans bloğu bayrağı    (1 = sıkıştırıldı, 0 = ham)
+[1+2B+1 .. )        referans bloğu (§3.7), sonra kanal yükleri
+```
+
+`B = ceil(K/8)` **türetilir, taşınmaz.**
+
+**Kanal yük boyutları taşınmaz.** Sürüm 3'e kadar her kanal için 4 baytlık bir
+sıkıştırılmış uzunluk yazılıyordu. Bu gereksizdir: kanal başına eleman sayısı
+formülle hesaplanır (§3.3) ve çekirdek çözücü kaç bayt tükettiğini bilir (§2.8).
+Uyumlu bir çözücü kanalları **ardışık** okur. Rastgele erişim kaybolur; MTU'ya
+sığan bir çerçevede bunun karşılığı yoktur.
+
+#### Eski başlık (sürüm ≤ 3, referans)
 
 `K` = kanal sayısı (1..255), `B = ceil(K/8)` = bayrak bayt sayısı.
 
@@ -261,26 +288,78 @@ akışıdır ve yükün başında yine mutlak ilk değer bulunur.
 > Bu mekanizma **kayıpsızlığı her koşulda** garanti eder: "reddedildi" durumunda veri
 > düşmez.
 
-### 3.6 Kaydedilen yük boyutu
+### 3.6 Kanal sınırlarının bulunması *(sürüm 4)*
 
-Başlıktaki yük boyutu alanı, **ön ek dahil** toplam bayt sayısıdır:
+Sürüm 3'e kadar başlıkta kanal başına bir **yük boyutu** alanı vardı. Sürüm 4'te bu
+alan yoktur; kanal sınırları **hesaplanır**:
 
-```
-kayıtlı_boyut = (ikinci_derece ? 4 : 0) + (sıkıştırılmış veya ham yük boyutu)
-```
+| Kanal türü | Tükettiği bayt |
+| --- | --- |
+| Ham geçiş | `(m − 1) × 4` — kanal uzunluğundan bilinir (§3.3) |
+| Sıkıştırılmış | çekirdek çözücünün **bildirdiği** tüketim (§2.8) |
+
+Uyumlu bir çözücü kanalları **ardışık** okur ve her kanaldan sonra konumu bu
+miktar kadar ilerletir. Tüm kanallar bittiğinde girdinin **tamamı** tüketilmiş
+olmalıdır; aksi hâlde akış bu kodlayıcıdan çıkmamıştır (§2.8'deki yapısal tüketim
+kontrolünün kanal katmanı karşılığı).
 
 ---
+
+### 3.7 Referans bloğu *(sürüm 4)*
+
+Her kanalın akışı bir **mutlak referansla** başlar. Bunlar kanal başına 4 bayt tutar
+ve küçük bir çerçevede toplam boyutun neredeyse yarısını yiyordu — 8 kanallı 25
+kayıtlık bir RCIN çerçevesinde 68 baytın 32'si.
+
+Oysa bu K değer **akışın ilk kaydıdır** ve kanalların ilk değerleri genellikle
+birbirine yakındır (8 RC kanalının hepsi ~1500). Bu yüzden hepsi tek blokta
+birlikte kodlanır:
+
+| Bayrak | İçerik |
+| --- | --- |
+| `0` | ham `K × 4` bayt (little-endian int32) |
+| `1` | çekirdek katmanıyla kodlanmış K değer — **kendini sınırlar**, uzunluk taşınmaz |
+
+Kodlayıcı bloğu yalnızca `K ≥ 3` iken sıkıştırmayı dener ve **ancak ham hâlden
+küçükse** kullanır; aksi hâlde bayrak `0` olur. Bayrak baytı, korelasyonun olmadığı
+durumda ödenen bedeldir (çerçeve başına 1 bayt).
+
+Her kanalın kendi akışı bu referansı **dışarıdan** alır:
+
+- **Birinci derece:** akış yalnızca `[1..m-1]` farklarını taşır; `values[0]` bloktan gelir.
+- **İkinci derece:** mutlak ilk değer bloktan gelir; fark akışı kendi referansını
+  (`d1`) taşımaya devam eder.
+- **Ham geçiş:** birinci derecede `values[1..m-1]`, ikinci derecede fark dizisinin
+  tamamı yazılır.
 
 ## 4. Katman 3 — Çerçeve
 
 Akışı bağımsız çözülebilir, sıra numaralı, CRC korumalı parçalara böler.
 
-### 4.1 Başlık (16 bayt)
+### 4.1 Başlık (10 bayt, sürüm 4)
+
+```
+[0]        sihirli sayı 0xEB
+[1]        sürüm (4)
+[2..5]     CRC32
+[6..7]     sıra no      (uint16, little-endian — SARAR)
+[8..9]     kayıt sayısı (uint16, little-endian)
+```
+
+- **Tek sihirli sayı.** Asıl doğrulamayı CRC yapar; sihirli sayı yalnızca ucuz bir
+  ön elemedir.
+- **Ayrılmış bayt kaldırıldı.**
+- **Sıra no 16 bittir ve sarar.** Kayıp ve sıralama tespiti için yeterlidir; RTP de
+  16 bit kullanır. Karşılaştırma yapan taraf sarmayı hesaba katmalıdır.
+- **Kayıt sayısı 16 bittir.** Sınır aşılırsa kodlayıcı sessizce kırpmaz,
+  `ELBARI_HATA_PARAMETRE` döner.
+
+#### Eski başlık (sürüm ≤ 3, referans)
 
 | Bayt aralığı | İçerik |
 | --- | --- |
 | `[0..1]` | sihirli sayı: `0xEB 0x71` |
-| `[2]` | sürüm: `2` |
+| `[2]` | sürüm: `2` ya da `3` |
 | `[3]` | ayrılmış: `0` olmalıdır |
 | `[4..7]` | CRC32 (uint32, little-endian) |
 | `[8..11]` | çerçeve sıra numarası (uint32, little-endian) |
@@ -289,27 +368,26 @@ Akışı bağımsız çözülebilir, sıra numaralı, CRC korumalı parçalara b
 
 ### 4.2 CRC kapsamı
 
-CRC32, **`[8]` konumundan çerçeve sonuna kadar** olan aralık üzerinden hesaplanır —
-yani sıra numarası, kayıt sayısı ve yük dahildir; sihirli sayı, sürüm, ayrılmış bayt
-ve CRC alanının kendisi hariçtir.
+CRC32, **`[6]` konumundan çerçeve sonuna kadar** olan aralık üzerinden hesaplanır —
+yani sıra numarası, kayıt sayısı ve yük dahildir; sihirli sayı, sürüm ve CRC alanının
+kendisi hariçtir.
 
 **Algoritma:** CRC-32 (IEEE 802.3), polinom `0xEDB88320` (ters çevrilmiş),
 başlangıç `0xFFFFFFFF`, sonuç `0xFFFFFFFF` ile XOR'lanır.
 
-> `[3]` ayrılmış baytı CRC kapsamı dışında olduğundan, çözücü bu baytın `0` olduğunu
-> **ayrıca doğrulamalıdır**; aksi hâlde o bayta düşen bir bit bozulması fark edilmez.
+> Sihirli sayı ve sürüm CRC kapsamı dışındadır; çözücü onları **birebir
+> karşılaştırmayla** doğrular (§4.3).
 
 ### 4.3 Doğrulama sırası
 
 Çözücü bir çerçeveyi kabul etmeden önce sırasıyla kontrol etmelidir:
 
-1. Uzunluk ≥ 16
-2. Sihirli sayı `0xEB 0x71`
-3. Sürüm `3` (sürüm `2` çerçeveleri **reddedilir**; sürüm 3 çözücüsü sürüm 2
-   *çekirdek akışlarını* çözer ama çerçeve başlığı sürümü tam eşleşmelidir)
-4. Ayrılmış bayt `0`
-5. CRC32 eşleşmesi
-6. Kayıt sayısı makul aralıkta (çarpım taşması dahil)
+1. Uzunluk ≥ 10
+2. Sihirli sayı `0xEB`
+3. Sürüm `4` (eski sürüm çerçeveleri **reddedilir** — sessizce yanlış çözmektense
+   reddetmek yeğlenir)
+4. CRC32 eşleşmesi
+5. Kayıt sayısı makul aralıkta (çarpım taşması dahil)
 
 Herhangi biri başarısızsa çerçeve **atılmalı**, kayıp olarak sayılmalıdır.
 

@@ -241,10 +241,10 @@ uçuş logundan üretilen altı fikstürle tekrarlandı:
 | GPS (OSM referans) | 3 | **5.05x** | Sprintz 4.67x | **+%8,1** |
 | GPS (ALFA uçuş) | 3 | **5.60x** | Simple8b 5.43x | **+%3,1** |
 | Titreşim | 3 | 5.38x | Simple8b 5.51x | −%2,4 |
-| Yönelim | 3 | **15.57x** | Sprintz 15.55x | **+%0,1** |
+| Yönelim | 3 | **15.58x** | Sprintz 15.55x | **+%0,1** |
 | IMU | 6 | 6.88x | Simple8b 7.43x | −%7,4 |
-| Servo (RCOU) | 8 | **37.50x** | Sprintz 34.18x | **+%9,7** |
-| Kumanda (RCIN) | 8 | **92.26x** | Sprintz 74.39x | **+%24,0** |
+| Servo (RCOU) | 8 | **37.54x** | Sprintz 34.18x | **+%9,7** |
+| Kumanda (RCIN) | 8 | **92.44x** | Sprintz 74.39x | **+%24,0** |
 
 **Yedi veri setinin beşinde lider; IMU ve titreşimde %2–7 geride.**
 
@@ -252,7 +252,7 @@ Tekrarlı PWM kanallarındaki eski açık (RCIN 40.09x, Sprintz 74.39x) bir ayar
 değildi: sürüm 2'de ElBâri her 8 değere 4 bitlik etiket yazıyordu, sıfır blokta bile —
 yani değer başına 0,5 bitlik taban ve **64x'lik sert bir tavan**. **Biçim sürümü 3**
 ardışık sıfır bloklarını tek bir kaçışla kodlayarak bu tavanı kaldırdı; RCIN 40.09x →
-**92.26x** oldu ve encode hızı da 2.197 → 4.037 MB/sn'ye çıktı. Ayrıntı:
+**92.44x** oldu ve encode hızı da 2.197 → 4.037 MB/sn'ye çıktı. Ayrıntı:
 [belgeler/KIYAS_TAMSAYI_KODEKLER.md §3](belgeler/KIYAS_TAMSAYI_KODEKLER.md) ve
 [biçim spesifikasyonu §2.2b](belgeler/BICIM_SPESIFIKASYONU.md).
 
@@ -265,13 +265,17 @@ gerçek ailedeki karşılığı budur. Ama yukarıdaki tabloda görüldüğü gi
 veri setinde aynı değil** — yönelimde kıl payı, tekrarlı kanallarda belirgin, IMU ve
 titreşimde ise negatif. Beklenen sonuç: ElBâri zaten aynı fikirleri kullanıyor.
 
-**2. Çerçeveleme bedelini herkes ödediğinde sıralama çerçeve boyutuna bağlı.**
+**2. Çerçeveleme bedelini herkes ödediğinde ElBâri öne geçiyor.**
 Rakiplerde çerçeveleme yok, dolayısıyla adil kıyas için aynı yükü onlara da vermek
-gerekir. Verildiğinde **100 kayıt/çerçevede ElBâri lider** (GPS 4.33x vs Sprintz 3.86x,
-yönelim 10.75x vs 8.65x), ama **25 kayıt/çerçevede Sprintz öne geçiyor** (3.32x vs
-2.82x). Kırılma noktası 50–100 arası. Sebep ElBâri'nin çerçeve başına sabit maliyeti:
-8 kanalda ~84 bayt. Bu, kayıp süpürmesiyle birlikte okunmalı — yüksek kayıpta optimum
-çerçeve ~1 pakete iner, yani **en çok ihtiyaç duyulan rejim en zayıf olduğumuz rejim.**
+gerekir. **100 kayıt/çerçevede beşte beş lideriz** — üstelik çerçevesiz kıyasta
+kaybettiğimiz IMU (6.35x vs 6.07x) ve titreşimde (4.92x vs 4.61x) bile. Çerçeveleme
+herkesi vurur ama ElBâri'yi en az vurur.
+
+25 kayıt/çerçevede hâlâ %2–4 geridyiz, ama bu **biçim sürümü 4** ile büyük ölçüde
+kapandı: çerçeve başına sabit maliyet 84 → ~20 bayta indi (kanal uzunluk tablosu
+kaldırıldı, başlık 16 → 10 bayt, mutlak referanslar tek blokta). RCIN 7.44x → **14.44x**,
+yönelim 4.69x → **6.98x**. Ayrıntı:
+[belgeler/KIYAS_TAMSAYI_KODEKLER.md](belgeler/KIYAS_TAMSAYI_KODEKLER.md).
 
 **3. Kanal ayrımı argümanı saman adam değilmiş.**
 Kanal ayrımı olmadan ailenin **tamamı** çöküyor: BP128 1.00x, Sprintz 0.97x,

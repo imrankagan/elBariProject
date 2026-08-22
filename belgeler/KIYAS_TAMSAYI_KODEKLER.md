@@ -94,10 +94,10 @@ taşır. Ölçüm ALFA uçuş logundan üretilen altı fikstürle tekrarlandı
 | GPS (OSM referans) | 3 | 295.704 | **5,05x** | 1.176 | Sprintz 4,67x | **+%8,1** | E+D |
 | GPS (ALFA uçuş) | 3 | 164.064 | **5,60x** | 1.003 | Simple8b 5,43x | **+%3,1** | E+D |
 | Titreşim (VIBE) | 3 | 820.056 | 5,38x | 958 | Simple8b 5,51x | −%2,4 | E |
-| Yönelim (ATT) | 3 | 820.188 | **15,57x** | 1.622 | Sprintz 15,55x | **+%0,1** | E+D |
+| Yönelim (ATT) | 3 | 820.188 | **15,58x** | 1.622 | Sprintz 15,55x | **+%0,1** | E+D |
 | IMU (jiro+ivme) | 6 | 3.280.752 | 6,88x | 1.019 | Simple8b 7,43x | −%7,4 | E |
-| Servo (RCOU) | 8 | 2.186.848 | **37,50x** | 2.897 | Sprintz 34,18x | **+%9,7** | E+D |
-| Kumanda (RCIN) | 8 | 2.186.848 | **92,26x** | 4.037 | Sprintz 74,39x | **+%24,0** | E+D |
+| Servo (RCOU) | 8 | 2.186.848 | **37,54x** | 2.897 | Sprintz 34,18x | **+%9,7** | E+D |
+| Kumanda (RCIN) | 8 | 2.186.848 | **92,44x** | 4.037 | Sprintz 74,39x | **+%24,0** | E+D |
 
 > Bu tablo **biçim sürümü 3** iledir. Sürüm 2'de son üç satır sırasıyla 14,70x /
 > 25,64x / 40,09x idi ve ElBâri yalnızca iki veri setinde liderdi. Aradaki fark
@@ -142,9 +142,9 @@ uzun koşular hâlinde.
 
 | | Sürüm 2 | **Sürüm 3** | Sprintz |
 | --- | ---: | ---: | ---: |
-| RCIN | 40,09x | **92,26x** | 74,39x |
-| RCOU | 25,64x | **37,50x** | 34,18x |
-| ATT | 14,70x | **15,57x** | 15,55x |
+| RCIN | 40,09x | **92,44x** | 74,39x |
+| RCOU | 25,64x | **37,54x** | 34,18x |
+| ATT | 14,70x | **15,58x** | 15,55x |
 | GPS / IMU / VIBE | — | **değişmedi** | — |
 
 Encode hızı da arttı (RCIN 2.197 → 4.037 MB/sn): koşu kaçışı blok başına iş atlıyor.
@@ -190,42 +190,57 @@ sıfır blok kısayolunun birlikte getirdiği kazançtır.
 > akış bağımsız çözülebilir parçalara bölünür ve her parçaya aynı 16 baytlık çerçeve
 > başlığı eklenir.
 
-**100 kayıt/çerçeve** — ElBâri açık ara lider:
+**100 kayıt/çerçeve** — ElBâri **beşte beş** lider:
 
 | Veri | **ElBâri** | Sprintz | Simple8b |
 | --- | ---: | ---: | ---: |
-| GPS (OSM) | **4,33x** | 3,86x | 3,76x |
-| Yönelim | **10,75x** | 8,65x | 7,95x |
-| Kumanda (RCIN) | **21,65x** | 17,10x | 11,87x |
-| Titreşim | 4,50x | 4,37x | **4,51x** |
-| IMU | 5,76x | 5,50x | **5,98x** |
+| Kumanda (RCIN) | **33,44x** | 17,67x | 12,14x |
+| Yönelim | **13,24x** | 9,04x | 8,28x |
+| IMU | **6,35x** | 5,58x | 6,07x |
+| Titreşim | **4,92x** | 4,47x | 4,61x |
+| GPS (OSM) | **4,63x** | 3,94x | 3,83x |
 
-**25 kayıt/çerçeve** — tablo tersine dönüyor, Sprintz her yerde önde:
+Dikkat: IMU ve titreşim, **çerçevesiz kıyasta kaybettiğimiz** iki veri setidir.
+Çerçeveleme herkesi vurur ama ElBâri'yi en az vurur; sıralama tersine döner.
 
-| Veri | ElBâri | **Sprintz** | Fark |
+**25 kayıt/çerçeve** — burada hâlâ Sprintz'in gerisindeyiz, ama fark küçüldü:
+
+| Veri | ElBâri | Sprintz | Fark |
 | --- | ---: | ---: | ---: |
-| GPS (OSM) | 2,82x | **3,32x** | −%15 |
-| Yönelim | 4,69x | **6,32x** | −%26 |
-| Kumanda (RCIN) | 7,44x | **13,31x** | −%44 |
-| IMU | 3,84x | **4,95x** | −%22 |
+| Servo (RCOU) | **12,56x** | 12,10x | **+%3,8** |
+| Kumanda (RCIN) | 14,44x | **14,78x** | −%2,3 |
+| Yönelim | 6,98x | **7,24x** | −%3,6 |
+| GPS (OSM) | 3,40x | **3,55x** | −%4,2 |
+| IMU | 5,11x | **5,21x** | −%1,9 |
 
-Kırılma noktası **50–100 kayıt** arasındadır ve veri setine göre kayar.
+### Buraya nasıl gelindi: çerçeve başına sabit maliyet
 
-**Sebep: çerçeve başına sabit maliyet.** ElBâri her çerçevede 16 baytlık çerçeve
-başlığı + `2 + 2 + kanal×4` baytlık kanal başlığı + kanal başına 32 bitlik mutlak
-referans yazar. 8 kanalda bu **~84 bayt**tır. 25 kayıtlık bir çerçevede bu sabit
-maliyet amorti edilemez; 100 kayıtta edilir.
+İlk ölçümde 25 kayıt/çerçevede açık **−%15 ile −%44** arasındaydı. Sebep ölçüldü:
+8 kanallı 25 kayıtlık bir çerçevenin 68 baytının **84 baytı sabit yüktü** —
+16 bayt çerçeve başlığı, `2 + 2 + kanal×4` bayt kanal başlığı ve kanal başına
+32 bitlik mutlak referans.
 
-Bunun üç sonucu var:
-- **İddia yine de yeniden konumlanmalı**, ama farklı bir yerde. ElBâri'nin savunulabilir
-  üstünlüğü "her koşulda en yüksek oran" değil, **"kayıplı linkte çalışabilen tek aile
-  üyesi, ve 100+ kayıtlık çerçevelerde aynı zamanda en yüksek oran"**.
-- **Küçük çerçeve rejimi açık bir zayıflık.** Ve kötü haber şu: kayıp süpürmesi
-  ([KAYIP_DAYANIKLILIK.md](KAYIP_DAYANIKLILIK.md)) yüksek kayıpta optimumun **~1 pakete**
-  indiğini gösteriyor — yani en çok ihtiyaç duyulan rejim, en zayıf olduğumuz rejim.
-- **Somut optimizasyon hedefi:** kanal başlığındaki uzunluk alanları çerçeve başına
-  4 bayt sabit. Küçük çerçevede bu uzunluklar 256'nın altındadır; varint ya da 2 baytlık
-  alan 8 kanalda çerçeve başına ~16–24 bayt kazandırır.
+**Biçim sürümü 4** üç adımda bunu ~20 bayta indirdi
+([spesifikasyon §3.2, §3.6, §3.7, §4.1](BICIM_SPESIFIKASYONU.md)):
+
+| Adım | Ne | Kazanç (8 kanal) | GPS 25k | RCIN 25k |
+| --- | --- | ---: | ---: | ---: |
+| — | başlangıç | — | 2,82x | 7,44x |
+| 1 | kanal uzunluk tablosu kaldırıldı | 32 B | 3,18x | 10,60x |
+| 2 | başlık alanları daraltıldı | 7 B | 3,43x | 11,68x |
+| 3 | mutlak referanslar tek blokta | ~21 B | 3,40x | **14,44x** |
+
+Üç adımın toplamı: **RCIN +%94, yönelim +%49, GPS +%21.**
+
+GPS'te 3. adım hafif geriletti ve sebebi dürüstçe şudur: enlem/boylam/zaman
+referansları birbirine **korele değil**, blok kazanmıyor ve +1 baytlık bayrak
+ödeniyor. Korelasyonun olduğu her yerde kazanç kat kat büyük; adaptifliğin bedeli
+bu bir bayttır.
+
+**Kalan açık ve nedeni.** 25 kayıt/çerçevede hâlâ %2–4 geridyiz. Kalan sabit maliyet
+~20 bayttır ve bunun büyük kısmı CRC32'dir (4 bayt). Sprintz'in bu ölçümde ödediği
+başlık da aynı 10 bayttır, ama onun kanal içi yükü daha yalındır. Buradan sonrası
+artık başlık değil, **kodlama verimliliği** meselesidir (bkz. §8).
 
 **3. Kanal ayrımı argümanı saman adam değilmiş.**
 
@@ -345,7 +360,9 @@ oran **2.82x** — README'nin öne çıkardığı 5.05x'in **%56'sı**.
    dördüncüsü — **patlamalı paket kaybı altında kurtarma oranı** — eksik. Gilbert-Elliott
    kanal modeliyle eklendiğinde çerçeve boyutu için gerçek bir optimum tanımlanabilir.
    Tezin merkezî katkı adayı budur.
-3. ~~Blok-üstü sıfır koşusu~~ — **yapıldı** (biçim sürümü 3, §3). RCIN 40,09x → 92,26x.
+3. ~~Blok-üstü sıfır koşusu~~ — **yapıldı** (biçim sürümü 3, §3). RCIN 40,09x → 92,44x.
+3b. ~~Çerçeve başına sabit maliyet~~ — **yapıldı** (biçim sürümü 4). 84 → ~20 bayt;
+   25 kayıt/çerçevede RCIN +%94.
 4. **IMU ve titreşim neden geride?** Kalan iki açık burada. Her ikisi de gürültülü çok
    kanallı veri; Simple8b'nin 64 bitlik kelime paketlemesi bu profilde ElBâri'nin
    8'erli blok yapısından iyi çalışıyor. Blok boyutunun kanal başına uyarlanması
